@@ -1,0 +1,5 @@
+recursive-include dependencies/pybind11 *.*
+recursive-include dependencies/eigen-master *.*
+recursive-include cpp *.h *.cpp
+include LICENSE.txt
+include README.md

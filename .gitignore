@@ -1,0 +1,10 @@
+cpp/build/
+cpp/data/
+cpp/.vscode
+.vscode/
+aplr/data
+pythonbinding/build/
+pythonpackage/APLR/__pycache__/
+pythonbinding/APLR/__pycache__/
+pythonbinding/dist/
+pythonbinding/aplr.egg-info/
