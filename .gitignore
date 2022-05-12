@@ -5,3 +5,5 @@ cpp/.vscode
 aplr/data
 build/
 __pycache__/
+dist/
+aplr.egg-info/
