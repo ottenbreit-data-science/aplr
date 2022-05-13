@@ -8,7 +8,7 @@ Build interpretable parametric machine learning models in Python based on the Au
 pip install aplr
 
 # How to use
-Please see the two example Python scripts in the example folder. They cover common use cases, but not all of the functionality in this package. For example, fitting with user-specified observation weights is possible but the example scripts do not use this functionality.
+Please see the two example Python scripts in the examples folder. They cover common use cases, but not all of the functionality in this package. For example, fitting with user-specified observation weights is possible but the example scripts do not use this functionality.
 
 # Sponsorship
 Please sponsor Ottenbreit Data Science by clicking on the Sponsor button. Sufficient funding will enable maintenance of APLR and further development, such as developing a classifier based on APLR.
