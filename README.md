@@ -1,11 +1,17 @@
-# aplr
-Automatic Piecewise Linear Regression
+# APLR
+Automatic Piecewise Linear Regression.
 
-# about
+# About
 Build interpretable parametric machine learning models in Python based on the Automatic Piecewise Linear Regression methodology developed by Mathias von Ottenbreit.
 
-# how to install
+# How to install
 pip install aplr
 
-# how to use
-See the two example Python scripts.
+# How to use
+Please see the two example Python scripts in the example folder. They cover common use cases, but not all of the functionality in this package. For example, fitting with user-specified observation weights is possible but the example scripts do not use this functionality.
+
+# Sponsorship
+Please sponsor Ottenbreit Data Science by clicking on the Sponsor button. Sufficient funding will enable maintenance of APLR and further development, such as developing a classifier based on APLR.
+
+# API reference
+A thorough API reference will be provided after Ottenbreit Data Science receives a total of 1000$ in sponsorship funds. The reason is that it will take some time to write it and the work will not start until sufficient funding is available.
