@@ -14,4 +14,4 @@ Please see the two example Python scripts in the examples folder. They cover com
 Please sponsor Ottenbreit Data Science by clicking on the Sponsor button. Sufficient funding will enable maintenance of APLR and further development, such as developing a classifier based on APLR.
 
 # API reference
-A thorough API reference will be provided given that Ottenbreit Data Science surpasses a total of 1000$ in received sponsorship funds. The reason is that it will take some time to write it and the work will not start until sufficient funding is available.
+A thorough API reference will be provided given that Ottenbreit Data Science surpasses a total of 1000$ received sponsorship funds. The reason is that it will take some time to write it and the work will not start until sufficient funding is available.
