@@ -20,7 +20,7 @@ setuptools.setup(
     ext_modules=[sfc_module],
     author="Mathias von Ottenbreit",
     author_email="ottenbreitdatascience@gmail.com",
-    long_description="Build interpretable parametric machine learning models in Python based on the Automatic Piecewise Linear Regression methodology developed by Mathias von Ottenbreit.",
+    long_description="Build predictive and interpretable parametric machine learning models in Python based on the Automatic Piecewise Linear Regression methodology developed by Mathias von Ottenbreit.",
     long_description_content_type="text/markdown",
     packages=['aplr'],
     install_requires=["numpy"],       
