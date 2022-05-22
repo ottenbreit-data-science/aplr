@@ -54,6 +54,7 @@ private:
     void calculate_coefficient_and_error_on_discretized_data(bool direction_right, double split_point);
     void estimate_coefficient_and_error_on_all_data();
     void clean_up_after_estimate_split_point();
+    void clean_up_after_fit();
 
 public:
     //fields
@@ -591,6 +592,16 @@ void Term::clean_up_after_estimate_split_point()
     sorted_vectors.sample_weight_sorted.resize(0);
     y_discretized.resize(0);
     errors_initial.resize(0);
+}
+
+void Term::clean_up_after_fit()
+{
+    bins_start_index.clear();
+    bins_end_index.clear();
+    bins_split_points_left.clear();
+    bins_split_points_right.clear();
+    values_discretized.resize(0);
+    sample_weight_discretized.resize(0);
 }
 
 VectorXd Term::calculate_prediction_contribution(const MatrixXd &X)
