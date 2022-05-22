@@ -55,6 +55,7 @@ private:
     void estimate_coefficient_and_error_on_all_data();
     void clean_up_after_estimate_split_point();
     void clean_up_after_fit();
+    void clean_up_when_this_term_was_added_as_a_given_predictor();
 
 public:
     //fields
@@ -602,6 +603,12 @@ void Term::clean_up_after_fit()
     bins_split_points_right.clear();
     values_discretized.resize(0);
     sample_weight_discretized.resize(0);
+}
+
+void Term::clean_up_when_this_term_was_added_as_a_given_predictor()
+{
+    clean_up_after_fit();
+    coefficient_steps.resize(0);
 }
 
 VectorXd Term::calculate_prediction_contribution(const MatrixXd &X)

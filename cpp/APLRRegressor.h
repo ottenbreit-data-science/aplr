@@ -422,7 +422,7 @@ void APLRRegressor::determine_interactions_to_consider()
                 if(!(terms[sorted_latest_split_point_errors_indices[i]]==interaction))
                 {
                     interaction.given_terms.push_back(terms[sorted_latest_split_point_errors_indices[i]]);
-                    interaction.given_terms[interaction.given_terms.size()-1].coefficient_steps.resize(0); //freeing memory
+                    interaction.given_terms[interaction.given_terms.size()-1].clean_up_when_this_term_was_added_as_a_given_predictor();
                     bool already_exists{false};
                     for (size_t k = 0; k < terms_eligible_current.size(); ++k)
                     {
