@@ -53,9 +53,9 @@ private:
     void estimate_split_point_on_discretized_data();
     void calculate_coefficient_and_error_on_discretized_data(bool direction_right, double split_point);
     void estimate_coefficient_and_error_on_all_data();
-    void clean_up_after_estimate_split_point();
-    void clean_up_after_fit();
-    void clean_up_when_this_term_was_added_as_a_given_predictor();
+    void cleanup_after_estimate_split_point();
+    void cleanup_after_fit();
+    void cleanup_when_this_term_was_added_as_a_given_predictor();
 
 public:
     //fields
@@ -173,7 +173,7 @@ void Term::estimate_split_point(const MatrixXd &X,const VectorXd &y,const Vector
     discretize_data_by_bin();
     estimate_split_point_on_discretized_data();
     estimate_coefficient_and_error_on_all_data();
-    clean_up_after_estimate_split_point();
+    cleanup_after_estimate_split_point();
 }
 
 //Calculate indices that get zeroed out during calculate() because of given terms. Also calculates indices of those observations that do not.
@@ -584,7 +584,7 @@ void Term::estimate_coefficient_and_error_on_all_data()
     }
 }
 
-void Term::clean_up_after_estimate_split_point()
+void Term::cleanup_after_estimate_split_point()
 {
     given_terms_indices.not_zeroed.resize(0);
     given_terms_indices.zeroed.resize(0);
@@ -595,7 +595,7 @@ void Term::clean_up_after_estimate_split_point()
     errors_initial.resize(0);
 }
 
-void Term::clean_up_after_fit()
+void Term::cleanup_after_fit()
 {
     bins_start_index.clear();
     bins_end_index.clear();
@@ -605,9 +605,9 @@ void Term::clean_up_after_fit()
     sample_weight_discretized.resize(0);
 }
 
-void Term::clean_up_when_this_term_was_added_as_a_given_predictor()
+void Term::cleanup_when_this_term_was_added_as_a_given_predictor()
 {
-    clean_up_after_fit();
+    cleanup_after_fit();
     coefficient_steps.resize(0);
 }
 
