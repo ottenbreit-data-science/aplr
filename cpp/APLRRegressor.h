@@ -422,6 +422,7 @@ void APLRRegressor::determine_interactions_to_consider()
                 if(!(terms[sorted_latest_split_point_errors_indices[i]]==interaction))
                 {
                     interaction.given_terms.push_back(terms[sorted_latest_split_point_errors_indices[i]]);
+                    interaction.given_terms[interaction.given_terms.size()-1].cleanup_when_this_term_was_added_as_a_given_predictor();
                     bool already_exists{false};
                     for (size_t k = 0; k < terms_eligible_current.size(); ++k)
                     {
@@ -836,6 +837,10 @@ void APLRRegressor::cleanup_after_fit()
     distributed_terms.clear();
     interactions_to_consider.clear();
     error_index_for_interactions_to_consider.resize(0);
+    for (size_t i = 0; i < terms.size(); ++i)
+    {
+        terms[i].cleanup_after_fit();
+    }
 }
 
 VectorXd APLRRegressor::predict(const MatrixXd &X)
