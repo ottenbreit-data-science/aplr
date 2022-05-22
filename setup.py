@@ -23,7 +23,7 @@ setuptools.setup(
     long_description="Build predictive and interpretable parametric machine learning models in Python based on the Automatic Piecewise Linear Regression methodology developed by Mathias von Ottenbreit.",
     long_description_content_type="text/markdown",
     packages=['aplr'],
-    install_requires=["numpy"],       
+    install_requires=["numpy>=1.2.0"],       
     python_requires='>=3.8',
     classifiers=["License :: OSI Approved :: MIT License"],
     license="MIT",
