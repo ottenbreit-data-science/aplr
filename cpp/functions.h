@@ -184,3 +184,26 @@ size_t calculate_max_index_in_vector(T &vector)
 {
     return vector.size()-static_cast<size_t>(1);
 }
+
+template <typename T> //type must be an Eigen Matrix or Vector
+bool check_if_matrix_has_nan_or_infinite_elements(const T &x)
+{
+    bool matrix_has_nan_or_infinite_elements{!x.allFinite()};
+    if(matrix_has_nan_or_infinite_elements)
+        return true;
+    else
+        return false;
+}
+
+template <typename T> //type must be an Eigen Matrix or Vector
+void throw_error_if_matrix_has_nan_or_infinite_elements(const T &x, const std::string &matrix_name)
+{
+    bool matrix_is_empty{x.size()==0};
+    if(matrix_is_empty) return;
+
+    bool matrix_has_nan_or_infinite_elements{check_if_matrix_has_nan_or_infinite_elements(x)};
+    if(matrix_has_nan_or_infinite_elements)
+    {
+        throw std::runtime_error(matrix_name + " has nan or infinite elements.");
+    }
+}

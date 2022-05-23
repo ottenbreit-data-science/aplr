@@ -51,6 +51,21 @@ int main()
     double error_mae_sw{calculate_error(errors_mae_sw,sample_weight)};
     std::cout<<"error_mae_sw: "<<error_mae_sw<<"\n\n";   
     tests.push_back((check_if_approximately_equal(error_mae_sw,0.5666,0.0001)?true:false));
+
+    //testing for nan and infinity
+    //matrix without nan or inf
+    bool matrix_has_nan_or_inf_elements{check_if_matrix_has_nan_or_infinite_elements(y)};    
+    tests.push_back(!matrix_has_nan_or_inf_elements?true:false);
+
+    VectorXd inf(5);
+    inf<<1.0, 0.2, std::numeric_limits<double>::infinity(), 0.0, 0.5;
+    matrix_has_nan_or_inf_elements = check_if_matrix_has_nan_or_infinite_elements(inf);
+    tests.push_back(matrix_has_nan_or_inf_elements?true:false);
+
+    VectorXd nan(5);
+    nan<<1.0, 0.2, NAN_DOUBLE, 0.0, 0.5;
+    matrix_has_nan_or_inf_elements = check_if_matrix_has_nan_or_infinite_elements(nan);
+    tests.push_back(matrix_has_nan_or_inf_elements?true:false);
  
     //Test summary
     std::cout<<"Test summary\n\n"<<"Passed "<<std::accumulate(tests.begin(),tests.end(),0)<<" out of "<<tests.size()<<" tests.";

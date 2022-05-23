@@ -46,7 +46,8 @@ private:
     bool abort_boosting;
 
     //Methods
-    void validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names);
+    void validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes);
+    void throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes);
     void define_training_and_validation_sets(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight, const std::vector<size_t> &validation_set_indexes);
     void initialize(const MatrixXd &X);
     void add_term_to_terms_eligible_current(Term &term);
@@ -161,7 +162,7 @@ APLRRegressor::~APLRRegressor()
 //invalidating validation_ratio. The rest of indices are used to train. 
 void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names,const std::vector<size_t> &validation_set_indexes)
 {
-    validate_input_to_fit(X,y,sample_weight,X_names);
+    validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes);
     define_training_and_validation_sets(X,y,sample_weight,validation_set_indexes);
     initialize(X);
     execute_boosting_steps();
@@ -173,12 +174,28 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
     cleanup_after_fit();
 }
 
-void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names)
+void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes)
 {
     if(X.rows()!=y.size()) throw std::runtime_error("X and y must have the same number of rows.");
     if(X.rows()==0) throw std::runtime_error("X and y cannot have zero rows.");
     if(sample_weight.size()>0 && sample_weight.size()!=y.size()) throw std::runtime_error("sample_weight must have 0 or as many rows as X and y.");
     if(X_names.size()>0 && X_names.size()!=static_cast<size_t>(X.cols())) throw std::runtime_error("X_names must have as many columns as X.");
+    throw_error_if_matrix_has_nan_or_infinite_elements(X, "X");
+    throw_error_if_matrix_has_nan_or_infinite_elements(y, "y");
+    throw_error_if_matrix_has_nan_or_infinite_elements(sample_weight, "sample_weight");
+    throw_error_if_validation_set_indexes_has_invalid_indexes(y, validation_set_indexes);
+}
+
+void APLRRegressor::throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes)
+{
+    bool validation_set_indexes_is_provided{validation_set_indexes.size()>0};
+    if(validation_set_indexes_is_provided)
+    {
+        size_t max_index{*std::max_element(validation_set_indexes.begin(), validation_set_indexes.end())};
+        bool validation_set_indexes_has_elements_out_of_bounds{max_index > static_cast<size_t>(y.size()-1)};
+        if(validation_set_indexes_has_elements_out_of_bounds)
+            throw std::runtime_error("validation_set_indexes has elements that are out of bounds.");
+    }
 }
 
 void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight, const std::vector<size_t> &validation_set_indexes)
@@ -815,6 +832,7 @@ void APLRRegressor::validate_that_model_can_be_used(const MatrixXd &X)
     if(X.rows()==0) throw std::runtime_error("X cannot have zero rows.");
     size_t cols_provided{static_cast<size_t>(X.cols())};
     if(cols_provided!=number_of_base_terms) throw std::runtime_error("X must have "+std::to_string(number_of_base_terms) +" columns but "+std::to_string(cols_provided)+" were provided.");
+    throw_error_if_matrix_has_nan_or_infinite_elements(X, "X");
 }
 
 void APLRRegressor::cleanup_after_fit()
