@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-10.15]
+        os: [macos-latest]
 
     steps:
       - uses: actions/checkout@v2
@@ -16,7 +16,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.5.0
         env:
-          MACOSX_DEPLOYMENT_TARGET: "10.15"
+          MACOSX_DEPLOYMENT_TARGET: "10.14"
 
       - uses: actions/upload-artifact@v2
         with:
