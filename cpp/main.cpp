@@ -18,7 +18,7 @@ int main()
     model.n_jobs=0;
     model.loss_function_mse=true;
     model.verbosity=3;
-    model.min_observations_in_split=30;
+    model.min_observations_in_split=10;
     //model.max_interaction_level=0;
     model.max_interaction_level=100;
     model.max_interactions=30;
@@ -46,10 +46,10 @@ int main()
     //Saving results
     save_data("output.csv",predictions);
     std::cout<<"min validation_error "<<model.validation_error_steps.minCoeff()<<"\n\n";
-    std::cout<<check_if_approximately_equal(model.validation_error_steps.minCoeff(),6.39607,0.00001)<<"\n";
+    std::cout<<check_if_approximately_equal(model.validation_error_steps.minCoeff(),6.01566,0.00001)<<"\n";
 
     std::cout<<"mean prediction "<<predictions.mean()<<"\n\n";
-    std::cout<<check_if_approximately_equal(predictions.mean(),23.7461,0.0001)<<"\n";
+    std::cout<<check_if_approximately_equal(predictions.mean(),23.8349,0.0001)<<"\n";
 
     std::cout<<"best_m: "<<model.m<<"\n";
 
