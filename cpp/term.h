@@ -367,14 +367,16 @@ void Term::setup_bins()
         bins_start_index.push_back(0);
         if(bins>1)
         {
-            for (size_t i = min_observations_in_split-1; i <= max_index+1-min_observations_in_split; ++i) //for each observation in an allowable range
+            size_t start_row{min_observations_in_split-1};
+            size_t end_row{max_index+1-min_observations_in_split};
+            for (size_t i = start_row; i <= end_row; ++i)
             {
                 size_t last_bin_start_index{bins_start_index[bins_start_index.size()-1]};
-                bool eligible_on_spacing_between_observations{i >= last_bin_start_index + observations_in_bin || values_sorted_unique.size()<=bins};
+                bool eligible_on_spacing_between_observations{i >= last_bin_start_index + observations_in_bin || values_sorted_unique.size()<=bins || i == start_row || i == end_row};
                 bool eligible_on_unique_numbers{i>0 && !check_if_approximately_equal(sorted_vectors.values_sorted[i],sorted_vectors.values_sorted[i-1])};
 
                 bool create_bin{eligible_on_spacing_between_observations && eligible_on_unique_numbers};
-                if(create_bin) 
+                if(create_bin)
                 {
                     bins_start_index.push_back(i);
                 }
