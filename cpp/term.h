@@ -367,7 +367,7 @@ void Term::setup_bins()
         bins_start_index.push_back(0);
         if(bins>1)
         {
-            size_t start_row{min_observations_in_split-1};
+            size_t start_row{min_observations_in_split};
             size_t end_row{max_index+1-min_observations_in_split};
             for (size_t i = start_row; i <= end_row; ++i)
             {
