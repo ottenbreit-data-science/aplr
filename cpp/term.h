@@ -361,30 +361,22 @@ void Term::setup_bins()
         auto ip{std::unique(values_sorted_unique.begin(),values_sorted_unique.end())};
         values_sorted_unique.resize(std::distance(values_sorted_unique.begin(),ip));
 
-        bins_start_index.reserve(bins+1);    
-        bins_end_index.reserve(bins+1);  
-        //Allocations
-        bool eligible_spacing{false};
-        bool eligible_unique_numbers{false};
+        bins_start_index.reserve(bins+1);
+        bins_end_index.reserve(bins+1);
         //Start_index
         bins_start_index.push_back(0);
         if(bins>1)
         {
-            for (size_t i = min_observations_in_split-1; i <= max_index; ++i) //for each observation in an allowable range
+            for (size_t i = min_observations_in_split-1; i <= max_index+1-min_observations_in_split; ++i) //for each observation in an allowable range
             {
-                //General eligibility
-                if(i>=min_observations_in_split-1 && (i%observations_in_bin==0 || values_sorted_unique.size()<=bins) && i<=max_index+1-min_observations_in_split) eligible_spacing=true;
+                size_t last_bin_start_index{bins_start_index[bins_start_index.size()-1]};
+                bool eligible_on_spacing_between_observations{i >= last_bin_start_index + observations_in_bin || values_sorted_unique.size()<=bins};
+                bool eligible_on_unique_numbers{i>0 && !check_if_approximately_equal(sorted_vectors.values_sorted[i],sorted_vectors.values_sorted[i-1])};
 
-                //Eligibility when considering unique numbers
-                if(i>0 && !check_if_approximately_equal(sorted_vectors.values_sorted[i],sorted_vectors.values_sorted[i-1])) eligible_unique_numbers=true;
-                else eligible_unique_numbers=false;
-
-                //Creating bin if possible and resetting eligibility for next iteration
-                if(eligible_spacing && eligible_unique_numbers) 
+                bool create_bin{eligible_on_spacing_between_observations && eligible_on_unique_numbers};
+                if(create_bin) 
                 {
                     bins_start_index.push_back(i);
-                    eligible_spacing=false;
-                    eligible_unique_numbers=false;
                 }
             }
         }
