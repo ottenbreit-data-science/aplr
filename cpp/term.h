@@ -532,16 +532,8 @@ void Term::calculate_coefficient_and_error_on_discretized_data(bool direction_ri
     double xwy{0};
     for (size_t i = index_start; i <= index_end; ++i)
     {
-        if(sample_weight_discretized.size()>0)
-        {
-            xwx+=values_sorted[i]*values_sorted[i]*sample_weight_discretized[i];
-            xwy+=values_sorted[i]*y_discretized[i]*sample_weight_discretized[i];
-        }
-        else
-        {
-            xwx+=values_sorted[i]*values_sorted[i];
-            xwy+=values_sorted[i]*y_discretized[i];
-        }
+        xwx+=values_sorted[i]*values_sorted[i]*sample_weight_discretized[i];
+        xwy+=values_sorted[i]*y_discretized[i]*sample_weight_discretized[i];
     }
     if(xwx!=0)
     {
