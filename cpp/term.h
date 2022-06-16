@@ -41,6 +41,7 @@ private:
     VectorXd y_discretized;
     VectorXd errors_initial;
     double error_initial;
+    std::vector<size_t> observations_in_bins;
 
     //methods
     void calculate_error_where_given_terms_are_zero(const VectorXd &y, const VectorXd &sample_weight);
@@ -411,6 +412,13 @@ void Term::setup_bins()
         }
         bins_split_points_left.shrink_to_fit();
         bins_split_points_right.shrink_to_fit();
+
+        //observations in bins
+        observations_in_bins.reserve(bins_start_index.size());
+        for (size_t i = 0; i < bins_start_index.size(); ++i)
+        {
+            observations_in_bins.push_back(bins_end_index[i]-bins_start_index[i]+1);
+        }
     }
 }
 
@@ -595,6 +603,7 @@ void Term::cleanup_after_fit()
     bins_end_index.clear();
     bins_split_points_left.clear();
     bins_split_points_right.clear();
+    observations_in_bins.clear();
     values_discretized.resize(0);
     sample_weight_discretized.resize(0);
 }
