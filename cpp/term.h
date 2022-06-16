@@ -432,12 +432,20 @@ void Term::discretize_data_by_bin()
             values_discretized[i]=sorted_vectors.values_sorted.block(bins_start_index[i],0,observations_in_bins[i],1).mean();
         }
         
-        if(sorted_vectors.sample_weight_sorted.size()>0)
+        sample_weight_discretized.resize(bins_start_index.size());
+        bool sample_weights_were_provided_by_user{sorted_vectors.sample_weight_sorted.size()>0};
+        if(sample_weights_were_provided_by_user)
         {
-            sample_weight_discretized.resize(bins_start_index.size());
             for (size_t i = 0; i < bins_start_index.size(); ++i)
             {
-                sample_weight_discretized[i]=sorted_vectors.sample_weight_sorted.block(bins_start_index[i],0,observations_in_bins[i],1).mean();
+                sample_weight_discretized[i]=sorted_vectors.sample_weight_sorted.block(bins_start_index[i],0,observations_in_bins[i],1).sum();
+            }
+        }
+        else
+        {
+            for (size_t i = 0; i < bins_start_index.size(); ++i)
+            {
+                sample_weight_discretized[i]=static_cast<double>(observations_in_bins[i]);
             }
         }
     }
