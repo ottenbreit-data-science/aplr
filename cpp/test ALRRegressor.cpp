@@ -16,7 +16,7 @@ int main()
     model.m=100;
     model.v=1.0;
     model.bins=10;
-    model.n_jobs=0;
+    model.n_jobs=1;
     model.loss_function_mse=true;
     model.verbosity=3;
     model.max_interaction_level=100;
