@@ -41,6 +41,7 @@ private:
     VectorXd y_discretized;
     VectorXd errors_initial;
     double error_initial;
+    std::vector<size_t> observations_in_bins;
 
     //methods
     void calculate_error_where_given_terms_are_zero(const VectorXd &y, const VectorXd &sample_weight);
@@ -411,6 +412,13 @@ void Term::setup_bins()
         }
         bins_split_points_left.shrink_to_fit();
         bins_split_points_right.shrink_to_fit();
+
+        //observations in bins
+        observations_in_bins.reserve(bins_start_index.size());
+        for (size_t i = 0; i < bins_start_index.size(); ++i)
+        {
+            observations_in_bins.push_back(bins_end_index[i]-bins_start_index[i]+1);
+        }
     }
 }
 
@@ -421,22 +429,30 @@ void Term::discretize_data_by_bin()
         values_discretized.resize(bins_start_index.size());
         for (size_t i = 0; i < bins_start_index.size(); ++i)
         {
-            values_discretized[i]=sorted_vectors.values_sorted.block(bins_start_index[i],0,bins_end_index[i]-bins_start_index[i]+1,1).mean();
+            values_discretized[i]=sorted_vectors.values_sorted.block(bins_start_index[i],0,observations_in_bins[i],1).mean();
         }
         
-        if(sorted_vectors.sample_weight_sorted.size()>0)
+        sample_weight_discretized.resize(bins_start_index.size());
+        bool sample_weights_were_provided_by_user{sorted_vectors.sample_weight_sorted.size()>0};
+        if(sample_weights_were_provided_by_user)
         {
-            sample_weight_discretized.resize(bins_start_index.size());
             for (size_t i = 0; i < bins_start_index.size(); ++i)
             {
-                sample_weight_discretized[i]=sorted_vectors.sample_weight_sorted.block(bins_start_index[i],0,bins_end_index[i]-bins_start_index[i]+1,1).mean();
+                sample_weight_discretized[i]=sorted_vectors.sample_weight_sorted.block(bins_start_index[i],0,observations_in_bins[i],1).sum();
+            }
+        }
+        else
+        {
+            for (size_t i = 0; i < bins_start_index.size(); ++i)
+            {
+                sample_weight_discretized[i]=static_cast<double>(observations_in_bins[i]);
             }
         }
     }
     y_discretized.resize(bins_start_index.size());
     for (size_t i = 0; i < bins_start_index.size(); ++i)
     {
-        y_discretized[i]=sorted_vectors.y_sorted.block(bins_start_index[i],0,bins_end_index[i]-bins_start_index[i]+1,1).mean();
+        y_discretized[i]=sorted_vectors.y_sorted.block(bins_start_index[i],0,observations_in_bins[i],1).mean();
     }
 
     max_index_discretized=calculate_max_index_in_vector(values_discretized);
@@ -516,16 +532,8 @@ void Term::calculate_coefficient_and_error_on_discretized_data(bool direction_ri
     double xwy{0};
     for (size_t i = index_start; i <= index_end; ++i)
     {
-        if(sample_weight_discretized.size()>0)
-        {
-            xwx+=values_sorted[i]*values_sorted[i]*sample_weight_discretized[i];
-            xwy+=values_sorted[i]*y_discretized[i]*sample_weight_discretized[i];
-        }
-        else
-        {
-            xwx+=values_sorted[i]*values_sorted[i];
-            xwy+=values_sorted[i]*y_discretized[i];
-        }
+        xwx+=values_sorted[i]*values_sorted[i]*sample_weight_discretized[i];
+        xwy+=values_sorted[i]*y_discretized[i]*sample_weight_discretized[i];
     }
     if(xwx!=0)
     {
@@ -595,6 +603,7 @@ void Term::cleanup_after_fit()
     bins_end_index.clear();
     bins_split_points_left.clear();
     bins_split_points_right.clear();
+    observations_in_bins.clear();
     values_discretized.resize(0);
     sample_weight_discretized.resize(0);
 }
