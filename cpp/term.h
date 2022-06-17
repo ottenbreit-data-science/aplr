@@ -350,40 +350,73 @@ void Term::setup_bins()
 {
     if(bins_start_index.size()==0) //if not previously calculated or wrongly sized
     {
-        //bins
-        size_t observations_in_bin{std::max((max_index+1)/bins,static_cast<size_t>(1))};
-
-        //Finding unique values in values_sorted - these will be used to skip i%observations_in_bin==0 criteria for general eligibility
-        std::vector<double> values_sorted_unique(sorted_vectors.values_sorted.size());
-        for (size_t i = 0; i <= max_index; ++i)
-        {
-            values_sorted_unique[i]=sorted_vectors.values_sorted[i];
-        }
-        auto ip{std::unique(values_sorted_unique.begin(),values_sorted_unique.end())};
-        values_sorted_unique.resize(std::distance(values_sorted_unique.begin(),ip));
-
         bins_start_index.reserve(bins+1);
         bins_end_index.reserve(bins+1);
-        //Start_index
         bins_start_index.push_back(0);
-        if(bins>1)
+
+        //Start indexes       
+        bool can_create_bins{bins>1};
+        if(can_create_bins)
         {
             size_t start_row{min_observations_in_split};
             size_t end_row{max_index+1-min_observations_in_split};
+
+            //find potential start indexes
+            std::vector<size_t> potential_start_indexes;
+            potential_start_indexes.reserve(sorted_vectors.values_sorted.size());
             for (size_t i = start_row; i <= end_row; ++i)
             {
-                size_t last_bin_start_index{bins_start_index[bins_start_index.size()-1]};
-                bool eligible_on_spacing_between_observations{i >= last_bin_start_index + observations_in_bin || values_sorted_unique.size()<=bins || i == start_row || i == end_row};
-                bool eligible_on_unique_numbers{i>0 && !check_if_approximately_equal(sorted_vectors.values_sorted[i],sorted_vectors.values_sorted[i-1])};
+                bool is_eligible_start_index{i>0 && !check_if_approximately_equal(sorted_vectors.values_sorted[i],sorted_vectors.values_sorted[i-1])};
+                if(is_eligible_start_index)
+                    potential_start_indexes.push_back(i);
+            }
+            size_t last_potential_start_index{potential_start_indexes.size()-1};
 
-                bool create_bin{eligible_on_spacing_between_observations && eligible_on_unique_numbers};
-                if(create_bin)
+            bool potential_start_indexes_exist{potential_start_indexes.size()>0};
+            bool fewer_start_indexes_than_bins{potential_start_indexes.size()<bins};
+            if(potential_start_indexes_exist)
+            {
+                if(fewer_start_indexes_than_bins)
                 {
-                    bins_start_index.push_back(i);
+                    bins_start_index.insert(bins_start_index.end(),std::make_move_iterator(potential_start_indexes.begin()),std::make_move_iterator(potential_start_indexes.end()));
+                }
+                else if(bins==2)
+                {
+                    bins_start_index.push_back(potential_start_indexes[0]);
+                }
+                else if(bins==3)
+                {
+                    bins_start_index.push_back(potential_start_indexes[0]);
+                    bins_start_index.push_back(potential_start_indexes[last_potential_start_index]);
+                }
+                else
+                {
+                    bins_start_index.push_back(potential_start_indexes[0]); //first bin
+
+                    size_t observations_between_outer_start_indexes{potential_start_indexes[last_potential_start_index]-potential_start_indexes[0]};
+                    size_t bins_to_create{bins-2};
+                    size_t desired_observations_in_bin{std::max((observations_between_outer_start_indexes)/bins_to_create+1, static_cast<size_t>(1))};
+                    size_t desired_observations_in_second_last_bin{desired_observations_in_bin*4/5};
+                    size_t index_of_start_index_for_previous_bin{0};
+                    size_t distance;
+                    size_t distance_to_end;
+                    for (size_t index_of_start_index = 1; index_of_start_index < last_potential_start_index-1; ++index_of_start_index)
+                    {
+                        distance = potential_start_indexes[index_of_start_index]-potential_start_indexes[index_of_start_index_for_previous_bin];
+                        distance_to_end = potential_start_indexes[last_potential_start_index]-potential_start_indexes[index_of_start_index];
+                        bool can_add_bin{distance>=desired_observations_in_bin && distance_to_end>=desired_observations_in_second_last_bin};
+                        if(can_add_bin)
+                        {
+                            bins_start_index.push_back(potential_start_indexes[index_of_start_index]);
+                            index_of_start_index_for_previous_bin = index_of_start_index;
+                        }
+                    }
+
+                    bins_start_index.push_back(potential_start_indexes[last_potential_start_index]); //last bin
                 }
             }
         }
-        //End index
+        //End indexes
         if(bins_start_index.size()>0)
         {
             for (size_t i = 1; i < bins_start_index.size(); ++i)
