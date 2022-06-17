@@ -396,7 +396,7 @@ void Term::setup_bins()
                     size_t observations_between_outer_start_indexes{potential_start_indexes[last_potential_start_index]-potential_start_indexes[0]};
                     size_t bins_to_create{bins-2};
                     size_t desired_observations_in_bin{std::max((observations_between_outer_start_indexes)/bins_to_create+1, static_cast<size_t>(1))};
-                    size_t desired_observations_in_second_last_bin{desired_observations_in_bin*3/4};
+                    size_t desired_observations_in_second_last_bin{desired_observations_in_bin*4/5};
                     size_t index_of_start_index_for_previous_bin{0};
                     size_t distance;
                     size_t distance_to_end;
