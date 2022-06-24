@@ -50,6 +50,7 @@ private:
     void throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes);
     void define_training_and_validation_sets(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight, const std::vector<size_t> &validation_set_indexes);
     void initialize(const MatrixXd &X);
+    bool check_if_base_term_has_only_one_unique_value(const MatrixXd &X, size_t base_term);
     void add_term_to_terms_eligible_current(Term &term);
     VectorXd calculate_neg_gradient_current(const VectorXd &y,const VectorXd &predictions_current);
     void execute_boosting_steps();
@@ -283,10 +284,14 @@ void APLRRegressor::initialize(const MatrixXd &X)
     null_predictions=VectorXd::Constant(y_train.size(),0);
 
     terms_eligible_current.reserve(X.cols()*reserved_terms_times_num_x);
-    for (size_t i = 0; i < static_cast<size_t>(X.cols()); ++i) //add each base term
+    for (size_t i = 0; i < static_cast<size_t>(X.cols()); ++i)
     {
-        Term copy_of_base_term{Term(i)};
-        add_term_to_terms_eligible_current(copy_of_base_term);
+        bool term_has_one_unique_value{check_if_base_term_has_only_one_unique_value(X, i)};
+        if(!term_has_one_unique_value)
+        {
+            Term copy_of_base_term{Term(i)};
+            add_term_to_terms_eligible_current(copy_of_base_term);
+        }
     }
 
     predictions_current=VectorXd::Constant(y_train.size(),0);
@@ -297,6 +302,25 @@ void APLRRegressor::initialize(const MatrixXd &X)
     neg_gradient_current=calculate_neg_gradient_current(y_train,predictions_current);
     neg_gradient_nullmodel_errors=calculate_errors(neg_gradient_current,null_predictions,sample_weight_train,loss_function_mse);
     neg_gradient_nullmodel_errors_sum=neg_gradient_nullmodel_errors.sum();        
+}
+
+bool APLRRegressor::check_if_base_term_has_only_one_unique_value(const MatrixXd &X, size_t base_term)
+{
+    size_t rows{static_cast<size_t>(X.rows())};
+    if(rows==1) return true;
+    
+    bool term_has_one_unique_value{true};
+    for (size_t i = 1; i < rows; ++i)
+    {
+        bool observation_is_equal_to_previous{check_if_approximately_equal(X.col(base_term)[i], X.col(base_term)[i-1])};
+        if(!observation_is_equal_to_previous)
+        {
+            term_has_one_unique_value=false;
+            break;
+        } 
+    }
+
+    return term_has_one_unique_value;
 }
 
 void APLRRegressor::add_term_to_terms_eligible_current(Term &term)
