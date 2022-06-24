@@ -49,8 +49,8 @@ private:
     void validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes);
     void throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes);
     void define_training_and_validation_sets(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight, const std::vector<size_t> &validation_set_indexes);
-    void initialize(const MatrixXd &X);
-    bool check_if_base_term_has_only_one_unique_value(const MatrixXd &X, size_t base_term);
+    void initialize();
+    bool check_if_base_term_has_only_one_unique_value(size_t base_term);
     void add_term_to_terms_eligible_current(Term &term);
     VectorXd calculate_neg_gradient_current(const VectorXd &y,const VectorXd &predictions_current);
     void execute_boosting_steps();
@@ -165,7 +165,7 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
 {
     validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes);
     define_training_and_validation_sets(X,y,sample_weight,validation_set_indexes);
-    initialize(X);
+    initialize();
     execute_boosting_steps();
     update_coefficients_for_all_steps();
     print_final_summary();
@@ -178,7 +178,7 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
 void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes)
 {
     if(X.rows()!=y.size()) throw std::runtime_error("X and y must have the same number of rows.");
-    if(X.rows()==0) throw std::runtime_error("X and y cannot have zero rows.");
+    if(X.rows()<2) throw std::runtime_error("X and y cannot have less than two rows.");
     if(sample_weight.size()>0 && sample_weight.size()!=y.size()) throw std::runtime_error("sample_weight must have 0 or as many rows as X and y.");
     if(X_names.size()>0 && X_names.size()!=static_cast<size_t>(X.cols())) throw std::runtime_error("X_names must have as many columns as X.");
     throw_error_if_matrix_has_nan_or_infinite_elements(X, "X");
@@ -271,11 +271,11 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X,const 
     }
 }
 
-void APLRRegressor::initialize(const MatrixXd &X)
+void APLRRegressor::initialize()
 {
-    number_of_base_terms=static_cast<size_t>(X.cols());
+    number_of_base_terms=static_cast<size_t>(X_train.cols());
 
-    terms.reserve(X.cols()*reserved_terms_times_num_x);
+    terms.reserve(X_train.cols()*reserved_terms_times_num_x);
     terms.clear();
 
     intercept=0;
@@ -283,10 +283,10 @@ void APLRRegressor::initialize(const MatrixXd &X)
 
     null_predictions=VectorXd::Constant(y_train.size(),0);
 
-    terms_eligible_current.reserve(X.cols()*reserved_terms_times_num_x);
-    for (size_t i = 0; i < static_cast<size_t>(X.cols()); ++i)
+    terms_eligible_current.reserve(X_train.cols()*reserved_terms_times_num_x);
+    for (size_t i = 0; i < static_cast<size_t>(X_train.cols()); ++i)
     {
-        bool term_has_one_unique_value{check_if_base_term_has_only_one_unique_value(X, i)};
+        bool term_has_one_unique_value{check_if_base_term_has_only_one_unique_value(i)};
         if(!term_has_one_unique_value)
         {
             Term copy_of_base_term{Term(i)};
@@ -304,15 +304,15 @@ void APLRRegressor::initialize(const MatrixXd &X)
     neg_gradient_nullmodel_errors_sum=neg_gradient_nullmodel_errors.sum();        
 }
 
-bool APLRRegressor::check_if_base_term_has_only_one_unique_value(const MatrixXd &X, size_t base_term)
+bool APLRRegressor::check_if_base_term_has_only_one_unique_value(size_t base_term)
 {
-    size_t rows{static_cast<size_t>(X.rows())};
+    size_t rows{static_cast<size_t>(X_train.rows())};
     if(rows==1) return true;
     
     bool term_has_one_unique_value{true};
     for (size_t i = 1; i < rows; ++i)
     {
-        bool observation_is_equal_to_previous{check_if_approximately_equal(X.col(base_term)[i], X.col(base_term)[i-1])};
+        bool observation_is_equal_to_previous{check_if_approximately_equal(X_train.col(base_term)[i], X_train.col(base_term)[i-1])};
         if(!observation_is_equal_to_previous)
         {
             term_has_one_unique_value=false;
