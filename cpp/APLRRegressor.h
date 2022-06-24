@@ -287,11 +287,12 @@ void APLRRegressor::initialize()
     for (size_t i = 0; i < static_cast<size_t>(X_train.cols()); ++i)
     {
         bool term_has_one_unique_value{check_if_base_term_has_only_one_unique_value(i)};
-        if(!term_has_one_unique_value)
+        Term copy_of_base_term{Term(i)};
+        if(term_has_one_unique_value)
         {
-            Term copy_of_base_term{Term(i)};
-            add_term_to_terms_eligible_current(copy_of_base_term);
+            copy_of_base_term.ineligible_boosting_steps=std::numeric_limits<size_t>::max();
         }
+        add_term_to_terms_eligible_current(copy_of_base_term);
     }
 
     predictions_current=VectorXd::Constant(y_train.size(),0);
