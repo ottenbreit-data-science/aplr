@@ -574,7 +574,7 @@ void APLRRegressor::consider_updating_intercept()
 void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
 {
     //If intercept does best
-    if(std::isless(error_after_updating_intercept,lowest_error_sum)) 
+    if(std::islessequal(error_after_updating_intercept,lowest_error_sum)) 
     {
         //Updating intercept, current predictions, gradient and errors
         lowest_error_sum=error_after_updating_intercept;
