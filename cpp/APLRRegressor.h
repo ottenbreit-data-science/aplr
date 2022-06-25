@@ -49,7 +49,8 @@ private:
     void validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes);
     void throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes);
     void define_training_and_validation_sets(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight, const std::vector<size_t> &validation_set_indexes);
-    void initialize(const MatrixXd &X);
+    void initialize();
+    bool check_if_base_term_has_only_one_unique_value(size_t base_term);
     void add_term_to_terms_eligible_current(Term &term);
     VectorXd calculate_neg_gradient_current(const VectorXd &y,const VectorXd &predictions_current);
     void execute_boosting_steps();
@@ -164,7 +165,7 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
 {
     validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes);
     define_training_and_validation_sets(X,y,sample_weight,validation_set_indexes);
-    initialize(X);
+    initialize();
     execute_boosting_steps();
     update_coefficients_for_all_steps();
     print_final_summary();
@@ -177,7 +178,7 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
 void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes)
 {
     if(X.rows()!=y.size()) throw std::runtime_error("X and y must have the same number of rows.");
-    if(X.rows()==0) throw std::runtime_error("X and y cannot have zero rows.");
+    if(X.rows()<2) throw std::runtime_error("X and y cannot have less than two rows.");
     if(sample_weight.size()>0 && sample_weight.size()!=y.size()) throw std::runtime_error("sample_weight must have 0 or as many rows as X and y.");
     if(X_names.size()>0 && X_names.size()!=static_cast<size_t>(X.cols())) throw std::runtime_error("X_names must have as many columns as X.");
     throw_error_if_matrix_has_nan_or_infinite_elements(X, "X");
@@ -270,11 +271,11 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X,const 
     }
 }
 
-void APLRRegressor::initialize(const MatrixXd &X)
+void APLRRegressor::initialize()
 {
-    number_of_base_terms=static_cast<size_t>(X.cols());
+    number_of_base_terms=static_cast<size_t>(X_train.cols());
 
-    terms.reserve(X.cols()*reserved_terms_times_num_x);
+    terms.reserve(X_train.cols()*reserved_terms_times_num_x);
     terms.clear();
 
     intercept=0;
@@ -282,11 +283,16 @@ void APLRRegressor::initialize(const MatrixXd &X)
 
     null_predictions=VectorXd::Constant(y_train.size(),0);
 
-    terms_eligible_current.reserve(X.cols()*reserved_terms_times_num_x);
-    for (size_t i = 0; i < static_cast<size_t>(X.cols()); ++i) //add each base term
+    terms_eligible_current.reserve(X_train.cols()*reserved_terms_times_num_x);
+    for (size_t i = 0; i < static_cast<size_t>(X_train.cols()); ++i)
     {
+        bool term_has_one_unique_value{check_if_base_term_has_only_one_unique_value(i)};
         Term copy_of_base_term{Term(i)};
         add_term_to_terms_eligible_current(copy_of_base_term);
+        if(term_has_one_unique_value)
+        {
+            terms_eligible_current[terms_eligible_current.size()-1].ineligible_boosting_steps=std::numeric_limits<size_t>::max();
+        }
     }
 
     predictions_current=VectorXd::Constant(y_train.size(),0);
@@ -297,6 +303,25 @@ void APLRRegressor::initialize(const MatrixXd &X)
     neg_gradient_current=calculate_neg_gradient_current(y_train,predictions_current);
     neg_gradient_nullmodel_errors=calculate_errors(neg_gradient_current,null_predictions,sample_weight_train,loss_function_mse);
     neg_gradient_nullmodel_errors_sum=neg_gradient_nullmodel_errors.sum();        
+}
+
+bool APLRRegressor::check_if_base_term_has_only_one_unique_value(size_t base_term)
+{
+    size_t rows{static_cast<size_t>(X_train.rows())};
+    if(rows==1) return true;
+    
+    bool term_has_one_unique_value{true};
+    for (size_t i = 1; i < rows; ++i)
+    {
+        bool observation_is_equal_to_previous{check_if_approximately_equal(X_train.col(base_term)[i], X_train.col(base_term)[i-1])};
+        if(!observation_is_equal_to_previous)
+        {
+            term_has_one_unique_value=false;
+            break;
+        } 
+    }
+
+    return term_has_one_unique_value;
 }
 
 void APLRRegressor::add_term_to_terms_eligible_current(Term &term)
@@ -549,7 +574,7 @@ void APLRRegressor::consider_updating_intercept()
 void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
 {
     //If intercept does best
-    if(std::isless(error_after_updating_intercept,lowest_error_sum)) 
+    if(std::islessequal(error_after_updating_intercept,lowest_error_sum)) 
     {
         //Updating intercept, current predictions, gradient and errors
         lowest_error_sum=error_after_updating_intercept;

@@ -15,7 +15,7 @@ sfc_module = setuptools.Extension(
 
 setuptools.setup(
     name='aplr',
-    version='1.0.8',
+    version='1.0.9',
     description='Automatic Piecewise Linear Regression',
     ext_modules=[sfc_module],
     author="Mathias von Ottenbreit",

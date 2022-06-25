@@ -164,6 +164,7 @@ void Term::estimate_split_point(const MatrixXd &X,const VectorXd &y,const Vector
     {
         coefficient=0;
         split_point_search_errors_sum=std::numeric_limits<double>::infinity();
+        ineligible_boosting_steps=std::numeric_limits<size_t>::max();
         return;
     }
 
