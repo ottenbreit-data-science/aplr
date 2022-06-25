@@ -291,7 +291,6 @@ void APLRRegressor::initialize()
         if(term_has_one_unique_value)
         {
             copy_of_base_term.ineligible_boosting_steps=std::numeric_limits<size_t>::max();
-            copy_of_base_term.split_point_search_errors_sum=std::numeric_limits<double>::infinity();
         }
         add_term_to_terms_eligible_current(copy_of_base_term);
     }
