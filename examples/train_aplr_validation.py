@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import pickle
+import joblib
 from sklearn.model_selection import ParameterGrid, train_test_split
 from sklearn.datasets import load_diabetes
 from aplr import APLRRegressor
@@ -45,7 +45,7 @@ for params in param_grid:
 print("Done training")
 
 #Saving model
-pickle.dump(best_model,open("best_model.zip","wb"))
+joblib.dump(best_model,"best_model.gz")
 
 #Validation results when doing grid search
 validation_results = validation_results.sort_values(by="validation_error")

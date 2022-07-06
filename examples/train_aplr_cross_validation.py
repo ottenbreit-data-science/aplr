@@ -1,5 +1,5 @@
 import pandas as pd
-import pickle
+import joblib
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.datasets import load_diabetes
 from aplr import APLRRegressor
@@ -35,7 +35,7 @@ best_model.set_term_names(X_names=predictors)
 print("Done training")
 
 #Saving model
-pickle.dump(best_model,open("best_model.zip","wb"))
+joblib.dump(best_model,"best_model.gz")
 
 #Cross validation results when doing grid search
 cv_results = pd.DataFrame(grid_search_cv.cv_results_).sort_values(by="rank_test_score")
