@@ -44,11 +44,11 @@ cv_results = pd.DataFrame(grid_search_cv.cv_results_).sort_values(by="rank_test_
 validation_error_per_boosting_step = best_model.get_validation_error_steps()
 
 #Terms in the best model
-terms=pd.DataFrame({"Predictor":best_model.get_term_names(),"Coefficient":best_model.get_term_coefficients()})
+terms=pd.DataFrame({"term":best_model.get_term_names(),"coefficient":best_model.get_term_coefficients()})
 
-#Coefficients for intercept and the first predictor per boosting step
+#Coefficients for intercept and the first term per boosting step
 intercept_coefficient_per_boosting_step = best_model.get_intercept_steps()
-first_predictor_coefficient_per_boosting_step = best_model.get_term_coefficient_steps(term_index=0)
+first_term_coefficient_per_boosting_step = best_model.get_term_coefficient_steps(term_index=0)
 
 #Estimated feature importance was estimated on the validation set when the best model was trained
 estimated_feature_importance = pd.DataFrame({"predictor":predictors,"importance":best_model.get_feature_importance()})
