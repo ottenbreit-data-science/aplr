@@ -16,7 +16,7 @@ int main()
     model.v=0.5;
     model.bins=300;
     model.n_jobs=0;
-    model.loss_function_mse=true;
+    model.family="gaussian";
     model.verbosity=3;
     model.min_observations_in_split=10;
     //model.max_interaction_level=0;
