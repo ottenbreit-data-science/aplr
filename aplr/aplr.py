@@ -5,11 +5,11 @@ import aplr_cpp
 
 
 class APLRRegressor():
-    def __init__(self, m:int=1000, v:float=0.1, random_state:int=0, loss_function_mse:bool=True, n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=100, max_interactions:int=0, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0):
+    def __init__(self, m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=100, max_interactions:int=0, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0):
         self.m=m
         self.v=v
         self.random_state=random_state
-        self.loss_function_mse=loss_function_mse
+        self.family=family
         self.n_jobs=n_jobs
         self.validation_ratio=validation_ratio
         self.intercept=intercept
@@ -30,7 +30,7 @@ class APLRRegressor():
         self.APLRRegressor.m=self.m
         self.APLRRegressor.v=self.v
         self.APLRRegressor.random_state=self.random_state
-        self.APLRRegressor.loss_function_mse=self.loss_function_mse
+        self.APLRRegressor.family=self.family
         self.APLRRegressor.n_jobs=self.n_jobs
         self.APLRRegressor.validation_ratio=self.validation_ratio
         self.APLRRegressor.intercept=self.intercept
@@ -87,7 +87,7 @@ class APLRRegressor():
 
     #For sklearn
     def get_params(self, deep=True):
-        return {"m": self.m, "v": self.v,"random_state":self.random_state,"loss_function_mse":self.loss_function_mse,"n_jobs":self.n_jobs,"validation_ratio":self.validation_ratio,"intercept":self.intercept,"bins":self.bins,"max_interaction_level":self.max_interaction_level,"max_interactions":self.max_interactions,"verbosity":self.verbosity,"min_observations_in_split":self.min_observations_in_split,"ineligible_boosting_steps_added":self.ineligible_boosting_steps_added,"max_eligible_terms":self.max_eligible_terms}
+        return {"m": self.m, "v": self.v,"random_state":self.random_state,"family":self.family,"n_jobs":self.n_jobs,"validation_ratio":self.validation_ratio,"intercept":self.intercept,"bins":self.bins,"max_interaction_level":self.max_interaction_level,"max_interactions":self.max_interactions,"verbosity":self.verbosity,"min_observations_in_split":self.min_observations_in_split,"ineligible_boosting_steps_added":self.ineligible_boosting_steps_added,"max_eligible_terms":self.max_eligible_terms}
 
     #For sklearn
     def set_params(self, **parameters):

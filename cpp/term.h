@@ -21,7 +21,7 @@ struct GivenTermsIndices
 struct SortedData
 {
     VectorXd values_sorted{VectorXd(0)};
-    VectorXd y_sorted{VectorXd(0)};
+    VectorXd negative_gradient_sorted{VectorXd(0)};
     VectorXd sample_weight_sorted{VectorXd(0)};
 };
 
@@ -33,22 +33,21 @@ private:
     size_t max_index;
     size_t max_index_discretized;
     size_t min_observations_in_split;
-    bool loss_function_mse;
     size_t bins;
     double v;
     double error_where_given_terms_are_zero;
     SortedData sorted_vectors;
-    VectorXd y_discretized;
+    VectorXd negative_gradient_discretized;
     VectorXd errors_initial;
     double error_initial;
     std::vector<size_t> observations_in_bins;
 
     //methods
-    void calculate_error_where_given_terms_are_zero(const VectorXd &y, const VectorXd &sample_weight);
-    void initialize_parameters_in_estimate_split_point(bool loss_function_mse,size_t bins,double v,size_t min_observations_in_split);
+    void calculate_error_where_given_terms_are_zero(const VectorXd &negative_gradient, const VectorXd &sample_weight);
+    void initialize_parameters_in_estimate_split_point(size_t bins,double v,size_t min_observations_in_split);
     void adjust_min_observations_in_split(size_t min_observations_in_split);
-    void sort_vectors_ascending_by_base_term(const MatrixXd &X, const VectorXd &y,const VectorXd &sample_weight);
-    SortedData sort_data(const VectorXd &values_to_sort, const VectorXd &y_to_sort, const VectorXd &sample_weight_to_sort);
+    void sort_vectors_ascending_by_base_term(const MatrixXd &X, const VectorXd &negative_gradient,const VectorXd &sample_weight);
+    SortedData sort_data(const VectorXd &values_to_sort, const VectorXd &negative_gradient_to_sort, const VectorXd &sample_weight_to_sort);
     void setup_bins();
     void discretize_data_by_bin();
     void estimate_split_point_on_discretized_data();
@@ -84,7 +83,7 @@ public:
     VectorXd calculate_prediction_contribution(const MatrixXd &X);
     static bool equals_not_comparing_given_terms(const Term &p1,const Term &p2);
     static bool equals_given_terms(const Term &p1,const Term &p2);
-    void estimate_split_point(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,bool loss_function_mse,size_t bins,double v,size_t min_observations_in_split);
+    void estimate_split_point(const MatrixXd &X,const VectorXd &negative_gradient,const VectorXd &sample_weight,size_t bins,double v,size_t min_observations_in_split);
     size_t get_interaction_level(size_t previous_int_level=0);
     VectorXd calculate_without_interactions(const VectorXd &x);
     void calculate_given_terms_indices(const MatrixXd &X);
@@ -155,7 +154,7 @@ bool operator== (const Term &p1, const Term &p2)
 }
 
 //estimates best split point
-void Term::estimate_split_point(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,bool loss_function_mse,size_t bins,double v,size_t min_observations_in_split)
+void Term::estimate_split_point(const MatrixXd &X,const VectorXd &negative_gradient,const VectorXd &sample_weight,size_t bins,double v,size_t min_observations_in_split)
 {
     calculate_given_terms_indices(X);
 
@@ -168,9 +167,9 @@ void Term::estimate_split_point(const MatrixXd &X,const VectorXd &y,const Vector
         return;
     }
 
-    initialize_parameters_in_estimate_split_point(loss_function_mse, bins, v, min_observations_in_split);
-    calculate_error_where_given_terms_are_zero(y, sample_weight);
-    sort_vectors_ascending_by_base_term(X, y, sample_weight);    
+    initialize_parameters_in_estimate_split_point(bins, v, min_observations_in_split);
+    calculate_error_where_given_terms_are_zero(negative_gradient, sample_weight);
+    sort_vectors_ascending_by_base_term(X, negative_gradient, sample_weight);    
     setup_bins();
     discretize_data_by_bin();
     estimate_split_point_on_discretized_data();
@@ -254,7 +253,7 @@ VectorXd Term::calculate_without_interactions(const VectorXd &x)
     return values;
 }
 
-void Term::calculate_error_where_given_terms_are_zero(const VectorXd &y, const VectorXd &sample_weight)
+void Term::calculate_error_where_given_terms_are_zero(const VectorXd &negative_gradient, const VectorXd &sample_weight)
 {
     error_where_given_terms_are_zero=0;
     if(given_terms_indices.zeroed.size()>0)
@@ -263,22 +262,21 @@ void Term::calculate_error_where_given_terms_are_zero(const VectorXd &y, const V
         {
             for (size_t i = 0; i < static_cast<size_t>(given_terms_indices.zeroed.size()); ++i)
             {
-                error_where_given_terms_are_zero+=calculate_error_one_observation(y[given_terms_indices.zeroed[i]],0.0,NAN_DOUBLE,loss_function_mse);
+                error_where_given_terms_are_zero+=calculate_error_one_observation(negative_gradient[given_terms_indices.zeroed[i]],0.0,NAN_DOUBLE);
             }
         }
         else
         {
             for (size_t i = 0; i < static_cast<size_t>(given_terms_indices.zeroed.size()); ++i)
             {
-                error_where_given_terms_are_zero+=calculate_error_one_observation(y[given_terms_indices.zeroed[i]],0.0,sample_weight[given_terms_indices.zeroed[i]],loss_function_mse);
+                error_where_given_terms_are_zero+=calculate_error_one_observation(negative_gradient[given_terms_indices.zeroed[i]],0.0,sample_weight[given_terms_indices.zeroed[i]]);
             }
         }
     }
 }
 
-void Term::initialize_parameters_in_estimate_split_point(bool loss_function_mse,size_t bins,double v,size_t min_observations_in_split)
+void Term::initialize_parameters_in_estimate_split_point(size_t bins,double v,size_t min_observations_in_split)
 {
-    this->loss_function_mse=loss_function_mse;
     this->bins=bins;
     this->v=v;
     adjust_min_observations_in_split(min_observations_in_split);
@@ -292,18 +290,18 @@ void Term::adjust_min_observations_in_split(size_t min_observations_in_split)
     this->min_observations_in_split=std::max(min_observations_in_split,static_cast<size_t>(1));
 }
 
-void Term::sort_vectors_ascending_by_base_term(const MatrixXd &X, const VectorXd &y,const VectorXd &sample_weight)
+void Term::sort_vectors_ascending_by_base_term(const MatrixXd &X, const VectorXd &negative_gradient,const VectorXd &sample_weight)
 {
     if(given_terms_indices.zeroed.size()>0)
     {
-        //Calculating subset of values, y and sample_weight
+        //Calculating subset of values, negative_gradient and sample_weight
         VectorXd values_subset(given_terms_indices.not_zeroed.size());
-        VectorXd y_subset(given_terms_indices.not_zeroed.size());
+        VectorXd negative_gradient_subset(given_terms_indices.not_zeroed.size());
         size_t count{0};
         for (size_t i = 0; i <= max_index; ++i) //for each non-zeroed observation
         {
             values_subset[count]=X.col(base_term)[given_terms_indices.not_zeroed[i]];
-            y_subset[count]=y[given_terms_indices.not_zeroed[i]];
+            negative_gradient_subset[count]=negative_gradient[given_terms_indices.not_zeroed[i]];
             ++count;
         }
         VectorXd sample_weight_subset(0);
@@ -317,23 +315,23 @@ void Term::sort_vectors_ascending_by_base_term(const MatrixXd &X, const VectorXd
                 ++count;
             }
         }
-        sorted_vectors = sort_data(values_subset, y_subset, sample_weight_subset);
+        sorted_vectors = sort_data(values_subset, negative_gradient_subset, sample_weight_subset);
     }
     else
-        sorted_vectors = sort_data(X.col(base_term), y, sample_weight);
+        sorted_vectors = sort_data(X.col(base_term), negative_gradient, sample_weight);
 }
 
-SortedData Term::sort_data(const VectorXd &values_to_sort, const VectorXd &y_to_sort, const VectorXd &sample_weight_to_sort)
+SortedData Term::sort_data(const VectorXd &values_to_sort, const VectorXd &negative_gradient_to_sort, const VectorXd &sample_weight_to_sort)
 {
     VectorXi values_sorted_index{sort_indexes_ascending(values_to_sort)};
     SortedData output;
     output.values_sorted.resize(values_sorted_index.size());
-    output.y_sorted.resize(values_sorted_index.size());
+    output.negative_gradient_sorted.resize(values_sorted_index.size());
     size_t max_index{values_sorted_index.size()-static_cast<size_t>(1)};
     for (size_t i = 0; i <= max_index; ++i)
     {
         output.values_sorted[i]=values_to_sort[values_sorted_index[i]];
-        output.y_sorted[i]=y_to_sort[values_sorted_index[i]];
+        output.negative_gradient_sorted[i]=negative_gradient_to_sort[values_sorted_index[i]];
     }    
     if(sample_weight_to_sort.size()>0)
     {
@@ -483,10 +481,10 @@ void Term::discretize_data_by_bin()
             }
         }
     }
-    y_discretized.resize(bins_start_index.size());
+    negative_gradient_discretized.resize(bins_start_index.size());
     for (size_t i = 0; i < bins_start_index.size(); ++i)
     {
-        y_discretized[i]=sorted_vectors.y_sorted.block(bins_start_index[i],0,observations_in_bins[i],1).mean();
+        negative_gradient_discretized[i]=sorted_vectors.negative_gradient_sorted.block(bins_start_index[i],0,observations_in_bins[i],1).mean();
     }
 
     max_index_discretized=calculate_max_index_in_vector(values_discretized);
@@ -494,7 +492,7 @@ void Term::discretize_data_by_bin()
 
 void Term::estimate_split_point_on_discretized_data()
 {
-    errors_initial=calculate_errors(y_discretized,VectorXd::Constant(y_discretized.size(),0.0),sample_weight_discretized,loss_function_mse);
+    errors_initial=calculate_errors(negative_gradient_discretized,VectorXd::Constant(negative_gradient_discretized.size(),0.0),sample_weight_discretized);
     error_initial=errors_initial.sum();
 
     //FINDING BEST SPLIT ON DISCRETIZED DATA
@@ -567,7 +565,7 @@ void Term::calculate_coefficient_and_error_on_discretized_data(bool direction_ri
     for (size_t i = index_start; i <= index_end; ++i)
     {
         xwx+=values_sorted[i]*values_sorted[i]*sample_weight_discretized[i];
-        xwy+=values_sorted[i]*y_discretized[i]*sample_weight_discretized[i];
+        xwy+=values_sorted[i]*negative_gradient_discretized[i]*sample_weight_discretized[i];
     }
     if(xwx!=0)
     {
@@ -581,7 +579,7 @@ void Term::calculate_coefficient_and_error_on_discretized_data(bool direction_ri
             if(sample_weight_discretized.size()>0)
                 sample_weight_one_obs=sample_weight_discretized[i];
 
-            error_reduction+=errors_initial[i]-calculate_error_one_observation(y_discretized[i],predicted,sample_weight_one_obs,loss_function_mse);
+            error_reduction+=errors_initial[i]-calculate_error_one_observation(negative_gradient_discretized[i],predicted,sample_weight_one_obs);
         }
         split_point_search_errors_sum=error_initial-error_reduction;
     }
@@ -600,18 +598,18 @@ void Term::estimate_coefficient_and_error_on_all_data()
     if(sorted_vectors.sample_weight_sorted.size()>0)
     {
         xwx=(sorted_vectors.values_sorted.array()*sorted_vectors.values_sorted.array()*sorted_vectors.sample_weight_sorted.array()).sum();
-        xwy=(sorted_vectors.values_sorted.array()*sorted_vectors.y_sorted.array()*sorted_vectors.sample_weight_sorted.array()).sum();
+        xwy=(sorted_vectors.values_sorted.array()*sorted_vectors.negative_gradient_sorted.array()*sorted_vectors.sample_weight_sorted.array()).sum();
     }
     else
     {
         xwx=(sorted_vectors.values_sorted.array()*sorted_vectors.values_sorted.array()).sum();
-        xwy=(sorted_vectors.values_sorted.array()*sorted_vectors.y_sorted.array()).sum();
+        xwy=(sorted_vectors.values_sorted.array()*sorted_vectors.negative_gradient_sorted.array()).sum();
     }
     if(xwx!=0)
     {
         coefficient=xwy/xwx*v;
         VectorXd predictions{sorted_vectors.values_sorted*coefficient};
-        split_point_search_errors_sum=calculate_errors(sorted_vectors.y_sorted,predictions,sorted_vectors.sample_weight_sorted,loss_function_mse).sum()+error_where_given_terms_are_zero;
+        split_point_search_errors_sum=calculate_errors(sorted_vectors.negative_gradient_sorted,predictions,sorted_vectors.sample_weight_sorted).sum()+error_where_given_terms_are_zero;
     }
     else
     {
@@ -625,9 +623,9 @@ void Term::cleanup_after_estimate_split_point()
     given_terms_indices.not_zeroed.resize(0);
     given_terms_indices.zeroed.resize(0);
     sorted_vectors.values_sorted.resize(0);
-    sorted_vectors.y_sorted.resize(0);
+    sorted_vectors.negative_gradient_sorted.resize(0);
     sorted_vectors.sample_weight_sorted.resize(0);
-    y_discretized.resize(0);
+    negative_gradient_discretized.resize(0);
     errors_initial.resize(0);
 }
 

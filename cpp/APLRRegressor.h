@@ -26,7 +26,7 @@ private:
     MatrixXd X_validation;
     VectorXd y_validation;
     VectorXd sample_weight_validation;
-    VectorXd null_predictions;
+    VectorXd linear_predictor_null_model;
     std::vector<Term> terms_eligible_current;
     VectorXd predictions_current;
     VectorXd predictions_current_validation;
@@ -36,14 +36,16 @@ private:
     size_t best_term;
     double lowest_error_sum;
     double error_after_updating_intercept;
-    VectorXd updated_predictions;
-    VectorXd updated_predictions_validation;
+    VectorXd linear_predictor_update;
+    VectorXd linear_predictor_update_validation;
     double intercept_test;
     size_t number_of_eligible_terms;
     std::vector<std::vector<size_t>> distributed_terms;
     std::vector<Term> interactions_to_consider;
     VectorXi error_index_for_interactions_to_consider;
     bool abort_boosting;
+    VectorXd linear_predictor_current;
+    VectorXd linear_predictor_current_validation;
 
     //Methods
     void validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes);
@@ -74,6 +76,9 @@ private:
     void calculate_feature_importance_on_validation_set();
     void cleanup_after_fit();
     void validate_that_model_can_be_used(const MatrixXd &X);
+    void throw_error_if_family_does_not_exist();
+    VectorXd calculate_linear_predictor(const MatrixXd &X);
+    void update_linear_predictor_and_predictors();
     
 public:
     //Fields
@@ -81,7 +86,7 @@ public:
     std::vector<Term> terms;
     size_t m; //Boosting steps to run. Can shrink to auto tuned value after running fit().
     double v; //Learning rate.
-    bool loss_function_mse;
+    std::string family;
     double validation_ratio;
     size_t n_jobs; //0:using all available cores. 1:no multithreading. >1: Using a specified number of cores but not more than is available.
     uint_fast32_t random_state; //For train/validation split. If std::numeric_limits<uint_fast32_t>::lowest() then will randomly set a seed
@@ -103,7 +108,7 @@ public:
     VectorXd feature_importance; //Populated in fit() using validation set. Rows are in the same order as in X.
 
     //Methods
-    APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),bool loss_function_mse=true,size_t n_jobs=0,
+    APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string family="gaussian",size_t n_jobs=0,
         double validation_ratio=0.2,double intercept=NAN_DOUBLE,size_t reserved_terms_times_num_x=100,size_t bins=300,size_t verbosity=0,
         size_t max_interaction_level=100,size_t max_interactions=0,size_t min_observations_in_split=20,size_t ineligible_boosting_steps_added=10,
         size_t max_eligible_terms=5);
@@ -126,11 +131,11 @@ public:
 };
 
 //Regular constructor
-APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,bool loss_function_mse,size_t n_jobs,double validation_ratio,double intercept,
+APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::string family,size_t n_jobs,double validation_ratio,double intercept,
     size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,size_t max_interactions,size_t min_observations_in_split,
     size_t ineligible_boosting_steps_added,size_t max_eligible_terms):
         reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{intercept},m{m},v{v},
-        loss_function_mse{loss_function_mse},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
+        family{family},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},
         intercept_steps{VectorXd(0)},max_interactions{max_interactions},interactions_eligible{0},validation_error_steps{VectorXd(0)},
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
@@ -141,7 +146,7 @@ APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,bool l
 //Copy constructor
 APLRRegressor::APLRRegressor(const APLRRegressor &other):
     reserved_terms_times_num_x{other.reserved_terms_times_num_x},intercept{other.intercept},terms{other.terms},m{other.m},v{other.v},
-    loss_function_mse{other.loss_function_mse},validation_ratio{other.validation_ratio},
+    family{other.family},validation_ratio{other.validation_ratio},
     n_jobs{other.n_jobs},random_state{other.random_state},bins{other.bins},
     verbosity{other.verbosity},term_names{other.term_names},term_coefficients{other.term_coefficients},
     max_interaction_level{other.max_interaction_level},intercept_steps{other.intercept_steps},
@@ -163,6 +168,7 @@ APLRRegressor::~APLRRegressor()
 //invalidating validation_ratio. The rest of indices are used to train. 
 void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names,const std::vector<size_t> &validation_set_indexes)
 {
+    throw_error_if_family_does_not_exist();
     validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes);
     define_training_and_validation_sets(X,y,sample_weight,validation_set_indexes);
     initialize();
@@ -281,8 +287,6 @@ void APLRRegressor::initialize()
     intercept=0;
     intercept_steps=VectorXd::Constant(m,0);
 
-    null_predictions=VectorXd::Constant(y_train.size(),0);
-
     terms_eligible_current.reserve(X_train.cols()*reserved_terms_times_num_x);
     for (size_t i = 0; i < static_cast<size_t>(X_train.cols()); ++i)
     {
@@ -295,14 +299,16 @@ void APLRRegressor::initialize()
         }
     }
 
-    predictions_current=VectorXd::Constant(y_train.size(),0);
-    predictions_current_validation=VectorXd::Constant(y_validation.size(),0);
+    linear_predictor_current=VectorXd::Constant(y_train.size(),0);
+    linear_predictor_null_model=linear_predictor_current;
+    linear_predictor_current_validation=VectorXd::Constant(y_validation.size(),0);
+    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,family);
+    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,family);
+
     validation_error_steps.resize(m);
     validation_error_steps.setConstant(std::numeric_limits<double>::infinity());
                                     
-    neg_gradient_current=calculate_neg_gradient_current(y_train,predictions_current);
-    neg_gradient_nullmodel_errors=calculate_errors(neg_gradient_current,null_predictions,sample_weight_train,loss_function_mse);
-    neg_gradient_nullmodel_errors_sum=neg_gradient_nullmodel_errors.sum();        
+    update_gradient_and_errors();
 }
 
 bool APLRRegressor::check_if_base_term_has_only_one_unique_value(size_t base_term)
@@ -332,11 +338,17 @@ void APLRRegressor::add_term_to_terms_eligible_current(Term &term)
 //Calculates negative gradient based on y and predictions_current
 VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &y,const VectorXd &predictions_current)
 {
-    VectorXd output{y-predictions_current}; //mse
-    if(!loss_function_mse) //if using mae
-    {
-        output=output.cwiseSign();        
-    }
+    VectorXd output;
+    if(family=="gaussian")
+        output=y-predictions_current;
+    else if(family=="logit")
+        output=y.array() / predictions_current.array() - (y.array()-1.0) / (predictions_current.array()-1.0);
+    else if(family=="poisson")
+        output=y.array() / predictions_current.array() - 1;
+    else if(family=="gamma")
+        output=(y.array() - predictions_current.array()) / predictions_current.array() / predictions_current.array();
+    else if(family=="poissongamma")
+        output=(y.array() / predictions_current.array().pow(1.5) - predictions_current.array().pow(-0.5));
     return output;
 }
 
@@ -377,7 +389,7 @@ void APLRRegressor::find_best_split_for_each_eligible_term()
         {
             for (size_t i = 0; i < distributed_terms[thread_index].size(); ++i) //for each eligible term in group do evaluation
             {
-                terms_eligible_current[distributed_terms[thread_index][i]].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,loss_function_mse,bins,v,min_observations_in_split);
+                terms_eligible_current[distributed_terms[thread_index][i]].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,bins,v,min_observations_in_split);
             }
         };
         
@@ -410,7 +422,7 @@ void APLRRegressor::find_best_split_for_each_eligible_term()
         {
             if(terms_eligible_current[i].ineligible_boosting_steps==0) //if term is actually eligible
             {
-                terms_eligible_current[i].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,loss_function_mse,bins,v,min_observations_in_split);
+                terms_eligible_current[i].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,bins,v,min_observations_in_split);
                 if(std::isless(terms_eligible_current[i].split_point_search_errors_sum,lowest_error_sum))
                 {
                     best_term=i;
@@ -499,7 +511,7 @@ void APLRRegressor::estimate_split_points_for_interactions_to_consider()
         {
             for (size_t i = lowest; i <= highest; ++i) //for each eligible term in group do evaluation
             {
-                interactions_to_consider[i].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,loss_function_mse,bins,v,min_observations_in_split);
+                interactions_to_consider[i].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,bins,v,min_observations_in_split);
             }
         };
 
@@ -518,7 +530,7 @@ void APLRRegressor::estimate_split_points_for_interactions_to_consider()
         //Testing predictiveness of interactions to add
         for (size_t j = 0; j < interactions_to_consider.size(); ++j)
         {
-            interactions_to_consider[j].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,loss_function_mse,bins,v,min_observations_in_split);                                
+            interactions_to_consider[j].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,bins,v,min_observations_in_split);                                
         }
     }
 }
@@ -566,9 +578,9 @@ void APLRRegressor::consider_updating_intercept()
     else
         intercept_test=(neg_gradient_current.array()*sample_weight_train.array()).sum()/sample_weight_train.array().sum();
     intercept_test=intercept_test*v;
-    updated_predictions=VectorXd::Constant(neg_gradient_current.size(),intercept_test);
-    updated_predictions_validation=VectorXd::Constant(y_validation.size(),intercept_test);
-    error_after_updating_intercept=calculate_errors(neg_gradient_current,updated_predictions,sample_weight_train,loss_function_mse).sum();
+    linear_predictor_update=VectorXd::Constant(neg_gradient_current.size(),intercept_test);
+    linear_predictor_update_validation=VectorXd::Constant(y_validation.size(),intercept_test);
+    error_after_updating_intercept=calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train).sum();
 }
 
 void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
@@ -579,9 +591,8 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
         //Updating intercept, current predictions, gradient and errors
         lowest_error_sum=error_after_updating_intercept;
         intercept=intercept+intercept_test;
-        predictions_current+=updated_predictions;
-        predictions_current_validation+=updated_predictions_validation;
         intercept_steps[boosting_step]=intercept;
+        update_linear_predictor_and_predictors();
         update_gradient_and_errors();
     }
     else //Choosing the next term and updating the model
@@ -596,9 +607,9 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
         //Updating current predictions
         VectorXd values{terms_eligible_current[best_term].calculate(X_train)};
         VectorXd values_validation{terms_eligible_current[best_term].calculate(X_validation)};
-        VectorXd predictions_update{values*terms_eligible_current[best_term].coefficient};
-        VectorXd predictions_update_validation{values_validation*terms_eligible_current[best_term].coefficient};
-        double error_after_updating_term=calculate_errors(neg_gradient_current,predictions_update,sample_weight_train,loss_function_mse).sum();
+        linear_predictor_update=values*terms_eligible_current[best_term].coefficient;
+        linear_predictor_update_validation=values_validation*terms_eligible_current[best_term].coefficient;
+        double error_after_updating_term=calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train).sum();
         if(std::isgreaterequal(error_after_updating_term,neg_gradient_nullmodel_errors_sum)) //if no improvement or worse then terminate search
         {
             abort_boosting=true;
@@ -607,8 +618,7 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
         else //if improvement
         {
             //Updating predictions_current, gradient and errors
-            predictions_current+=predictions_update;
-            predictions_current_validation+=predictions_update_validation;
+            update_linear_predictor_and_predictors();
             update_gradient_and_errors();
 
             //Has the term been entered into the model before?
@@ -637,13 +647,21 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
         }
     }
 
-    validation_error_steps[boosting_step]=calculate_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation,loss_function_mse),sample_weight_validation);
+    validation_error_steps[boosting_step]=calculate_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation,family),sample_weight_validation);
+}
+
+void APLRRegressor::update_linear_predictor_and_predictors()
+{
+    linear_predictor_current+=linear_predictor_update;
+    linear_predictor_current_validation+=linear_predictor_update_validation;
+    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,family);
+    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,family);
 }
 
 void APLRRegressor::update_gradient_and_errors()
 {
     neg_gradient_current=calculate_neg_gradient_current(y_train,predictions_current);
-    neg_gradient_nullmodel_errors=calculate_errors(neg_gradient_current,null_predictions,sample_weight_train,loss_function_mse);
+    neg_gradient_nullmodel_errors=calculate_errors(neg_gradient_current,linear_predictor_null_model,sample_weight_train);
     neg_gradient_nullmodel_errors_sum=neg_gradient_nullmodel_errors.sum();
 }
 
@@ -869,17 +887,19 @@ void APLRRegressor::cleanup_after_fit()
     X_validation.resize(0,0);
     y_validation.resize(0);
     sample_weight_validation.resize(0);
-    null_predictions.resize(0);
+    linear_predictor_null_model.resize(0);
     terms_eligible_current.clear();
     predictions_current.resize(0);
     predictions_current_validation.resize(0);
     neg_gradient_current.resize(0);
     neg_gradient_nullmodel_errors.resize(0);
-    updated_predictions.resize(0);
-    updated_predictions_validation.resize(0);
+    linear_predictor_update.resize(0);
+    linear_predictor_update_validation.resize(0);
     distributed_terms.clear();
     interactions_to_consider.clear();
     error_index_for_interactions_to_consider.resize(0);
+    linear_predictor_current.resize(0);
+    linear_predictor_current_validation.resize(0);
     for (size_t i = 0; i < terms.size(); ++i)
     {
         terms[i].cleanup_after_fit();
@@ -890,13 +910,21 @@ VectorXd APLRRegressor::predict(const MatrixXd &X)
 {
     validate_that_model_can_be_used(X);
 
+    VectorXd linear_predictor{calculate_linear_predictor(X)};
+    VectorXd predictions{transform_linear_predictor_to_predictions(linear_predictor,family)};
+
+    return predictions;
+}
+
+VectorXd APLRRegressor::calculate_linear_predictor(const MatrixXd &X)
+{
     VectorXd predictions{VectorXd::Constant(X.rows(),intercept)};
     for (size_t i = 0; i < terms.size(); ++i) //for each term
     {
         VectorXd contrib{terms[i].calculate_prediction_contribution(X)};
         predictions+=contrib;
     }
-    return predictions;
+    return predictions;    
 }
 
 MatrixXd APLRRegressor::calculate_local_feature_importance_for_terms(const MatrixXd &X)
@@ -969,4 +997,21 @@ VectorXd APLRRegressor::get_intercept_steps()
 size_t APLRRegressor::get_m()
 {
     return m;
+}
+
+void APLRRegressor::throw_error_if_family_does_not_exist()
+{
+    bool family_exists{false};
+    if(family=="gaussian")
+        family_exists=true;
+    else if(family=="logit")
+        family_exists=true;
+    else if(family=="poisson")
+        family_exists=true;
+    else if(family=="gamma")
+        family_exists=true;
+    else if(family=="poissongamma")
+        family_exists=true;        
+    if(!family_exists)
+        throw std::runtime_error("Family "+family+" is not available in APLR.");   
 }

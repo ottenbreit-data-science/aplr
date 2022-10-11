@@ -40,38 +40,77 @@ static bool check_if_approximately_zero(TReal a, TReal tolerance = std::numeric_
     return false;
 }
 
+VectorXd calculate_gaussian_errors(const VectorXd &y,const VectorXd &predicted)
+{
+    VectorXd errors{y-predicted};
+    errors=errors.array()*errors.array();
+    return errors;
+}
+
+VectorXd calculate_logit_errors(const VectorXd &y,const VectorXd &predicted)
+{
+    VectorXd errors{-y.array() * predicted.array().log()  -  (1.0-y.array()).array() * (1.0-predicted.array()).log()};
+    return errors;
+}
+
+VectorXd calculate_poisson_errors(const VectorXd &y,const VectorXd &predicted)
+{
+    VectorXd errors{predicted.array() - y.array()*predicted.array().log()};
+    return errors;
+}
+
+VectorXd calculate_gamma_errors(const VectorXd &y,const VectorXd &predicted)
+{
+    VectorXd errors{predicted.array().log() - y.array().log() + y.array()/predicted.array()-1};
+    return errors;
+}
+
+VectorXd calculate_poissongamma_errors(const VectorXd &y,const VectorXd &predicted)
+{
+    VectorXd errors{y.array().pow(0.5).array() / (-0.25) + y.array()*predicted.array().pow(-0.5) / 0.5 + predicted.array().pow(0.5) / 0.5};
+    return errors;
+}
+
 //Computes errors (for each observation) based on error metric for a vector
-VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0),bool loss_function_mse=true)
+VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0),const std::string &family="gaussian")
 {   
     //Error per observation before adjustment for sample weights
-    VectorXd residuals{y-predicted};
-    if(loss_function_mse)
-        residuals=residuals.array()*residuals.array();
-    else
-        residuals=residuals.cwiseAbs();
-
+    VectorXd errors;
+    if(family=="gaussian")
+        errors=calculate_gaussian_errors(y,predicted);
+    else if(family=="logit")
+        errors=calculate_logit_errors(y,predicted);
+    else if(family=="poisson")
+        errors=calculate_poisson_errors(y,predicted);
+    else if(family=="gamma")
+        errors=calculate_gamma_errors(y,predicted);
+    else if(family=="poissongamma")
+        errors=calculate_poissongamma_errors(y,predicted);
     //Adjusting for sample weights if specified
     if(sample_weight.size()>0)
-        residuals=residuals.array()*sample_weight.array();
+        errors=errors.array()*sample_weight.array();
     
-    return residuals;
+    return errors;
+}
+
+double calculate_gaussian_error_one_observation(double y,double predicted)
+{
+    double error{y-predicted};
+    error=error*error;
+    return error;
 }
 
 //Computes error for one observation based on error metric
-double calculate_error_one_observation(double y,double predicted,double sample_weight=NAN_DOUBLE,bool loss_function_mse=true)
+double calculate_error_one_observation(double y,double predicted,double sample_weight=NAN_DOUBLE)
 {   
     //Error per observation before adjustment for sample weights
-    double residual{y-predicted};
-    if(loss_function_mse)
-        residual=residual*residual;
-    else
-        residual=abs(residual);
-
+    double error{calculate_gaussian_error_one_observation(y,predicted)};    
+    
     //Adjusting for sample weights if specified
     if(!std::isnan(sample_weight))
-        residual=residual*sample_weight;
-    
-    return residual;
+        error=error*sample_weight;
+
+    return error;
 }
 
 //Computes overall error based on errors from calculate_errors(), returning one value
@@ -86,6 +125,66 @@ double calculate_error(const VectorXd &errors,const VectorXd &sample_weight=Vect
         error=errors.mean();
     
     return error;
+}
+
+VectorXd transform_zero_to_negative(const VectorXd &linear_predictor)
+{
+    VectorXd transformed_linear_predictor{linear_predictor};
+    for (size_t i = 0; i < static_cast<size_t>(transformed_linear_predictor.rows()); ++i)
+    {
+        bool row_is_not_negative{std::isgreaterequal(transformed_linear_predictor[i],0.0)};
+        if(row_is_not_negative)
+            transformed_linear_predictor[i]=SMALL_NEGATIVE_VALUE;
+    }
+    return transformed_linear_predictor;
+}
+
+VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predictor, const std::string &family="gaussian")
+{
+    if(family=="gaussian")
+        return linear_predictor;
+    else if(family=="logit")
+    {
+        VectorXd exp_of_linear_predictor{linear_predictor.array().exp()};
+        return exp_of_linear_predictor.array() / (1.0 + exp_of_linear_predictor.array());
+    }
+    else if(family=="poisson")
+        return linear_predictor.array().exp();
+    else if(family=="gamma")
+    {
+        VectorXd transformed_linear_predictor{transform_zero_to_negative(linear_predictor)};
+        return -1/transformed_linear_predictor.array();
+    }
+    else if(family=="poissongamma")
+    {
+        VectorXd transformed_linear_predictor{transform_zero_to_negative(linear_predictor)};
+        return transformed_linear_predictor.array().pow(-2).array() * 4.0;
+    }
+    return VectorXd(0);
+}
+
+double transform_linear_predictor_to_prediction(double linear_predictor, const std::string &family="gaussian")
+{
+    if(family=="gaussian")
+        return linear_predictor;
+    else if(family=="logit")
+    {
+        double exp_of_linear_predictor{std::exp(linear_predictor)};
+        return exp_of_linear_predictor / (1.0 + exp_of_linear_predictor);
+    }
+    else if(family=="poisson")
+        return std::exp(linear_predictor);
+    else if(family=="gamma")
+    {
+        double negative_linear_predictor{std::min(linear_predictor,SMALL_NEGATIVE_VALUE)};
+        return -1/negative_linear_predictor;
+    }
+    else if(family=="poissongamma")
+    {
+        double negative_linear_predictor{std::min(linear_predictor,SMALL_NEGATIVE_VALUE)};
+        return 4.0 * std::pow(negative_linear_predictor,-2);
+    }
+    return NAN_DOUBLE;
 }
 
 //sorts index based on v
