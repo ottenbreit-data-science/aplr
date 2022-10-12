@@ -79,6 +79,10 @@ private:
     void throw_error_if_family_does_not_exist();
     VectorXd calculate_linear_predictor(const MatrixXd &X);
     void update_linear_predictor_and_predictors();
+    void throw_error_if_response_contains_invalid_values(const VectorXd &y);
+    void throw_error_if_response_is_not_between_0_and_1(const VectorXd &y);
+    void throw_error_if_response_is_negative(const VectorXd &y);
+    void throw_error_if_response_is_not_greater_than_zero(const VectorXd &y);
     
 public:
     //Fields
@@ -191,6 +195,7 @@ void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,co
     throw_error_if_matrix_has_nan_or_infinite_elements(y, "y");
     throw_error_if_matrix_has_nan_or_infinite_elements(sample_weight, "sample_weight");
     throw_error_if_validation_set_indexes_has_invalid_indexes(y, validation_set_indexes);
+    throw_error_if_response_contains_invalid_values(y);
 }
 
 void APLRRegressor::throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes)
@@ -203,6 +208,39 @@ void APLRRegressor::throw_error_if_validation_set_indexes_has_invalid_indexes(co
         if(validation_set_indexes_has_elements_out_of_bounds)
             throw std::runtime_error("validation_set_indexes has elements that are out of bounds.");
     }
+}
+
+void APLRRegressor::throw_error_if_response_contains_invalid_values(const VectorXd &y)
+{
+    if(family=="logit")
+        throw_error_if_response_is_not_between_0_and_1(y);
+    else if(family=="poisson" || family=="poissongamma")
+        throw_error_if_response_is_negative(y);
+    else if(family=="gamma" || family=="inversegaussian")
+        throw_error_if_response_is_not_greater_than_zero(y);
+}
+
+void APLRRegressor::throw_error_if_response_is_not_between_0_and_1(const VectorXd &y)
+{
+    bool response_is_less_than_zero{(y.array()<0.0).any()};
+    bool response_is_greater_than_one{(y.array()>1.0).any()};
+    if(response_is_less_than_zero || response_is_greater_than_one)
+        throw std::runtime_error("Response values for "+family+" models cannot be less than zero or greater than one.");   
+}
+
+void APLRRegressor::throw_error_if_response_is_negative(const VectorXd &y)
+{
+    bool response_is_less_than_zero{(y.array()<0.0).any()};
+    if(response_is_less_than_zero)
+        throw std::runtime_error("Response values for "+family+" models cannot be less than zero.");   
+}
+
+void APLRRegressor::throw_error_if_response_is_not_greater_than_zero(const VectorXd &y)
+{
+    bool response_is_not_greater_than_zero{(y.array()<=0.0).any()};
+    if(response_is_not_greater_than_zero)
+        throw std::runtime_error("Response values for "+family+" models must be greater than zero.");   
+
 }
 
 void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight, const std::vector<size_t> &validation_set_indexes)
@@ -349,6 +387,8 @@ VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &y,const V
         output=(y.array() - predictions_current.array()) / predictions_current.array() / predictions_current.array();
     else if(family=="poissongamma")
         output=(y.array() / predictions_current.array().pow(1.5) - predictions_current.array().pow(-0.5));
+    else if(family=="inversegaussian")
+        output=y.array() / predictions_current.array().pow(3.0) - predictions_current.array().pow(-2.0);
     return output;
 }
 
@@ -648,6 +688,15 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
     }
 
     validation_error_steps[boosting_step]=calculate_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation,family),sample_weight_validation);
+    bool validation_error_is_invalid{!std::isfinite(validation_error_steps[boosting_step]) || std::isnan(validation_error_steps[boosting_step])};
+    if(validation_error_is_invalid)
+    {
+        abort_boosting=true;
+        std::string warning_message{"Warning: Encountered numerical problems when calculating prediction errors."};
+        if(family=="poisson" || family=="poissongamma" ||family=="gamma" || family=="inversegaussian")
+            warning_message+=" A reason may be too large response values.";
+        std::cout<<warning_message<<"\n";
+    }
 }
 
 void APLRRegressor::update_linear_predictor_and_predictors()
@@ -1011,6 +1060,8 @@ void APLRRegressor::throw_error_if_family_does_not_exist()
     else if(family=="gamma")
         family_exists=true;
     else if(family=="poissongamma")
+        family_exists=true;        
+    else if(family=="inversegaussian")
         family_exists=true;        
     if(!family_exists)
         throw std::runtime_error("Family "+family+" is not available in APLR.");   

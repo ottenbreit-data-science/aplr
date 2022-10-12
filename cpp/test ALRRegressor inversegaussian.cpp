@@ -20,7 +20,7 @@ int main()
     model.v=0.1;
     model.bins=300;
     model.n_jobs=0;
-    model.family="gamma";
+    model.family="inversegaussian";
     model.verbosity=3;
     model.max_interaction_level=0;
     model.max_interactions=1000;
@@ -51,7 +51,7 @@ int main()
     save_data("data/output.csv",predictions);
 
     std::cout<<predictions.mean()<<"\n\n";
-    tests.push_back(check_if_approximately_equal(predictions.mean(),21.0539,0.00001));
+    tests.push_back(check_if_approximately_equal(predictions.mean(),14.8751,0.00001));
 
     //std::cout<<model.validation_error_steps<<"\n\n";
 

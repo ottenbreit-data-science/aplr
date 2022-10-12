@@ -14,7 +14,7 @@ Currently available for Windows and most Linux distributions.
 Please see the two example Python scripts in the examples folder. They cover common use cases, but not all of the functionality in this package. For example, fitting with user-specified observation weights is possible but the example scripts do not use this functionality.
 
 # Sponsorship
-Please consider sponsoring Ottenbreit Data Science by clicking on the Sponsor button. Sufficient funding will enable maintenance of APLR and further development, such as developing a classifier based on APLR.
+Please consider sponsoring Ottenbreit Data Science by clicking on the Sponsor button. Sufficient funding will enable maintenance of APLR and further development.
 
 # API reference
 A thorough API reference will be provided in the future.
