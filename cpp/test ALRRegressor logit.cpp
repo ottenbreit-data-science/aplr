@@ -20,7 +20,8 @@ int main()
     model.v=0.1;
     model.bins=300;
     model.n_jobs=0;
-    model.family="logit";
+    model.family="binomial";
+    model.link_function="logit";
     model.verbosity=3;
     model.max_interaction_level=0;
     model.max_interactions=1000;

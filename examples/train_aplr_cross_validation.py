@@ -28,8 +28,9 @@ predicted="predicted"
 
 #Training model
 param_grid = {"max_interactions":[100000],"max_interaction_level":[0,1,2,3,100],"min_observations_in_split":[1, 20, 50, 100, 200]}
-family="gaussian" #other available families are logit, poisson, poissongamma, gamma and inversegaussian
-grid_search_cv = GridSearchCV(APLRRegressor(random_state=random_state,verbosity=1,m=1000,v=0.1,family=family),param_grid,cv=5,n_jobs=4,scoring="neg_mean_squared_error")
+family="gaussian" #other available families are binomial, poisson, poissongamma, gamma and inversegaussian
+link_function="identity" #other available link functions are logit, log, inverseroot, inverse and inversesquare
+grid_search_cv = GridSearchCV(APLRRegressor(random_state=random_state,verbosity=1,m=1000,v=0.1,family=family,link_function=link_function),param_grid,cv=5,n_jobs=4,scoring="neg_mean_squared_error")
 grid_search_cv.fit(data_train[predictors].values,data_train[response].values)
 best_model:APLRRegressor = grid_search_cv.best_estimator_
 best_model.set_term_names(X_names=predictors)

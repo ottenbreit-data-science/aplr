@@ -11,8 +11,8 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(aplr_cpp, m) {
     py::class_<APLRRegressor>(m, "APLRRegressor",py::module_local())
-        .def(py::init<int&, double&, int&, std::string&,int&,double&,double&,int&,int&,int&,int&,int&,int&,int&,int&>(),
-            py::arg("m")=1000,py::arg("v")=0.1,py::arg("random_state")=0,py::arg("family")="gaussian",
+        .def(py::init<int&, double&, int&, std::string&,std::string&,int&,double&,double&,int&,int&,int&,int&,int&,int&,int&,int&>(),
+            py::arg("m")=1000,py::arg("v")=0.1,py::arg("random_state")=0,py::arg("family")="gaussian",py::arg("link_function")="identity",
             py::arg("n_jobs")=0,py::arg("validation_ratio")=0.2,py::arg("intercept")=NAN_DOUBLE,
             py::arg("reserved_terms_times_num_x")=100,py::arg("bins")=300,py::arg("verbosity")=0,
             py::arg("max_interaction_level")=100,py::arg("max_interactions")=0,py::arg("min_observations_in_split")=20,
@@ -41,6 +41,7 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def_readwrite("min_observations_in_split", &APLRRegressor::min_observations_in_split)
         .def_readwrite("interactions_eligible", &APLRRegressor::interactions_eligible)
         .def_readwrite("family", &APLRRegressor::family)
+        .def_readwrite("link_function", &APLRRegressor::link_function)
         .def_readwrite("validation_ratio", &APLRRegressor::validation_ratio)
         .def_readwrite("validation_error_steps", &APLRRegressor::validation_error_steps)
         .def_readwrite("n_jobs", &APLRRegressor::n_jobs)
@@ -60,14 +61,15 @@ PYBIND11_MODULE(aplr_cpp, m) {
                 return py::make_tuple(a.m,a.v,a.random_state,a.family,a.n_jobs,a.validation_ratio,a.intercept,a.bins,a.verbosity,
                     a.max_interaction_level,a.max_interactions,a.validation_error_steps,a.term_names,a.term_coefficients,a.terms,a.intercept_steps,
                     a.interactions_eligible,a.min_observations_in_split,a.ineligible_boosting_steps_added,a.max_eligible_terms,
-                    a.number_of_base_terms,a.feature_importance);
+                    a.number_of_base_terms,a.feature_importance,a.link_function);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 22)
+                if (t.size() != 23)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
-                APLRRegressor a(t[0].cast<size_t>(),t[1].cast<double>(),t[2].cast<uint_fast32_t>(),t[3].cast<std::string>(),t[4].cast<size_t>(),t[5].cast<double>(),
+                APLRRegressor a(t[0].cast<size_t>(),t[1].cast<double>(),t[2].cast<uint_fast32_t>(),t[3].cast<std::string>(),
+                    t[22].cast<std::string>(),t[4].cast<size_t>(),t[5].cast<double>(),
                     t[6].cast<double>(),100,t[7].cast<size_t>(),t[8].cast<size_t>(),t[9].cast<size_t>(),t[10].cast<double>(),t[17].cast<size_t>());
 
                 a.validation_error_steps=t[11].cast<VectorXd>();

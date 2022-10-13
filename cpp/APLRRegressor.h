@@ -77,6 +77,7 @@ private:
     void cleanup_after_fit();
     void validate_that_model_can_be_used(const MatrixXd &X);
     void throw_error_if_family_does_not_exist();
+    void throw_error_if_link_function_does_not_exist();
     VectorXd calculate_linear_predictor(const MatrixXd &X);
     void update_linear_predictor_and_predictors();
     void throw_error_if_response_contains_invalid_values(const VectorXd &y);
@@ -91,6 +92,7 @@ public:
     size_t m; //Boosting steps to run. Can shrink to auto tuned value after running fit().
     double v; //Learning rate.
     std::string family;
+    std::string link_function;
     double validation_ratio;
     size_t n_jobs; //0:using all available cores. 1:no multithreading. >1: Using a specified number of cores but not more than is available.
     uint_fast32_t random_state; //For train/validation split. If std::numeric_limits<uint_fast32_t>::lowest() then will randomly set a seed
@@ -112,10 +114,10 @@ public:
     VectorXd feature_importance; //Populated in fit() using validation set. Rows are in the same order as in X.
 
     //Methods
-    APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string family="gaussian",size_t n_jobs=0,
-        double validation_ratio=0.2,double intercept=NAN_DOUBLE,size_t reserved_terms_times_num_x=100,size_t bins=300,size_t verbosity=0,
-        size_t max_interaction_level=100,size_t max_interactions=0,size_t min_observations_in_split=20,size_t ineligible_boosting_steps_added=10,
-        size_t max_eligible_terms=5);
+    APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string family="gaussian",
+        std::string link_function="identity", size_t n_jobs=0, double validation_ratio=0.2,double intercept=NAN_DOUBLE,
+        size_t reserved_terms_times_num_x=100, size_t bins=300,size_t verbosity=0,size_t max_interaction_level=100,size_t max_interactions=0,
+        size_t min_observations_in_split=20, size_t ineligible_boosting_steps_added=10, size_t max_eligible_terms=5);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},const std::vector<size_t> &validation_set_indexes={});
@@ -135,11 +137,11 @@ public:
 };
 
 //Regular constructor
-APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::string family,size_t n_jobs,double validation_ratio,double intercept,
-    size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,size_t max_interactions,size_t min_observations_in_split,
-    size_t ineligible_boosting_steps_added,size_t max_eligible_terms):
+APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::string family,std::string link_function,size_t n_jobs,
+    double validation_ratio,double intercept,size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,
+    size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms):
         reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{intercept},m{m},v{v},
-        family{family},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
+        family{family},link_function{link_function},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},
         intercept_steps{VectorXd(0)},max_interactions{max_interactions},interactions_eligible{0},validation_error_steps{VectorXd(0)},
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
@@ -150,7 +152,7 @@ APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::s
 //Copy constructor
 APLRRegressor::APLRRegressor(const APLRRegressor &other):
     reserved_terms_times_num_x{other.reserved_terms_times_num_x},intercept{other.intercept},terms{other.terms},m{other.m},v{other.v},
-    family{other.family},validation_ratio{other.validation_ratio},
+    family{other.family},link_function{other.link_function},validation_ratio{other.validation_ratio},
     n_jobs{other.n_jobs},random_state{other.random_state},bins{other.bins},
     verbosity{other.verbosity},term_names{other.term_names},term_coefficients{other.term_coefficients},
     max_interaction_level{other.max_interaction_level},intercept_steps{other.intercept_steps},
@@ -173,6 +175,7 @@ APLRRegressor::~APLRRegressor()
 void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names,const std::vector<size_t> &validation_set_indexes)
 {
     throw_error_if_family_does_not_exist();
+    throw_error_if_link_function_does_not_exist();
     validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes);
     define_training_and_validation_sets(X,y,sample_weight,validation_set_indexes);
     initialize();
@@ -212,11 +215,11 @@ void APLRRegressor::throw_error_if_validation_set_indexes_has_invalid_indexes(co
 
 void APLRRegressor::throw_error_if_response_contains_invalid_values(const VectorXd &y)
 {
-    if(family=="logit")
+    if(link_function=="logit")
         throw_error_if_response_is_not_between_0_and_1(y);
-    else if(family=="poisson" || family=="poissongamma")
+    else if(link_function=="log" || link_function=="inverseroot")
         throw_error_if_response_is_negative(y);
-    else if(family=="gamma" || family=="inversegaussian")
+    else if(link_function=="inverse" || link_function=="inversesquare")
         throw_error_if_response_is_not_greater_than_zero(y);
 }
 
@@ -225,21 +228,21 @@ void APLRRegressor::throw_error_if_response_is_not_between_0_and_1(const VectorX
     bool response_is_less_than_zero{(y.array()<0.0).any()};
     bool response_is_greater_than_one{(y.array()>1.0).any()};
     if(response_is_less_than_zero || response_is_greater_than_one)
-        throw std::runtime_error("Response values for "+family+" models cannot be less than zero or greater than one.");   
+        throw std::runtime_error("Response values for "+link_function+" link functions cannot be less than zero or greater than one.");   
 }
 
 void APLRRegressor::throw_error_if_response_is_negative(const VectorXd &y)
 {
     bool response_is_less_than_zero{(y.array()<0.0).any()};
     if(response_is_less_than_zero)
-        throw std::runtime_error("Response values for "+family+" models cannot be less than zero.");   
+        throw std::runtime_error("Response values for "+link_function+" link functions cannot be less than zero.");   
 }
 
 void APLRRegressor::throw_error_if_response_is_not_greater_than_zero(const VectorXd &y)
 {
     bool response_is_not_greater_than_zero{(y.array()<=0.0).any()};
     if(response_is_not_greater_than_zero)
-        throw std::runtime_error("Response values for "+family+" models must be greater than zero.");   
+        throw std::runtime_error("Response values for "+link_function+" link functions must be greater than zero.");   
 
 }
 
@@ -337,11 +340,11 @@ void APLRRegressor::initialize()
         }
     }
 
-    linear_predictor_current=VectorXd::Constant(y_train.size(),0);
+    linear_predictor_current=VectorXd::Constant(y_train.size(),intercept);
     linear_predictor_null_model=linear_predictor_current;
-    linear_predictor_current_validation=VectorXd::Constant(y_validation.size(),0);
-    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,family);
-    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,family);
+    linear_predictor_current_validation=VectorXd::Constant(y_validation.size(),intercept);
+    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function);
+    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function);
 
     validation_error_steps.resize(m);
     validation_error_steps.setConstant(std::numeric_limits<double>::infinity());
@@ -379,14 +382,14 @@ VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &y,const V
     VectorXd output;
     if(family=="gaussian")
         output=y-predictions_current;
-    else if(family=="logit")
+    else if(family=="binomial")
         output=y.array() / predictions_current.array() - (y.array()-1.0) / (predictions_current.array()-1.0);
     else if(family=="poisson")
         output=y.array() / predictions_current.array() - 1;
     else if(family=="gamma")
         output=(y.array() - predictions_current.array()) / predictions_current.array() / predictions_current.array();
     else if(family=="poissongamma")
-        output=(y.array() / predictions_current.array().pow(1.5) - predictions_current.array().pow(-0.5));
+        output=y.array() / predictions_current.array().pow(1.5) - predictions_current.array().pow(-0.5);
     else if(family=="inversegaussian")
         output=y.array() / predictions_current.array().pow(3.0) - predictions_current.array().pow(-2.0);
     return output;
@@ -692,8 +695,9 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
     if(validation_error_is_invalid)
     {
         abort_boosting=true;
-        std::string warning_message{"Warning: Encountered numerical problems when calculating prediction errors."};
-        if(family=="poisson" || family=="poissongamma" ||family=="gamma" || family=="inversegaussian")
+        std::string warning_message{"Warning: Encountered numerical problems when calculating prediction errors in the previous boosting step. Not continuing with further boosting steps."};
+        bool show_additional_warning{family=="poisson" || family=="poissongamma" || family=="gamma" || family=="inversegaussian" || (link_function!="identity" && link_function!="logit")};
+        if(show_additional_warning)
             warning_message+=" A reason may be too large response values.";
         std::cout<<warning_message<<"\n";
     }
@@ -703,8 +707,8 @@ void APLRRegressor::update_linear_predictor_and_predictors()
 {
     linear_predictor_current+=linear_predictor_update;
     linear_predictor_current_validation+=linear_predictor_update_validation;
-    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,family);
-    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,family);
+    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function);
+    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function);
 }
 
 void APLRRegressor::update_gradient_and_errors()
@@ -960,7 +964,7 @@ VectorXd APLRRegressor::predict(const MatrixXd &X)
     validate_that_model_can_be_used(X);
 
     VectorXd linear_predictor{calculate_linear_predictor(X)};
-    VectorXd predictions{transform_linear_predictor_to_predictions(linear_predictor,family)};
+    VectorXd predictions{transform_linear_predictor_to_predictions(linear_predictor,link_function)};
 
     return predictions;
 }
@@ -1053,7 +1057,7 @@ void APLRRegressor::throw_error_if_family_does_not_exist()
     bool family_exists{false};
     if(family=="gaussian")
         family_exists=true;
-    else if(family=="logit")
+    else if(family=="binomial")
         family_exists=true;
     else if(family=="poisson")
         family_exists=true;
@@ -1065,4 +1069,23 @@ void APLRRegressor::throw_error_if_family_does_not_exist()
         family_exists=true;        
     if(!family_exists)
         throw std::runtime_error("Family "+family+" is not available in APLR.");   
+}
+
+void APLRRegressor::throw_error_if_link_function_does_not_exist()
+{
+    bool link_function_exists{false};
+    if(link_function=="identity")
+        link_function_exists=true;
+    else if(link_function=="logit")
+        link_function_exists=true;
+    else if(link_function=="log")
+        link_function_exists=true;
+    else if(link_function=="inverseroot")
+        link_function_exists=true;
+    else if(link_function=="inverse")
+        link_function_exists=true;        
+    else if(link_function=="inversesquare")
+        link_function_exists=true;        
+    if(!link_function_exists)
+        throw std::runtime_error("Link function "+link_function+" is not available in APLR.");
 }

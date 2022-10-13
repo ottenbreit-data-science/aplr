@@ -47,7 +47,7 @@ VectorXd calculate_gaussian_errors(const VectorXd &y,const VectorXd &predicted)
     return errors;
 }
 
-VectorXd calculate_logit_errors(const VectorXd &y,const VectorXd &predicted)
+VectorXd calculate_binomial_errors(const VectorXd &y,const VectorXd &predicted)
 {
     VectorXd errors{-y.array() * predicted.array().log()  -  (1.0-y.array()).array() * (1.0-predicted.array()).log()};
     return errors;
@@ -84,8 +84,8 @@ VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const Vect
     VectorXd errors;
     if(family=="gaussian")
         errors=calculate_gaussian_errors(y,predicted);
-    else if(family=="logit")
-        errors=calculate_logit_errors(y,predicted);
+    else if(family=="binomial")
+        errors=calculate_binomial_errors(y,predicted);
     else if(family=="poisson")
         errors=calculate_poisson_errors(y,predicted);
     else if(family=="gamma")
@@ -135,17 +135,35 @@ double calculate_error(const VectorXd &errors,const VectorXd &sample_weight=Vect
     return error;
 }
 
-VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predictor, const std::string &family="gaussian")
+VectorXd transform_linear_predictor_to_negative(const VectorXd &linear_predictor)
 {
-    if(family=="gaussian")
+    VectorXd transformed_linear_predictor{linear_predictor};
+    for (size_t i = 0; i < static_cast<size_t>(transformed_linear_predictor.rows()); ++i)
+    {
+        bool row_is_positive{std::isgreaterequal(transformed_linear_predictor[i],0.0)};
+        if(row_is_positive)
+            transformed_linear_predictor[i]=SMALL_NEGATIVE_VALUE;
+    }
+    return transformed_linear_predictor;
+}
+
+VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predictor, const std::string &link_function="identity")
+{
+    if(link_function=="identity")
         return linear_predictor;
-    else if(family=="logit")
+    else if(link_function=="logit")
     {
         VectorXd exp_of_linear_predictor{linear_predictor.array().exp()};
         return exp_of_linear_predictor.array() / (1.0 + exp_of_linear_predictor.array());
     }
-    else if(family=="poisson" || family=="poissongamma" || family=="gamma" || family=="inversegaussian")
+    else if(link_function=="log")
         return linear_predictor.array().exp();
+    else if(link_function=="inverseroot")
+        return 4.0 * transform_linear_predictor_to_negative(linear_predictor).array().pow(-2);
+    else if(link_function=="inverse")
+        return -1.0 / transform_linear_predictor_to_negative(linear_predictor).array();
+    else if(link_function=="inversesquare")
+        return 1.0 / std::sqrt(2) / (-transform_linear_predictor_to_negative(linear_predictor).array()).pow(0.5);
     return VectorXd(0);
 }
 

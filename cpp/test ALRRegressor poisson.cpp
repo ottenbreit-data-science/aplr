@@ -21,6 +21,7 @@ int main()
     model.bins=300;
     model.n_jobs=0;
     model.family="poisson";
+    model.link_function="log";
     model.verbosity=3;
     model.max_interaction_level=0;
     model.max_interactions=1000;
