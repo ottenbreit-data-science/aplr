@@ -65,20 +65,14 @@ VectorXd calculate_gamma_errors(const VectorXd &y,const VectorXd &predicted)
     return errors;
 }
 
-VectorXd calculate_poissongamma_errors(const VectorXd &y,const VectorXd &predicted)
+VectorXd calculate_tweedie_errors(const VectorXd &y,const VectorXd &predicted,double tweedie_power=1.5)
 {
-    VectorXd errors{y.array().pow(0.5).array() / (-0.25) + y.array()*predicted.array().pow(-0.5) / 0.5 + predicted.array().pow(0.5) / 0.5};
-    return errors;
-}
-
-VectorXd calculate_inversegaussian_errors(const VectorXd &y,const VectorXd &predicted)
-{
-    VectorXd errors{y.array().pow(-1.0).array() / 2.0 + y.array()*predicted.array().pow(-2.0) / 2.0 + predicted.array().pow(-1.0) / (-1.0)};
+    VectorXd errors{y.array().pow(2-tweedie_power).array() / (1-tweedie_power) / (2-tweedie_power) - y.array()*predicted.array().pow(1-tweedie_power) / (1-tweedie_power) + predicted.array().pow(2-tweedie_power) / (2-tweedie_power)};
     return errors;
 }
 
 //Computes errors (for each observation) based on error metric for a vector
-VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0),const std::string &family="gaussian")
+VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0),const std::string &family="gaussian",double tweedie_power=1.5)
 {   
     //Error per observation before adjustment for sample weights
     VectorXd errors;
@@ -90,10 +84,8 @@ VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const Vect
         errors=calculate_poisson_errors(y,predicted);
     else if(family=="gamma")
         errors=calculate_gamma_errors(y,predicted);
-    else if(family=="poissongamma")
-        errors=calculate_poissongamma_errors(y,predicted);
-    else if(family=="inversegaussian")
-        errors=calculate_inversegaussian_errors(y,predicted);
+    else if(family=="tweedie")
+        errors=calculate_tweedie_errors(y,predicted,tweedie_power);
     //Adjusting for sample weights if specified
     if(sample_weight.size()>0)
         errors=errors.array()*sample_weight.array();
@@ -147,7 +139,7 @@ VectorXd transform_linear_predictor_to_negative(const VectorXd &linear_predictor
     return transformed_linear_predictor;
 }
 
-VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predictor, const std::string &link_function="identity")
+VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predictor, const std::string &link_function="identity", double tweedie_power=1.5)
 {
     if(link_function=="identity")
         return linear_predictor;
@@ -158,12 +150,10 @@ VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predic
     }
     else if(link_function=="log")
         return linear_predictor.array().exp();
-    else if(link_function=="inverseroot")
-        return 4.0 * transform_linear_predictor_to_negative(linear_predictor).array().pow(-2);
+    else if(link_function=="tweedie")
+        return (transform_linear_predictor_to_negative(linear_predictor).array() * (1-tweedie_power)).array().pow(1/(1-tweedie_power));
     else if(link_function=="inverse")
         return -1.0 / transform_linear_predictor_to_negative(linear_predictor).array();
-    else if(link_function=="inversesquare")
-        return 1.0 / std::sqrt(2) / (-transform_linear_predictor_to_negative(linear_predictor).array()).pow(0.5);
     return VectorXd(0);
 }
 

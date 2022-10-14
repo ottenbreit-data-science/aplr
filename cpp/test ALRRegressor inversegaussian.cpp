@@ -20,8 +20,9 @@ int main()
     model.v=0.1;
     model.bins=300;
     model.n_jobs=0;
-    model.family="inversegaussian";
-    model.link_function="inversesquare";
+    model.family="tweedie";
+    model.link_function="tweedie";
+    model.tweedie_power=3.0;
     model.verbosity=3;
     model.max_interaction_level=0;
     model.max_interactions=1000;

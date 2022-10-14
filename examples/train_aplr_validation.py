@@ -30,10 +30,10 @@ predicted="predicted"
 #Training model
 validation_results=pd.DataFrame()
 best_validation_result=np.inf
-param_grid=ParameterGrid({"max_interactions":[100000],"max_interaction_level":[0,1,2,3,100],"min_observations_in_split":[1, 20, 50, 100, 200]})
+param_grid=ParameterGrid({"max_interaction_level":[0,1,2,3,100],"min_observations_in_split":[1, 20, 50, 100, 200]})
 bestmodel=None
-family="gaussian" #other available families are binomial, poisson, poissongamma, gamma and inversegaussian
-link_function="identity" #other available link functions are logit, log, inverseroot, inverse and inversesquare
+family="gaussian" #other available families are binomial, poisson, gamma and tweedie
+link_function="identity" #other available link functions are logit, log, inverse and tweedie
 for params in param_grid:
     model = APLRRegressor(random_state=random_state,verbosity=3,m=1000,v=0.1,family=family,link_function=link_function,**params) 
     model.fit(data_train[predictors].values,data_train[response].values,X_names=predictors)

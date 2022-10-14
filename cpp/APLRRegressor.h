@@ -84,6 +84,7 @@ private:
     void throw_error_if_response_is_not_between_0_and_1(const VectorXd &y);
     void throw_error_if_response_is_negative(const VectorXd &y);
     void throw_error_if_response_is_not_greater_than_zero(const VectorXd &y);
+    void throw_error_if_tweedie_power_is_invalid();
     
 public:
     //Fields
@@ -112,12 +113,13 @@ public:
                                     //terms with ineligible_boosting_steps>0). Not used if 0.
     size_t number_of_base_terms; 
     VectorXd feature_importance; //Populated in fit() using validation set. Rows are in the same order as in X.
+    double tweedie_power;
 
     //Methods
     APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string family="gaussian",
         std::string link_function="identity", size_t n_jobs=0, double validation_ratio=0.2,double intercept=NAN_DOUBLE,
-        size_t reserved_terms_times_num_x=100, size_t bins=300,size_t verbosity=0,size_t max_interaction_level=100,size_t max_interactions=0,
-        size_t min_observations_in_split=20, size_t ineligible_boosting_steps_added=10, size_t max_eligible_terms=5);
+        size_t reserved_terms_times_num_x=100, size_t bins=300,size_t verbosity=0,size_t max_interaction_level=1,size_t max_interactions=100000,
+        size_t min_observations_in_split=20, size_t ineligible_boosting_steps_added=10, size_t max_eligible_terms=5,double tweedie_power=1.5);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},const std::vector<size_t> &validation_set_indexes={});
@@ -139,13 +141,13 @@ public:
 //Regular constructor
 APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::string family,std::string link_function,size_t n_jobs,
     double validation_ratio,double intercept,size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,
-    size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms):
+    size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double tweedie_power):
         reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{intercept},m{m},v{v},
         family{family},link_function{link_function},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},
         intercept_steps{VectorXd(0)},max_interactions{max_interactions},interactions_eligible{0},validation_error_steps{VectorXd(0)},
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
-        max_eligible_terms{max_eligible_terms},number_of_base_terms{0}
+        max_eligible_terms{max_eligible_terms},number_of_base_terms{0},tweedie_power{tweedie_power}
 {
 }
 
@@ -159,7 +161,7 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other):
     max_interactions{other.max_interactions},interactions_eligible{other.interactions_eligible},validation_error_steps{other.validation_error_steps},
     min_observations_in_split{other.min_observations_in_split},ineligible_boosting_steps_added{other.ineligible_boosting_steps_added},
     max_eligible_terms{other.max_eligible_terms},number_of_base_terms{other.number_of_base_terms},
-    feature_importance{other.feature_importance}
+    feature_importance{other.feature_importance},tweedie_power{other.tweedie_power}
 {
 }
 
@@ -176,6 +178,7 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
 {
     throw_error_if_family_does_not_exist();
     throw_error_if_link_function_does_not_exist();
+    throw_error_if_tweedie_power_is_invalid();
     validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes);
     define_training_and_validation_sets(X,y,sample_weight,validation_set_indexes);
     initialize();
@@ -186,6 +189,49 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
     name_terms(X, X_names);
     calculate_feature_importance_on_validation_set();
     cleanup_after_fit();
+}
+
+void APLRRegressor::throw_error_if_family_does_not_exist()
+{
+    bool family_exists{false};
+    if(family=="gaussian")
+        family_exists=true;
+    else if(family=="binomial")
+        family_exists=true;
+    else if(family=="poisson")
+        family_exists=true;
+    else if(family=="gamma")
+        family_exists=true;
+    else if(family=="tweedie")
+        family_exists=true;        
+    if(!family_exists)
+        throw std::runtime_error("Family "+family+" is not available in APLR.");   
+}
+
+void APLRRegressor::throw_error_if_link_function_does_not_exist()
+{
+    bool link_function_exists{false};
+    if(link_function=="identity")
+        link_function_exists=true;
+    else if(link_function=="logit")
+        link_function_exists=true;
+    else if(link_function=="log")
+        link_function_exists=true;
+    else if(link_function=="tweedie")
+        link_function_exists=true;
+    else if(link_function=="inverse")
+        link_function_exists=true;        
+    if(!link_function_exists)
+        throw std::runtime_error("Link function "+link_function+" is not available in APLR.");
+}
+
+void APLRRegressor::throw_error_if_tweedie_power_is_invalid()
+{
+    bool tweedie_power_equals_invalid_poits{check_if_approximately_equal(tweedie_power,1.0) || check_if_approximately_equal(tweedie_power,2.0)};
+    bool tweedie_power_is_in_invalid_range{std::isless(tweedie_power,1.0)};
+    bool tweedie_power_is_invalid{tweedie_power_equals_invalid_poits || tweedie_power_is_in_invalid_range};
+    if(tweedie_power_is_invalid)
+        throw std::runtime_error("Tweedie power is invalid. It must not equal 1.0 or 2.0 and cannot be below 1.0.");
 }
 
 void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes)
@@ -217,9 +263,9 @@ void APLRRegressor::throw_error_if_response_contains_invalid_values(const Vector
 {
     if(link_function=="logit")
         throw_error_if_response_is_not_between_0_and_1(y);
-    else if(link_function=="log" || link_function=="inverseroot")
+    else if(link_function=="log" || (link_function=="tweedie" && std::isgreater(tweedie_power,1) && std::isless(tweedie_power,2)) )
         throw_error_if_response_is_negative(y);
-    else if(link_function=="inverse" || link_function=="inversesquare")
+    else if(link_function=="inverse" || (link_function=="tweedie" && std::isgreater(tweedie_power,2)) )
         throw_error_if_response_is_not_greater_than_zero(y);
 }
 
@@ -343,8 +389,8 @@ void APLRRegressor::initialize()
     linear_predictor_current=VectorXd::Constant(y_train.size(),intercept);
     linear_predictor_null_model=linear_predictor_current;
     linear_predictor_current_validation=VectorXd::Constant(y_validation.size(),intercept);
-    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function);
-    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function);
+    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function,tweedie_power);
+    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function,tweedie_power);
 
     validation_error_steps.resize(m);
     validation_error_steps.setConstant(std::numeric_limits<double>::infinity());
@@ -388,10 +434,8 @@ VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &y,const V
         output=y.array() / predictions_current.array() - 1;
     else if(family=="gamma")
         output=(y.array() - predictions_current.array()) / predictions_current.array() / predictions_current.array();
-    else if(family=="poissongamma")
-        output=y.array() / predictions_current.array().pow(1.5) - predictions_current.array().pow(-0.5);
-    else if(family=="inversegaussian")
-        output=y.array() / predictions_current.array().pow(3.0) - predictions_current.array().pow(-2.0);
+    else if(family=="tweedie")
+        output=(y.array()-predictions_current.array()).array() * predictions_current.array().pow(-tweedie_power);
     return output;
 }
 
@@ -690,13 +734,13 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
         }
     }
 
-    validation_error_steps[boosting_step]=calculate_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation,family),sample_weight_validation);
+    validation_error_steps[boosting_step]=calculate_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation,family,tweedie_power),sample_weight_validation);
     bool validation_error_is_invalid{!std::isfinite(validation_error_steps[boosting_step]) || std::isnan(validation_error_steps[boosting_step])};
     if(validation_error_is_invalid)
     {
         abort_boosting=true;
         std::string warning_message{"Warning: Encountered numerical problems when calculating prediction errors in the previous boosting step. Not continuing with further boosting steps."};
-        bool show_additional_warning{family=="poisson" || family=="poissongamma" || family=="gamma" || family=="inversegaussian" || (link_function!="identity" && link_function!="logit")};
+        bool show_additional_warning{family=="poisson" || family=="tweedie" || family=="gamma" || (link_function!="identity" && link_function!="logit")};
         if(show_additional_warning)
             warning_message+=" A reason may be too large response values.";
         std::cout<<warning_message<<"\n";
@@ -707,8 +751,8 @@ void APLRRegressor::update_linear_predictor_and_predictors()
 {
     linear_predictor_current+=linear_predictor_update;
     linear_predictor_current_validation+=linear_predictor_update_validation;
-    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function);
-    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function);
+    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function,tweedie_power);
+    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function,tweedie_power);
 }
 
 void APLRRegressor::update_gradient_and_errors()
@@ -964,7 +1008,7 @@ VectorXd APLRRegressor::predict(const MatrixXd &X)
     validate_that_model_can_be_used(X);
 
     VectorXd linear_predictor{calculate_linear_predictor(X)};
-    VectorXd predictions{transform_linear_predictor_to_predictions(linear_predictor,link_function)};
+    VectorXd predictions{transform_linear_predictor_to_predictions(linear_predictor,link_function,tweedie_power)};
 
     return predictions;
 }
@@ -1050,42 +1094,4 @@ VectorXd APLRRegressor::get_intercept_steps()
 size_t APLRRegressor::get_m()
 {
     return m;
-}
-
-void APLRRegressor::throw_error_if_family_does_not_exist()
-{
-    bool family_exists{false};
-    if(family=="gaussian")
-        family_exists=true;
-    else if(family=="binomial")
-        family_exists=true;
-    else if(family=="poisson")
-        family_exists=true;
-    else if(family=="gamma")
-        family_exists=true;
-    else if(family=="poissongamma")
-        family_exists=true;        
-    else if(family=="inversegaussian")
-        family_exists=true;        
-    if(!family_exists)
-        throw std::runtime_error("Family "+family+" is not available in APLR.");   
-}
-
-void APLRRegressor::throw_error_if_link_function_does_not_exist()
-{
-    bool link_function_exists{false};
-    if(link_function=="identity")
-        link_function_exists=true;
-    else if(link_function=="logit")
-        link_function_exists=true;
-    else if(link_function=="log")
-        link_function_exists=true;
-    else if(link_function=="inverseroot")
-        link_function_exists=true;
-    else if(link_function=="inverse")
-        link_function_exists=true;        
-    else if(link_function=="inversesquare")
-        link_function_exists=true;        
-    if(!link_function_exists)
-        throw std::runtime_error("Link function "+link_function+" is not available in APLR.");
 }

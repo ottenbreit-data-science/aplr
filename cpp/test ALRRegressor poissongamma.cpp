@@ -20,8 +20,9 @@ int main()
     model.v=0.5;
     model.bins=300;
     model.n_jobs=0;
-    model.family="poissongamma";
-    model.link_function="inverseroot";
+    model.family="tweedie";
+    model.link_function="tweedie";
+    model.tweedie_power=1.5;
     model.verbosity=3;
     model.max_interaction_level=0;
     model.max_interactions=1000;
