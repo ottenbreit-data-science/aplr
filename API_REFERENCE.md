@@ -14,10 +14,10 @@ The learning rate. Must be greater than zero and not more than one. The higher t
 Used to randomly split training observations into training and validation if ***validation_set_indexes*** is not specified when fitting.
 
 #### family (default = "gaussian")
-Determines the loss function used. Allowed values are "gaussian", "binomial", "poisson", "gamma" and "tweedie". This is used together with ***link_function***.
+Determines the loss function used. Allowed values are "gaussian", "binomial", "poisson", "gamma" and "tweedie". This is used together with ***link_function***. Please note that the implementation of values other than "gaussian" is experimental.
 
 #### link_function (default = "identity")
-Determines how the linear predictor is transformed to predictions. Allowed values are "identity", "logit", "log", "inverse" and "tweedie". These are canonical link functions for the "gaussian", "binomial", "poisson", "gamma" and "tweedie" ***family*** respectively. Canonical links usually work fine given that the data is appropriate for the selected combination of ***family*** and ***link_function***. Other combinations of ***family*** and ***link_function*** may or may not work (the model may fit poorly to the data if the wrong combination is used).
+Determines how the linear predictor is transformed to predictions. Allowed values are "identity", "logit", "log", "inverse" and "tweedie". These are canonical link functions for the "gaussian", "binomial", "poisson", "gamma" and "tweedie" ***family*** respectively. Canonical links usually work fine given that the data is appropriate for the selected combination of ***family*** and ***link_function***. Other combinations of ***family*** and ***link_function*** may or may not work (the model may fit poorly to the data if the wrong combination is used). Please note that the implementation of values other than "identity" is experimental.
 
 #### n_jobs (default = 0)
 Multi-threading parameter. If ***0*** then uses all available cores for multi-threading. Any other positive integer specifies the number of cores to use (***1*** means single-threading).
