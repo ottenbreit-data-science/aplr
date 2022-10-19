@@ -734,7 +734,7 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
         }
     }
 
-    validation_error_steps[boosting_step]=calculate_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation,family,tweedie_power),sample_weight_validation);
+    validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation,family,tweedie_power),sample_weight_validation);
     bool validation_error_is_invalid{std::isless(validation_error_steps[boosting_step],0) || !std::isfinite(validation_error_steps[boosting_step]) || std::isnan(validation_error_steps[boosting_step])};
     if(validation_error_is_invalid)
     {

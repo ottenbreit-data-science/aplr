@@ -39,16 +39,16 @@ int main()
 
     //compute_error
     //calculating errors
-    double error_mse{calculate_error(errors_mse)};
+    double error_mse{calculate_mean_error(errors_mse)};
     std::cout<<"error_mse: "<<error_mse<<"\n\n";   
     tests.push_back((check_if_approximately_equal(error_mse,3.482)?true:false));
-    double error_mae{calculate_error(errors_mae)};
+    double error_mae{calculate_mean_error(errors_mae)};
     std::cout<<"error_mae: "<<error_mae<<"\n\n";   
     tests.push_back((check_if_approximately_equal(error_mae,1.18)?true:false)); 
-    double error_mse_sw{calculate_error(errors_mse_sw,sample_weight)};
+    double error_mse_sw{calculate_mean_error(errors_mse_sw,sample_weight)};
     std::cout<<"error_mse_sw: "<<error_mse_sw<<"\n\n";   
     tests.push_back((check_if_approximately_equal(error_mse_sw,0.4433,0.0001)?true:false));
-    double error_mae_sw{calculate_error(errors_mae_sw,sample_weight)};
+    double error_mae_sw{calculate_mean_error(errors_mae_sw,sample_weight)};
     std::cout<<"error_mae_sw: "<<error_mae_sw<<"\n\n";   
     tests.push_back((check_if_approximately_equal(error_mae_sw,0.5666,0.0001)?true:false));
 

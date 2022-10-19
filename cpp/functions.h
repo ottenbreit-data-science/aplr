@@ -40,6 +40,15 @@ static bool check_if_approximately_zero(TReal a, TReal tolerance = std::numeric_
     return false;
 }
 
+double set_error_to_infinity_if_invalid(double error)
+{
+    bool error_is_invalid{std::isless(error,0) || std::isnan(error) || std::isinf(error)};
+    if(error_is_invalid)
+        error=std::numeric_limits<double>::infinity();
+    
+    return error;    
+}
+
 VectorXd calculate_gaussian_errors(const VectorXd &y,const VectorXd &predicted)
 {
     VectorXd errors{y-predicted};
@@ -114,7 +123,7 @@ double calculate_error_one_observation(double y,double predicted,double sample_w
 }
 
 //Computes overall error based on errors from calculate_errors(), returning one value
-double calculate_error(const VectorXd &errors,const VectorXd &sample_weight=VectorXd(0))
+double calculate_mean_error(const VectorXd &errors,const VectorXd &sample_weight=VectorXd(0))
 {   
     double error{std::numeric_limits<double>::infinity()};
 
@@ -123,7 +132,17 @@ double calculate_error(const VectorXd &errors,const VectorXd &sample_weight=Vect
         error=errors.sum()/sample_weight.sum();
     else
         error=errors.mean();
-    
+
+    error=set_error_to_infinity_if_invalid(error);
+ 
+    return error;
+}
+
+//Computes overall error based on errors from calculate_errors(), returning one value
+double calculate_sum_error(const VectorXd &errors)
+{   
+    double error{errors.sum()};
+    error=set_error_to_infinity_if_invalid(error);  
     return error;
 }
 
