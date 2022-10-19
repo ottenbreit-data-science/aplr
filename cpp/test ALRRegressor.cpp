@@ -11,6 +11,9 @@ using namespace Eigen;
 
 int main()
 {
+    std::vector<bool> tests;
+    tests.reserve(1000);
+
     //Model
     APLRRegressor model{APLRRegressor()};
     model.m=100;
@@ -48,6 +51,10 @@ int main()
     save_data("data/output.csv",predictions);
 
     std::cout<<predictions.mean()<<"\n\n";
+    tests.push_back(check_if_approximately_equal(predictions.mean(),23.4891,0.00001));
 
     //std::cout<<model.validation_error_steps<<"\n\n";
+
+    //Test summary
+    std::cout<<"\n\nTest summary\n"<<"Passed "<<std::accumulate(tests.begin(),tests.end(),0)<<" out of "<<tests.size()<<" tests.";
 }
