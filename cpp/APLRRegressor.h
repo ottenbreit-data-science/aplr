@@ -735,9 +735,10 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
     }
 
     validation_error_steps[boosting_step]=calculate_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation,family,tweedie_power),sample_weight_validation);
-    bool validation_error_is_invalid{!std::isfinite(validation_error_steps[boosting_step]) || std::isnan(validation_error_steps[boosting_step])};
+    bool validation_error_is_invalid{std::isless(validation_error_steps[boosting_step],0) || !std::isfinite(validation_error_steps[boosting_step]) || std::isnan(validation_error_steps[boosting_step])};
     if(validation_error_is_invalid)
     {
+        validation_error_steps[boosting_step]=std::numeric_limits<double>::infinity();
         abort_boosting=true;
         std::string warning_message{"Warning: Encountered numerical problems when calculating prediction errors in the previous boosting step. Not continuing with further boosting steps."};
         bool show_additional_warning{family=="poisson" || family=="tweedie" || family=="gamma" || (link_function!="identity" && link_function!="logit")};
