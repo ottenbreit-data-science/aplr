@@ -743,7 +743,7 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
         std::string warning_message{"Warning: Encountered numerical problems when calculating prediction errors in the previous boosting step. Not continuing with further boosting steps."};
         bool show_additional_warning{family=="poisson" || family=="tweedie" || family=="gamma" || (link_function!="identity" && link_function!="logit")};
         if(show_additional_warning)
-            warning_message+=" A reason may be too large response values.";
+            warning_message+=" For this combination of family and link_function, a reason may be too large or too small response values.";
         std::cout<<warning_message<<"\n";
     }
 }
