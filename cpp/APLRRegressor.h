@@ -667,7 +667,7 @@ void APLRRegressor::consider_updating_intercept()
     intercept_test=intercept_test*v;
     linear_predictor_update=VectorXd::Constant(neg_gradient_current.size(),intercept_test);
     linear_predictor_update_validation=VectorXd::Constant(y_validation.size(),intercept_test);
-    error_after_updating_intercept=calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train).sum();
+    error_after_updating_intercept=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train));
 }
 
 void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
@@ -696,7 +696,7 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
         VectorXd values_validation{terms_eligible_current[best_term].calculate(X_validation)};
         linear_predictor_update=values*terms_eligible_current[best_term].coefficient;
         linear_predictor_update_validation=values_validation*terms_eligible_current[best_term].coefficient;
-        double error_after_updating_term=calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train).sum();
+        double error_after_updating_term=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train));
         if(std::isgreaterequal(error_after_updating_term,neg_gradient_nullmodel_errors_sum)) //if no improvement or worse then terminate search
         {
             abort_boosting=true;
@@ -759,7 +759,7 @@ void APLRRegressor::update_gradient_and_errors()
 {
     neg_gradient_current=calculate_neg_gradient_current(y_train,predictions_current);
     neg_gradient_nullmodel_errors=calculate_errors(neg_gradient_current,linear_predictor_null_model,sample_weight_train);
-    neg_gradient_nullmodel_errors_sum=neg_gradient_nullmodel_errors.sum();
+    neg_gradient_nullmodel_errors_sum=calculate_sum_error(neg_gradient_nullmodel_errors);
 }
 
 void APLRRegressor::add_new_term(size_t boosting_step)

@@ -493,7 +493,7 @@ void Term::discretize_data_by_bin()
 void Term::estimate_split_point_on_discretized_data()
 {
     errors_initial=calculate_errors(negative_gradient_discretized,VectorXd::Constant(negative_gradient_discretized.size(),0.0),sample_weight_discretized);
-    error_initial=errors_initial.sum();
+    error_initial=calculate_sum_error(errors_initial);
 
     //FINDING BEST SPLIT ON DISCRETIZED DATA
     double split_point_temp;
@@ -609,7 +609,7 @@ void Term::estimate_coefficient_and_error_on_all_data()
     {
         coefficient=xwy/xwx*v;
         VectorXd predictions{sorted_vectors.values_sorted*coefficient};
-        split_point_search_errors_sum=calculate_errors(sorted_vectors.negative_gradient_sorted,predictions,sorted_vectors.sample_weight_sorted).sum()+error_where_given_terms_are_zero;
+        split_point_search_errors_sum=calculate_sum_error(calculate_errors(sorted_vectors.negative_gradient_sorted,predictions,sorted_vectors.sample_weight_sorted))+error_where_given_terms_are_zero;
     }
     else
     {
