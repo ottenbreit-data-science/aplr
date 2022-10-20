@@ -85,6 +85,7 @@ private:
     void throw_error_if_response_is_negative(const VectorXd &y);
     void throw_error_if_response_is_not_greater_than_zero(const VectorXd &y);
     void throw_error_if_tweedie_power_is_invalid();
+    VectorXd differentiate_predictions();
     
 public:
     //Fields
@@ -436,7 +437,30 @@ VectorXd APLRRegressor::calculate_neg_gradient_current()
         output=(y_train.array() - predictions_current.array()) / predictions_current.array() / predictions_current.array();
     else if(family=="tweedie")
         output=(y_train.array()-predictions_current.array()).array() * predictions_current.array().pow(-tweedie_power);
+    
+    if(link_function!="identity")
+        output=output*differentiate_predictions();
+    
     return output;
+}
+
+VectorXd APLRRegressor::differentiate_predictions()
+{
+    if(link_function=="logit")
+        return 1.0/4.0 * (linear_predictor_current.array()/2.0).cosh().array().pow(-2);
+    else if(link_function=="log")
+        return linear_predictor_current.array().exp();
+    else if(link_function=="tweedie")
+    {
+        VectorXd transformed_linear_predictor{transform_linear_predictor_to_negative(linear_predictor_current)};
+        return ((1-tweedie_power)*transformed_linear_predictor.array()).pow(tweedie_power/(1-tweedie_power));
+    }
+    else if(link_function=="inverse")
+    {
+        VectorXd transformed_linear_predictor{transform_linear_predictor_to_negative(linear_predictor_current)};
+        return 1.0 * transformed_linear_predictor.array().pow(-2);
+    }
+    return VectorXd(0);
 }
 
 void APLRRegressor::execute_boosting_steps()
