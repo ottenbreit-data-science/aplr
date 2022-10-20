@@ -449,7 +449,9 @@ VectorXd APLRRegressor::differentiate_predictions()
     if(link_function=="logit")
         return 1.0/4.0 * (linear_predictor_current.array()/2.0).cosh().array().pow(-2);
     else if(link_function=="log")
-        return linear_predictor_current.array().exp();
+    {
+        return (linear_predictor_current.array()-linear_predictor_current.maxCoeff()).array().exp();
+    }
     else if(link_function=="tweedie")
     {
         VectorXd transformed_linear_predictor{transform_linear_predictor_to_negative(linear_predictor_current)};
