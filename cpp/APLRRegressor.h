@@ -450,7 +450,8 @@ VectorXd APLRRegressor::differentiate_predictions()
         return 1.0/4.0 * (linear_predictor_current.array()/2.0).cosh().array().pow(-2);
     else if(link_function=="log")
     {
-        return (linear_predictor_current.array()-linear_predictor_current.maxCoeff()).array().exp();
+        double scaling{linear_predictor_current.maxCoeff()};
+        return (linear_predictor_current.array()-scaling).array().exp();
     }
     else if(link_function=="tweedie")
     {
