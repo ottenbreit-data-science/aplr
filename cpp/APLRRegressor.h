@@ -54,7 +54,7 @@ private:
     void initialize();
     bool check_if_base_term_has_only_one_unique_value(size_t base_term);
     void add_term_to_terms_eligible_current(Term &term);
-    VectorXd calculate_neg_gradient_current(const VectorXd &y,const VectorXd &predictions_current);
+    VectorXd calculate_neg_gradient_current();
     void execute_boosting_steps();
     void execute_boosting_step(size_t boosting_step);
     void find_best_split_for_each_eligible_term();
@@ -423,19 +423,19 @@ void APLRRegressor::add_term_to_terms_eligible_current(Term &term)
 }
 
 //Calculates negative gradient based on y and predictions_current
-VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &y,const VectorXd &predictions_current)
+VectorXd APLRRegressor::calculate_neg_gradient_current()
 {
     VectorXd output;
     if(family=="gaussian")
-        output=y-predictions_current;
+        output=y_train-predictions_current;
     else if(family=="binomial")
-        output=y.array() / predictions_current.array() - (y.array()-1.0) / (predictions_current.array()-1.0);
+        output=y_train.array() / predictions_current.array() - (y_train.array()-1.0) / (predictions_current.array()-1.0);
     else if(family=="poisson")
-        output=y.array() / predictions_current.array() - 1;
+        output=y_train.array() / predictions_current.array() - 1;
     else if(family=="gamma")
-        output=(y.array() - predictions_current.array()) / predictions_current.array() / predictions_current.array();
+        output=(y_train.array() - predictions_current.array()) / predictions_current.array() / predictions_current.array();
     else if(family=="tweedie")
-        output=(y.array()-predictions_current.array()).array() * predictions_current.array().pow(-tweedie_power);
+        output=(y_train.array()-predictions_current.array()).array() * predictions_current.array().pow(-tweedie_power);
     return output;
 }
 
@@ -757,7 +757,7 @@ void APLRRegressor::update_linear_predictor_and_predictors()
 
 void APLRRegressor::update_gradient_and_errors()
 {
-    neg_gradient_current=calculate_neg_gradient_current(y_train,predictions_current);
+    neg_gradient_current=calculate_neg_gradient_current();
     neg_gradient_nullmodel_errors=calculate_errors(neg_gradient_current,linear_predictor_null_model,sample_weight_train);
     neg_gradient_nullmodel_errors_sum=calculate_sum_error(neg_gradient_nullmodel_errors);
 }
