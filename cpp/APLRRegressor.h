@@ -439,7 +439,7 @@ VectorXd APLRRegressor::calculate_neg_gradient_current()
         output=(y_train.array()-predictions_current.array()).array() * predictions_current.array().pow(-tweedie_power);
     
     if(link_function!="identity")
-        output=output*differentiate_predictions();
+        output=output.array()*differentiate_predictions().array();
     
     return output;
 }
