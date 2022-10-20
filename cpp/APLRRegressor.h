@@ -461,7 +461,8 @@ VectorXd APLRRegressor::differentiate_predictions()
     else if(link_function=="inverse")
     {
         VectorXd transformed_linear_predictor{transform_linear_predictor_to_negative(linear_predictor_current)};
-        return 1.0 * transformed_linear_predictor.array().pow(-2);
+        double scaling{std::pow(transformed_linear_predictor.mean(),2)};
+        return scaling * transformed_linear_predictor.array().pow(-2);
     }
     return VectorXd(0);
 }
