@@ -456,7 +456,8 @@ VectorXd APLRRegressor::differentiate_predictions()
     else if(link_function=="tweedie")
     {
         VectorXd transformed_linear_predictor{transform_linear_predictor_to_negative(linear_predictor_current)};
-        return ((1-tweedie_power)*transformed_linear_predictor.array()).pow(tweedie_power/(1-tweedie_power));
+        double scaling{std::pow((1-tweedie_power)*transformed_linear_predictor.mean(),tweedie_power/(1-tweedie_power))};
+        return scaling*((1-tweedie_power)*transformed_linear_predictor.array()).pow(tweedie_power/(1-tweedie_power));
     }
     else if(link_function=="inverse")
     {
