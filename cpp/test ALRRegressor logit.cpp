@@ -17,7 +17,7 @@ int main()
     //Model
     APLRRegressor model{APLRRegressor()};
     model.m=100;
-    model.v=0.1;
+    model.v=0.5;
     model.bins=300;
     model.n_jobs=0;
     model.family="binomial";
@@ -52,7 +52,7 @@ int main()
     save_data("data/output.csv",predictions);
 
     std::cout<<predictions.mean()<<"\n\n";
-    tests.push_back(check_if_approximately_equal(predictions.mean(),0.0358188,0.00001));
+    tests.push_back(check_if_approximately_equal(predictions.mean(),0.104267,0.00001));
 
     //std::cout<<model.validation_error_steps<<"\n\n";
 
