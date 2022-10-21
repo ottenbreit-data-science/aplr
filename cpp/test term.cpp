@@ -29,15 +29,15 @@ int main()
     std::cout<<X<<"\n\n";
     std::cout<<"values\n";
     std::cout<<values<<"\n\n";
-    tests.push_back(check_if_approximately_zero(values[0]) && check_if_approximately_equal(values[1],-0.711234,0.00001) &&
-        check_if_approximately_zero(values[2])?true:false);
+    tests.push_back(is_approximately_zero(values[0]) && is_approximately_equal(values[1],-0.711234,0.00001) &&
+        is_approximately_zero(values[2])?true:false);
 
     //Testing calculate_prediction_contribution
     VectorXd contrib{p.calculate_prediction_contribution(X)};
     std::cout<<"Prediction contribution\n";
     std::cout<<contrib<<"\n\n";
-    tests.push_back(check_if_approximately_equal(contrib[1],-1.42247,0.0001) && check_if_approximately_zero(contrib[0]) 
-        && check_if_approximately_zero(contrib[2]) ?true:false);
+    tests.push_back(is_approximately_equal(contrib[1],-1.42247,0.0001) && is_approximately_zero(contrib[0]) 
+        && is_approximately_zero(contrib[2]) ?true:false);
 
     //Testing equals_base_terms
     bool t1{Term::equals_given_terms(p,p.given_terms[0])};
@@ -49,7 +49,7 @@ int main()
     p.ineligible_boosting_steps=10;
     Term p2{p};
     bool test_cpy=Term::equals_given_terms(p,p2) && &p.given_terms != &p2.given_terms 
-    && p.coefficient==p2.coefficient && &p.coefficient!=&p2.coefficient && check_if_approximately_equal(p.split_point,p2.split_point) && &p.split_point!= &p2.split_point
+    && p.coefficient==p2.coefficient && &p.coefficient!=&p2.coefficient && is_approximately_equal(p.split_point,p2.split_point) && &p.split_point!= &p2.split_point
     && p.direction_right==p2.direction_right && &p.direction_right!=&p2.direction_right && p.name==p2.name && &p.name!=&p2.name &&
     p.coefficient_steps.size()==p2.coefficient_steps.size() && &p.coefficient_steps != &p2.coefficient_steps && ((p.coefficient_steps-p2.coefficient_steps).array().abs()==0).all()
     && p.base_term==p2.base_term && p.ineligible_boosting_steps==10 && p2.ineligible_boosting_steps==0;

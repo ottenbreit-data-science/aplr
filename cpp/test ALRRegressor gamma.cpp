@@ -17,11 +17,11 @@ int main()
     //Model
     APLRRegressor model{APLRRegressor()};
     model.m=100;
-    model.v=0.5;
+    model.v=0.1;
     model.bins=300;
     model.n_jobs=0;
     model.family="gamma";
-    model.link_function="inverse";
+    model.link_function="log";
     model.verbosity=3;
     model.max_interaction_level=0;
     model.max_interactions=1000;
@@ -52,7 +52,7 @@ int main()
     save_data("data/output.csv",predictions);
 
     std::cout<<predictions.mean()<<"\n\n";
-    tests.push_back(check_if_approximately_equal(predictions.mean(),23.7308,0.00001));
+    tests.push_back(is_approximately_equal(predictions.mean(),23.6098,0.00001));
 
     //std::cout<<model.validation_error_steps<<"\n\n";
 

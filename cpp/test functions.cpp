@@ -15,10 +15,10 @@ int main()
     //isapproximatelyequal
     double inf_left{-std::numeric_limits<double>::infinity()};
     double inf_right{std::numeric_limits<double>::infinity()};
-    bool equal_inf_left{check_if_approximately_equal(inf_left,inf_left)};
-    bool equal_inf_right{check_if_approximately_equal(inf_right,inf_right)};
-    bool equal_inf_diff{!check_if_approximately_equal(inf_left,inf_right)};
-    bool equal_inf_diff2{!check_if_approximately_equal(inf_right,inf_left)};
+    bool equal_inf_left{is_approximately_equal(inf_left,inf_left)};
+    bool equal_inf_right{is_approximately_equal(inf_right,inf_right)};
+    bool equal_inf_diff{!is_approximately_equal(inf_left,inf_right)};
+    bool equal_inf_diff2{!is_approximately_equal(inf_right,inf_left)};
     tests.push_back(equal_inf_left);
     tests.push_back(equal_inf_right);
     tests.push_back(equal_inf_diff);
@@ -41,30 +41,30 @@ int main()
     //calculating errors
     double error_mse{calculate_mean_error(errors_mse)};
     std::cout<<"error_mse: "<<error_mse<<"\n\n";   
-    tests.push_back((check_if_approximately_equal(error_mse,3.482)?true:false));
+    tests.push_back((is_approximately_equal(error_mse,3.482)?true:false));
     double error_mae{calculate_mean_error(errors_mae)};
     std::cout<<"error_mae: "<<error_mae<<"\n\n";   
-    tests.push_back((check_if_approximately_equal(error_mae,1.18)?true:false)); 
+    tests.push_back((is_approximately_equal(error_mae,1.18)?true:false)); 
     double error_mse_sw{calculate_mean_error(errors_mse_sw,sample_weight)};
     std::cout<<"error_mse_sw: "<<error_mse_sw<<"\n\n";   
-    tests.push_back((check_if_approximately_equal(error_mse_sw,0.4433,0.0001)?true:false));
+    tests.push_back((is_approximately_equal(error_mse_sw,0.4433,0.0001)?true:false));
     double error_mae_sw{calculate_mean_error(errors_mae_sw,sample_weight)};
     std::cout<<"error_mae_sw: "<<error_mae_sw<<"\n\n";   
-    tests.push_back((check_if_approximately_equal(error_mae_sw,0.5666,0.0001)?true:false));
+    tests.push_back((is_approximately_equal(error_mae_sw,0.5666,0.0001)?true:false));
 
     //testing for nan and infinity
     //matrix without nan or inf
-    bool matrix_has_nan_or_inf_elements{check_if_matrix_has_nan_or_infinite_elements(y)};    
+    bool matrix_has_nan_or_inf_elements{matrix_has_nan_or_infinite_elements(y)};    
     tests.push_back(!matrix_has_nan_or_inf_elements?true:false);
 
     VectorXd inf(5);
     inf<<1.0, 0.2, std::numeric_limits<double>::infinity(), 0.0, 0.5;
-    matrix_has_nan_or_inf_elements = check_if_matrix_has_nan_or_infinite_elements(inf);
+    matrix_has_nan_or_inf_elements = matrix_has_nan_or_infinite_elements(inf);
     tests.push_back(matrix_has_nan_or_inf_elements?true:false);
 
     VectorXd nan(5);
     nan<<1.0, 0.2, NAN_DOUBLE, 0.0, 0.5;
-    matrix_has_nan_or_inf_elements = check_if_matrix_has_nan_or_infinite_elements(nan);
+    matrix_has_nan_or_inf_elements = matrix_has_nan_or_infinite_elements(nan);
     tests.push_back(matrix_has_nan_or_inf_elements?true:false);
  
     //Test summary

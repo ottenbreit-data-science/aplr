@@ -15,7 +15,7 @@ using namespace Eigen;
 //implements relative method - do not use for comparing with zero
 //use this most of the time, tolerance needs to be meaningful in your context
 template<typename TReal>
-static bool check_if_approximately_equal(TReal a, TReal b, TReal tolerance = std::numeric_limits<TReal>::epsilon())
+static bool is_approximately_equal(TReal a, TReal b, TReal tolerance = std::numeric_limits<TReal>::epsilon())
 {
     if(std::isinf(a) && std::isinf(b) && std::signbit(a)==std::signbit(b))
         return true;
@@ -33,7 +33,7 @@ static bool check_if_approximately_equal(TReal a, TReal b, TReal tolerance = std
 //supply tolerance that is meaningful in your context
 //for example, default tolerance may not work if you are comparing double with float
 template<typename TReal>
-static bool check_if_approximately_zero(TReal a, TReal tolerance = std::numeric_limits<TReal>::epsilon())
+static bool is_approximately_zero(TReal a, TReal tolerance = std::numeric_limits<TReal>::epsilon())
 {
     if (std::fabs(a) <= tolerance)
         return true;
@@ -146,18 +146,6 @@ double calculate_sum_error(const VectorXd &errors)
     return error;
 }
 
-VectorXd transform_linear_predictor_to_negative(const VectorXd &linear_predictor)
-{
-    VectorXd transformed_linear_predictor{linear_predictor};
-    for (size_t i = 0; i < static_cast<size_t>(transformed_linear_predictor.rows()); ++i)
-    {
-        bool row_is_positive{std::isgreaterequal(transformed_linear_predictor[i],0.0)};
-        if(row_is_positive)
-            transformed_linear_predictor[i]=SMALL_NEGATIVE_VALUE;
-    }
-    return transformed_linear_predictor;
-}
-
 VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predictor, const std::string &link_function="identity", double tweedie_power=1.5)
 {
     if(link_function=="identity")
@@ -169,10 +157,6 @@ VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predic
     }
     else if(link_function=="log")
         return linear_predictor.array().exp();
-    else if(link_function=="tweedie")
-        return (transform_linear_predictor_to_negative(linear_predictor).array() * (1-tweedie_power)).array().pow(1/(1-tweedie_power));
-    else if(link_function=="inverse")
-        return -1.0 / transform_linear_predictor_to_negative(linear_predictor).array();
     return VectorXd(0);
 }
 
@@ -274,10 +258,10 @@ size_t calculate_max_index_in_vector(T &vector)
 }
 
 template <typename T> //type must be an Eigen Matrix or Vector
-bool check_if_matrix_has_nan_or_infinite_elements(const T &x)
+bool matrix_has_nan_or_infinite_elements(const T &x)
 {
-    bool matrix_has_nan_or_infinite_elements{!x.allFinite()};
-    if(matrix_has_nan_or_infinite_elements)
+    bool has_nan_or_infinite_elements{!x.allFinite()};
+    if(has_nan_or_infinite_elements)
         return true;
     else
         return false;
@@ -289,8 +273,8 @@ void throw_error_if_matrix_has_nan_or_infinite_elements(const T &x, const std::s
     bool matrix_is_empty{x.size()==0};
     if(matrix_is_empty) return;
 
-    bool matrix_has_nan_or_infinite_elements{check_if_matrix_has_nan_or_infinite_elements(x)};
-    if(matrix_has_nan_or_infinite_elements)
+    bool has_nan_or_infinite_elements{matrix_has_nan_or_infinite_elements(x)};
+    if(has_nan_or_infinite_elements)
     {
         throw std::runtime_error(matrix_name + " has nan or infinite elements.");
     }

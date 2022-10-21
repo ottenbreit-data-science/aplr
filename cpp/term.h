@@ -115,7 +115,7 @@ Term::~Term()
 //Compare everything except given_terms
 bool Term::equals_not_comparing_given_terms(const Term &p1,const Term &p2)
 {
-    bool split_point_and_direction{(check_if_approximately_equal(p1.split_point,p2.split_point) && p1.direction_right==p2.direction_right) || (std::isnan(p1.split_point) && std::isnan(p2.split_point))};
+    bool split_point_and_direction{(is_approximately_equal(p1.split_point,p2.split_point) && p1.direction_right==p2.direction_right) || (std::isnan(p1.split_point) && std::isnan(p2.split_point))};
     bool base_term{p1.base_term==p2.base_term};
     return split_point_and_direction && base_term;
 }
@@ -191,7 +191,7 @@ void Term::calculate_given_terms_indices(const MatrixXd &X)
             VectorXd values_given_term{given_terms[j].calculate(X)};
             for (size_t i = 0; i < static_cast<size_t>(X.rows()); ++i) //for each row
             {
-                if(check_if_approximately_zero(values_given_term[i])) //if zeroed out by given term
+                if(is_approximately_zero(values_given_term[i])) //if zeroed out by given term
                 {
                     given_terms_indices.zeroed[count_zeroed]=i;
                     ++count_zeroed;
@@ -227,7 +227,7 @@ VectorXd Term::calculate(const MatrixXd &X)
             VectorXd values_given_term{given_terms[j].calculate(X)};
             for (size_t i = 0; i < static_cast<size_t>(values.size()); ++i) //for each row
             {
-                if(check_if_approximately_zero(values_given_term[i]))
+                if(is_approximately_zero(values_given_term[i]))
                     values[i]=0;
             }
         }   
@@ -365,7 +365,7 @@ void Term::setup_bins()
             potential_start_indexes.reserve(sorted_vectors.values_sorted.size());
             for (size_t i = start_row; i <= end_row; ++i)
             {
-                bool is_eligible_start_index{i>0 && !check_if_approximately_equal(sorted_vectors.values_sorted[i],sorted_vectors.values_sorted[i-1])};
+                bool is_eligible_start_index{i>0 && !is_approximately_equal(sorted_vectors.values_sorted[i],sorted_vectors.values_sorted[i-1])};
                 if(is_eligible_start_index)
                     potential_start_indexes.push_back(i);
             }
