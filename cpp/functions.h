@@ -156,10 +156,10 @@ VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predic
         VectorXd predictions{exp_of_linear_predictor.array() / (1.0 + exp_of_linear_predictor.array())};
         for (size_t i = 0; i < static_cast<size_t>(predictions.size()); ++i)
         {
-            if(std::isgreater(predictions[i],MAX_PROBABILITY))
-                predictions[i]=MAX_PROBABILITY;
-            else if(std::isless(predictions[i],MIN_PROBABILITY))
-                predictions[i]=MIN_PROBABILITY;
+            if(std::isgreater(predictions[i],MAX_PREDICTED_PROBABILITY))
+                predictions[i]=MAX_PREDICTED_PROBABILITY;
+            else if(std::isless(predictions[i],MIN_PREDICTED_PROBABILITY))
+                predictions[i]=MIN_PREDICTED_PROBABILITY;
         }
         return predictions;
     }
