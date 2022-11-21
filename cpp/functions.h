@@ -146,25 +146,49 @@ double calculate_sum_error(const VectorXd &errors)
     return error;
 }
 
+VectorXd calculate_exp_of_linear_predictor_adjusted_for_numerical_problems(const VectorXd &linear_predictor, double min_exponent, double max_exponent)
+{
+    VectorXd exp_of_linear_predictor{linear_predictor.array().exp()};
+    double min_exp_of_linear_predictor{std::exp(min_exponent)};
+    double max_exp_of_linear_predictor{std::exp(max_exponent)};
+    for (size_t i = 0; i < static_cast<size_t>(linear_predictor.rows()); ++i)
+    {            
+        bool linear_predictor_is_too_small{std::isless(linear_predictor[i], min_exponent)};
+        if(linear_predictor_is_too_small)
+        {
+            exp_of_linear_predictor[i] = min_exp_of_linear_predictor;
+            continue;
+        }
+
+        bool linear_predictor_is_too_large{std::isgreater(linear_predictor[i], max_exponent)};
+        if(linear_predictor_is_too_large)
+        {
+            exp_of_linear_predictor[i] = max_exp_of_linear_predictor;
+        }
+
+    }
+
+    return exp_of_linear_predictor;
+}
+
 VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predictor, const std::string &link_function="identity", double tweedie_power=1.5)
 {
     if(link_function=="identity")
         return linear_predictor;
     else if(link_function=="logit")
     {
-        VectorXd exp_of_linear_predictor{linear_predictor.array().exp()};
+        double min_exponent{-MAX_ABS_EXPONENT_TO_APPLY_ON_LINEAR_PREDICTOR_IN_LOGIT_MODEL};
+        double max_exponent{MAX_ABS_EXPONENT_TO_APPLY_ON_LINEAR_PREDICTOR_IN_LOGIT_MODEL};
+        VectorXd exp_of_linear_predictor{calculate_exp_of_linear_predictor_adjusted_for_numerical_problems(linear_predictor, min_exponent, max_exponent)};
         VectorXd predictions{exp_of_linear_predictor.array() / (1.0 + exp_of_linear_predictor.array())};
-        for (size_t i = 0; i < static_cast<size_t>(predictions.size()); ++i)
-        {
-            if(std::isgreater(predictions[i],MAX_PREDICTED_PROBABILITY))
-                predictions[i]=MAX_PREDICTED_PROBABILITY;
-            else if(std::isless(predictions[i],MIN_PREDICTED_PROBABILITY))
-                predictions[i]=MIN_PREDICTED_PROBABILITY;
-        }
         return predictions;
     }
     else if(link_function=="log")
-        return linear_predictor.array().exp();
+    {
+        double min_exponent{std::numeric_limits<double>::min_exponent10};
+        double max_exponent{std::numeric_limits<double>::max_exponent10};
+        return calculate_exp_of_linear_predictor_adjusted_for_numerical_problems(linear_predictor, min_exponent, max_exponent);
+    }
     return VectorXd(0);
 }
 
