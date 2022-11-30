@@ -148,14 +148,15 @@ public:
 //Regular constructor
 APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::string family,std::string link_function,size_t n_jobs,
     double validation_ratio,double intercept,size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,
-    size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double tweedie_power,bool cap_outliers_in_validation_set):
+    size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double tweedie_power,
+    bool cap_outliers_in_validation_set, bool cap_outliers_when_using_the_model):
         reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{intercept},m{m},v{v},
         family{family},link_function{link_function},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},
         intercept_steps{VectorXd(0)},max_interactions{max_interactions},interactions_eligible{0},validation_error_steps{VectorXd(0)},
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
         max_eligible_terms{max_eligible_terms},number_of_base_terms{0},tweedie_power{tweedie_power},
-        cap_outliers_in_validation_set{cap_outliers_in_validation_set,cap_outliers_when_using_the_model{cap_outliers_when_using_the_model}}
+        cap_outliers_in_validation_set{cap_outliers_in_validation_set},cap_outliers_when_using_the_model{cap_outliers_when_using_the_model}
 {
 }
 
