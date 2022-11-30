@@ -5,7 +5,7 @@ import aplr_cpp
 
 
 class APLRRegressor():
-    def __init__(self, m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5, cap_outliers_in_validation_set:bool=True):
+    def __init__(self, m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5, cap_outliers_in_validation_set:bool=True, cap_outliers_when_using_the_model:bool=True):
         self.m=m
         self.v=v
         self.random_state=random_state
@@ -23,6 +23,7 @@ class APLRRegressor():
         self.verbosity=verbosity
         self.tweedie_power=tweedie_power
         self.cap_outliers_in_validation_set=cap_outliers_in_validation_set
+        self.cap_outliers_when_using_the_model=cap_outliers_when_using_the_model
 
         #Creating aplr_cpp and setting parameters
         self.APLRRegressor=aplr_cpp.APLRRegressor()
@@ -47,25 +48,26 @@ class APLRRegressor():
         self.APLRRegressor.verbosity=self.verbosity
         self.APLRRegressor.tweedie_power=self.tweedie_power
         self.APLRRegressor.cap_outliers_in_validation_set=self.cap_outliers_in_validation_set
+        self.APLRRegressor.cap_outliers_when_using_the_model=self.cap_outliers_when_using_the_model
 
     def fit(self, X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[]):
         self.__set_params_cpp()
         self.APLRRegressor.fit(X,y,sample_weight,X_names,validation_set_indexes)
 
-    def predict(self,X:npt.ArrayLike, cap_outliers:bool=True)->npt.ArrayLike:
-        return self.APLRRegressor.predict(X,cap_outliers)
+    def predict(self,X:npt.ArrayLike)->npt.ArrayLike:
+        return self.APLRRegressor.predict(X)
 
     def set_term_names(self, X_names:List[str]):
         self.APLRRegressor.set_term_names(X_names)
 
-    def calculate_local_feature_importance(self,X:npt.ArrayLike,cap_outliers:bool=True)->npt.ArrayLike:
-        return self.APLRRegressor.calculate_local_feature_importance(X,cap_outliers)
+    def calculate_local_feature_importance(self,X:npt.ArrayLike)->npt.ArrayLike:
+        return self.APLRRegressor.calculate_local_feature_importance(X)
 
-    def calculate_local_feature_importance_for_terms(self,X:npt.ArrayLike,cap_outliers:bool=True)->npt.ArrayLike:
-        return self.APLRRegressor.calculate_local_feature_importance_for_terms(X,cap_outliers)
+    def calculate_local_feature_importance_for_terms(self,X:npt.ArrayLike)->npt.ArrayLike:
+        return self.APLRRegressor.calculate_local_feature_importance_for_terms(X)
 
-    def calculate_terms(self,X:npt.ArrayLike,cap_outliers:bool=True)->npt.ArrayLike:
-        return self.APLRRegressor.calculate_terms(X,cap_outliers)
+    def calculate_terms(self,X:npt.ArrayLike)->npt.ArrayLike:
+        return self.APLRRegressor.calculate_terms(X)
 
     def get_term_names(self)->List[str]:
         return self.APLRRegressor.get_term_names()
@@ -93,7 +95,7 @@ class APLRRegressor():
 
     #For sklearn
     def get_params(self, deep=True):
-        return {"m": self.m, "v": self.v,"random_state":self.random_state,"family":self.family,"link_function":self.link_function,"n_jobs":self.n_jobs,"validation_ratio":self.validation_ratio,"intercept":self.intercept,"bins":self.bins,"max_interaction_level":self.max_interaction_level,"max_interactions":self.max_interactions,"verbosity":self.verbosity,"min_observations_in_split":self.min_observations_in_split,"ineligible_boosting_steps_added":self.ineligible_boosting_steps_added,"max_eligible_terms":self.max_eligible_terms,"tweedie_power":self.tweedie_power,"cap_outliers_in_validation_set":self.cap_outliers_in_validation_set}
+        return {"m": self.m, "v": self.v,"random_state":self.random_state,"family":self.family,"link_function":self.link_function,"n_jobs":self.n_jobs,"validation_ratio":self.validation_ratio,"intercept":self.intercept,"bins":self.bins,"max_interaction_level":self.max_interaction_level,"max_interactions":self.max_interactions,"verbosity":self.verbosity,"min_observations_in_split":self.min_observations_in_split,"ineligible_boosting_steps_added":self.ineligible_boosting_steps_added,"max_eligible_terms":self.max_eligible_terms,"tweedie_power":self.tweedie_power,"cap_outliers_in_validation_set":self.cap_outliers_in_validation_set,"cap_outliers_when_using_the_model":self.cap_outliers_when_using_the_model}
 
     #For sklearn
     def set_params(self, **parameters):
