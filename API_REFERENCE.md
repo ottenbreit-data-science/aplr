@@ -1,6 +1,6 @@
 # APLRRegressor
 
-## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5, cap_outliers_in_validation_set:bool=True)
+## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5, cap_outliers_in_validation_set:bool=True, cap_outliers_when_using_the_model:bool=True)
 
 ### Constructor parameters
 
@@ -55,6 +55,9 @@ Species the variance power for the "tweedie" ***family*** and ***link_function**
 #### cap_outliers_in_validation_set (default = True)
 If ***true*** then term values will be limited by the minimum and maximum values found during model training when calculating validation error. If you need the model to extrapolate then it may be more appropriate to set set ***cap_outliers_in_validation_set*** to ***false***. In the latter case the model will be more vulnerable to outliers.
 
+#### cap_outliers_when_using_the_model (default = True)
+If ***true*** then term values will be limited by the minimum and maximum values found during model training. This makes the model less vulnerable to outliers and is recommended unless you need the model to extrapolate. If you need the model to extrapolate then set ***cap_outliers_when_using_the_model*** to ***false***.
+
 
 ## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[])
 
@@ -78,7 +81,7 @@ An optional list of strings containing names for each predictor in ***X***. Nami
 An optional list of integers specifying the indexes of observations to be used for validation instead of training. If this is specified then ***validation_ratio*** is not used. Specifying ***validation_set_indexes*** may be useful for example when modelling time series data (you can place more recent observations in the validation set).
 
 
-## Method: predict(X:npt.ArrayLike, cap_outliers:bool=True)
+## Method: predict(X:npt.ArrayLike)
 
 ***Returns a numpy vector containing predictions of the data in X. Requires that the model has been fitted with the fit method.***
 
@@ -86,9 +89,6 @@ An optional list of integers specifying the indexes of observations to be used f
 
 #### X
 A numpy matrix with predictor values.
-
-#### cap_outliers
-If ***true*** then term values will be limited by the minimum and maximum values found during model training. This is recommended since otherwise the predictions may be adversely affected by outliers. However, if you need the model to extrapolate then set ***cap_outliers*** to ***false***.
 
 
 ## Method: set_term_names(X_names:List[str])
@@ -101,7 +101,7 @@ If ***true*** then term values will be limited by the minimum and maximum values
 A list of strings containing names for each predictor in the ***X*** matrix that the model was trained on.
 
 
-## Method: calculate_local_feature_importance(X:npt.ArrayLike, cap_outliers:bool=True)
+## Method: calculate_local_feature_importance(X:npt.ArrayLike)
 
 ***Returns a numpy matrix containing local feature importance for new data by each predictor in X.***
 
@@ -110,11 +110,8 @@ A list of strings containing names for each predictor in the ***X*** matrix that
 #### X
 A numpy matrix with predictor values.
 
-#### cap_outliers
-See the ***predict*** method.
 
-
-## Method: calculate_local_feature_importance_for_terms(X:npt.ArrayLike, cap_outliers:bool=True)
+## Method: calculate_local_feature_importance_for_terms(X:npt.ArrayLike)
 
 ***Returns a numpy matrix containing local feature importance for new data by each term in the model.***
 
@@ -123,11 +120,8 @@ See the ***predict*** method.
 #### X
 A numpy matrix with predictor values.
 
-#### cap_outliers
-See the ***predict*** method.
 
-
-## Method: calculate_terms(X:npt.ArrayLike, cap_outliers:bool=True)
+## Method: calculate_terms(X:npt.ArrayLike)
 
 ***Returns a numpy matrix containing values of model terms calculated on X.***
 
@@ -135,9 +129,6 @@ See the ***predict*** method.
 
 #### X
 A numpy matrix with predictor values.
-
-#### cap_outliers
-See the ***predict*** method.
 
 
 ## Method: get_term_names()
