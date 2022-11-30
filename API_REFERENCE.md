@@ -56,7 +56,7 @@ Species the variance power for the "tweedie" ***family*** and ***link_function**
 If ***true*** then term values will be limited by the minimum and maximum values found during model training when calculating validation error. If you need the model to extrapolate then it may be more appropriate to set ***cap_outliers_in_validation_set*** to ***false***. In the latter case the model may become more vulnerable to outliers.
 
 #### cap_outliers_when_using_the_model (default = True)
-If ***true*** then term values will be limited by the minimum and maximum values found during model training. This can make the model less vulnerable to outliers and is recommended unless you need the model to extrapolate. If you need the model to extrapolate then set ***cap_outliers_when_using_the_model*** to ***false***.
+If ***true*** then term values will be limited by the minimum and maximum values found during model training when using the model. This can make the model less vulnerable to outliers and is recommended unless you need the model to extrapolate. If you need the model to extrapolate then set ***cap_outliers_when_using_the_model*** to ***false***.
 
 
 ## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[])
