@@ -95,6 +95,7 @@ class APLRRegressor():
 
     def set_cap_outliers_when_using_the_model(self, cap_outliers_when_using_the_model:bool):
         self.APLRRegressor.set_cap_outliers_when_using_the_model(cap_outliers_when_using_the_model)
+        self.cap_outliers_when_using_the_model=self.APLRRegressor.cap_outliers_when_using_the_model
 
     #For sklearn
     def get_params(self, deep=True):
