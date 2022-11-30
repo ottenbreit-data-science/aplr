@@ -35,6 +35,7 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def("get_intercept", &APLRRegressor::get_intercept)
         .def("get_intercept_steps", &APLRRegressor::get_intercept_steps)
         .def("get_m", &APLRRegressor::get_m)
+        .def("set_cap_outliers_when_using_the_model", &APLRRegressor::set_cap_outliers_when_using_the_model,py::arg("cap_outliers_when_using_the_model"))
         .def_readwrite("intercept", &APLRRegressor::intercept)
         .def_readwrite("intercept_steps", &APLRRegressor::intercept_steps)
         .def_readwrite("m", &APLRRegressor::m)

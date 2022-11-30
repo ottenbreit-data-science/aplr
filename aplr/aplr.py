@@ -93,6 +93,9 @@ class APLRRegressor():
     def get_m(self)->int:
         return self.APLRRegressor.get_m()
 
+    def set_cap_outliers_when_using_the_model(self, cap_outliers_when_using_the_model:bool):
+        self.APLRRegressor.set_cap_outliers_when_using_the_model(cap_outliers_when_using_the_model)
+
     #For sklearn
     def get_params(self, deep=True):
         return {"m": self.m, "v": self.v,"random_state":self.random_state,"family":self.family,"link_function":self.link_function,"n_jobs":self.n_jobs,"validation_ratio":self.validation_ratio,"intercept":self.intercept,"bins":self.bins,"max_interaction_level":self.max_interaction_level,"max_interactions":self.max_interactions,"verbosity":self.verbosity,"min_observations_in_split":self.min_observations_in_split,"ineligible_boosting_steps_added":self.ineligible_boosting_steps_added,"max_eligible_terms":self.max_eligible_terms,"tweedie_power":self.tweedie_power,"cap_outliers_in_validation_set":self.cap_outliers_in_validation_set,"cap_outliers_when_using_the_model":self.cap_outliers_when_using_the_model}
