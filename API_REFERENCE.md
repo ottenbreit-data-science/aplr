@@ -53,7 +53,7 @@ Limits 1) the number of terms already in the model that can be considered as int
 Species the variance power for the "tweedie" ***family*** and ***link_function***.
 
 #### cap_outliers_in_validation_set (default = True)
-If ***true*** then term values will be limited by the minimum and maximum values found during model training when calculating validation error. If you need the model to extrapolate then it may be more appropriate to set set ***cap_outliers_in_validation_set*** to ***false***. In the latter case the model will be more vulnerable to outliers.
+If ***true*** then term values will be limited by the minimum and maximum values found during model training when calculating validation error. If you need the model to extrapolate then it may be more appropriate to set ***cap_outliers_in_validation_set*** to ***false***. In the latter case the model will be more vulnerable to outliers.
 
 #### cap_outliers_when_using_the_model (default = True)
 If ***true*** then term values will be limited by the minimum and maximum values found during model training. This makes the model less vulnerable to outliers and is recommended unless you need the model to extrapolate. If you need the model to extrapolate then set ***cap_outliers_when_using_the_model*** to ***false***.
