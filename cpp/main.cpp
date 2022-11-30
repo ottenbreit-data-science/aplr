@@ -24,6 +24,8 @@ int main()
     model.max_interactions=30;
     model.ineligible_boosting_steps_added=10;
     model.max_eligible_terms=5;
+    model.cap_outliers_in_validation_set=false;
+    model.cap_outliers_when_using_the_model=false;
 
     //Data    
     MatrixXd X_train{load_csv<MatrixXd>("X_train.csv")};
