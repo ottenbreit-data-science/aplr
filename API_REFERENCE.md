@@ -85,7 +85,7 @@ An optional list of integers specifying the indexes of observations to be used f
 A numpy matrix with predictor values.
 
 #### cap_outliers
-If ***true*** then term values will be capped to the minimum and maximum values found during model training. This is recommended since otherwise the predictions may be adversely affected by outliers. However, if you need the model to extrapolate then set ***cap_outliers*** to ***false***.
+If ***true*** then term values will be limited by the minimum and maximum values found during model training. This is recommended since otherwise the predictions may be adversely affected by outliers. However, if you need the model to extrapolate then set ***cap_outliers*** to ***false***.
 
 
 ## Method: set_term_names(X_names:List[str])
