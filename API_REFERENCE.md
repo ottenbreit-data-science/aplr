@@ -174,3 +174,13 @@ The index of the term selected. So ***0*** is the first term, ***1*** is the sec
 ## Method: get_m()
 
 ***Returns the number of boosting steps in the model (the value that minimized validation error).***
+
+
+## Method: set_cap_outliers_when_using_the_model(cap_outliers_when_using_the_model:bool)
+
+***Sets cap_outliers_when_using_the_model.***
+
+### Parameters
+
+#### cap_outliers_when_using_the_model
+True or False.
