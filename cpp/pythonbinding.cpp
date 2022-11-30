@@ -20,11 +20,11 @@ PYBIND11_MODULE(aplr_cpp, m) {
             py::arg("tweedie_power")=1.5)
         .def("fit", &APLRRegressor::fit,py::arg("X"),py::arg("y"),py::arg("sample_weight")=VectorXd(0),py::arg("X_names")=std::vector<std::string>(),
             py::arg("validation_set_indexes")=std::vector<size_t>(),py::call_guard<py::scoped_ostream_redirect,py::scoped_estream_redirect>())
-        .def("predict", &APLRRegressor::predict,py::arg("X"))
+        .def("predict", &APLRRegressor::predict,py::arg("X"),py::arg("cap_outliers")=true)
         .def("set_term_names", &APLRRegressor::set_term_names,py::arg("X_names"))
-        .def("calculate_local_feature_importance",&APLRRegressor::calculate_local_feature_importance,py::arg("X"))
-        .def("calculate_local_feature_importance_for_terms",&APLRRegressor::calculate_local_feature_importance_for_terms,py::arg("X"))
-        .def("calculate_terms",&APLRRegressor::calculate_terms,py::arg("X"))
+        .def("calculate_local_feature_importance",&APLRRegressor::calculate_local_feature_importance,py::arg("X"),py::arg("cap_outliers")=true)
+        .def("calculate_local_feature_importance_for_terms",&APLRRegressor::calculate_local_feature_importance_for_terms,py::arg("X"),py::arg("cap_outliers")=true)
+        .def("calculate_terms",&APLRRegressor::calculate_terms,py::arg("X"),py::arg("cap_outliers")=true)
         .def("get_term_names", &APLRRegressor::get_term_names)
         .def("get_term_coefficients", &APLRRegressor::get_term_coefficients)
         .def("get_term_coefficient_steps", &APLRRegressor::get_term_coefficient_steps,py::arg("term_index"))
@@ -97,14 +97,16 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def_readwrite("split_point", &Term::split_point)        
         .def_readwrite("direction_right", &Term::direction_right)        
         .def_readwrite("coefficient", &Term::coefficient)        
-        .def_readwrite("coefficient_steps", &Term::coefficient_steps)                
+        .def_readwrite("coefficient_steps", &Term::coefficient_steps)
+        .def_readwrite("min_training_value", &Term::min_training_value)
+        .def_readwrite("max_training_value", &Term::max_training_value)
         .def(py::pickle(
             [](const Term &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
-                return py::make_tuple(a.name,a.base_term,a.given_terms,a.split_point,a.direction_right,a.coefficient,a.coefficient_steps,a.split_point_search_errors_sum);
+                return py::make_tuple(a.name,a.base_term,a.given_terms,a.split_point,a.direction_right,a.coefficient,a.coefficient_steps,a.split_point_search_errors_sum,a.min_training_value,a.max_training_value);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 8)
+                if (t.size() != 10)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
@@ -113,6 +115,8 @@ PYBIND11_MODULE(aplr_cpp, m) {
                 a.name=t[0].cast<std::string>();
                 a.coefficient_steps=t[6].cast<VectorXd>();
                 a.split_point_search_errors_sum=t[7].cast<double>();
+                a.min_training_value=t[8].cast<double>();
+                a.max_training_value=t[9].cast<double>();
 
                 return a;
             }

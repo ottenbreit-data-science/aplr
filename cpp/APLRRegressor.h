@@ -79,7 +79,7 @@ private:
     void validate_that_model_can_be_used(const MatrixXd &X);
     void throw_error_if_family_does_not_exist();
     void throw_error_if_link_function_does_not_exist();
-    VectorXd calculate_linear_predictor(const MatrixXd &X);
+    VectorXd calculate_linear_predictor(const MatrixXd &X, bool cap_outliers=true);
     void update_linear_predictor_and_predictors();
     void throw_error_if_response_contains_invalid_values(const VectorXd &y);
     void throw_error_if_response_is_not_between_0_and_1(const VectorXd &y,const std::string &error_message);
@@ -127,11 +127,11 @@ public:
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},const std::vector<size_t> &validation_set_indexes={});
-    VectorXd predict(const MatrixXd &X);
+    VectorXd predict(const MatrixXd &X, bool cap_outliers=true);
     void set_term_names(const std::vector<std::string> &X_names);
-    MatrixXd calculate_local_feature_importance(const MatrixXd &X);
-    MatrixXd calculate_local_feature_importance_for_terms(const MatrixXd &X);
-    MatrixXd calculate_terms(const MatrixXd &X);
+    MatrixXd calculate_local_feature_importance(const MatrixXd &X, bool cap_outliers=true);
+    MatrixXd calculate_local_feature_importance_for_terms(const MatrixXd &X, bool cap_outliers=true);
+    MatrixXd calculate_terms(const MatrixXd &X, bool cap_outliers=true);
     std::vector<std::string> get_term_names();
     VectorXd get_term_coefficients();
     VectorXd get_term_coefficient_steps(size_t term_index);
@@ -740,8 +740,8 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
         }
 
         //Updating current predictions
-        VectorXd values{terms_eligible_current[best_term].calculate(X_train)};
-        VectorXd values_validation{terms_eligible_current[best_term].calculate(X_validation)};
+        VectorXd values{terms_eligible_current[best_term].calculate(X_train,false)};
+        VectorXd values_validation{terms_eligible_current[best_term].calculate(X_validation,false)};
         linear_predictor_update=values*terms_eligible_current[best_term].coefficient;
         linear_predictor_update_validation=values_validation*terms_eligible_current[best_term].coefficient;
         double error_after_updating_term=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train));
@@ -994,7 +994,7 @@ void APLRRegressor::set_term_names(const std::vector<std::string> &X_names)
 void APLRRegressor::calculate_feature_importance_on_validation_set()
 {
     feature_importance=VectorXd::Constant(number_of_base_terms,0);
-    MatrixXd li{calculate_local_feature_importance(X_validation)};
+    MatrixXd li{calculate_local_feature_importance(X_validation,false)};
     for (size_t i = 0; i < static_cast<size_t>(li.cols()); ++i) //for each column calculate mean abs values
     {
         feature_importance[i]=li.col(i).cwiseAbs().mean();
@@ -1003,7 +1003,7 @@ void APLRRegressor::calculate_feature_importance_on_validation_set()
 
 //Computes local feature importance on data X.
 //Output matrix has columns for each base term in the same order as in X and observations in rows.
-MatrixXd APLRRegressor::calculate_local_feature_importance(const MatrixXd &X)
+MatrixXd APLRRegressor::calculate_local_feature_importance(const MatrixXd &X, bool cap_outliers)
 {
     validate_that_model_can_be_used(X);
 
@@ -1012,7 +1012,7 @@ MatrixXd APLRRegressor::calculate_local_feature_importance(const MatrixXd &X)
     //Terms
     for (size_t i = 0; i < terms.size(); ++i) //for each term
     {
-        VectorXd contrib{terms[i].calculate_prediction_contribution(X)};
+        VectorXd contrib{terms[i].calculate_prediction_contribution(X, cap_outliers)};
         output.col(terms[i].base_term)+=contrib;
     }
 
@@ -1056,28 +1056,28 @@ void APLRRegressor::cleanup_after_fit()
     }
 }
 
-VectorXd APLRRegressor::predict(const MatrixXd &X)
+VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_outliers)
 {
     validate_that_model_can_be_used(X);
 
-    VectorXd linear_predictor{calculate_linear_predictor(X)};
+    VectorXd linear_predictor{calculate_linear_predictor(X, cap_outliers)};
     VectorXd predictions{transform_linear_predictor_to_predictions(linear_predictor,link_function,tweedie_power)};
 
     return predictions;
 }
 
-VectorXd APLRRegressor::calculate_linear_predictor(const MatrixXd &X)
+VectorXd APLRRegressor::calculate_linear_predictor(const MatrixXd &X, bool cap_outliers)
 {
     VectorXd predictions{VectorXd::Constant(X.rows(),intercept)};
     for (size_t i = 0; i < terms.size(); ++i) //for each term
     {
-        VectorXd contrib{terms[i].calculate_prediction_contribution(X)};
+        VectorXd contrib{terms[i].calculate_prediction_contribution(X, cap_outliers)};
         predictions+=contrib;
     }
     return predictions;    
 }
 
-MatrixXd APLRRegressor::calculate_local_feature_importance_for_terms(const MatrixXd &X)
+MatrixXd APLRRegressor::calculate_local_feature_importance_for_terms(const MatrixXd &X, bool cap_outliers)
 {
     validate_that_model_can_be_used(X);
 
@@ -1086,14 +1086,14 @@ MatrixXd APLRRegressor::calculate_local_feature_importance_for_terms(const Matri
     //Terms
     for (size_t i = 0; i < terms.size(); ++i) //for each term
     {
-        VectorXd contrib{terms[i].calculate_prediction_contribution(X)};
+        VectorXd contrib{terms[i].calculate_prediction_contribution(X, cap_outliers)};
         output.col(i)+=contrib;
     }
 
     return output;
 }
 
-MatrixXd APLRRegressor::calculate_terms(const MatrixXd &X)
+MatrixXd APLRRegressor::calculate_terms(const MatrixXd &X, bool cap_outliers)
 {
     validate_that_model_can_be_used(X);
 
@@ -1102,7 +1102,7 @@ MatrixXd APLRRegressor::calculate_terms(const MatrixXd &X)
     //Terms
     for (size_t i = 0; i < terms.size(); ++i) //for each term
     {
-        VectorXd values{terms[i].calculate(X)};
+        VectorXd values{terms[i].calculate(X, cap_outliers)};
         output.col(i)+=values;
     }
 

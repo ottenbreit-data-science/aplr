@@ -32,7 +32,7 @@ Specifies the intercept term of the model if you want to predict before doing an
 Specifies the maximum number of bins to discretize the data into when searching for the best split. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
 
 #### max_interaction_level (default = 1)
-Specifies the maximum allowed depth of interaction terms. ***0*** means that interactions are not allowed. This hyperparameter should be tuned. Please note that occasionally a too high value could produce a model that performs poorly on an independent test set despite looking good when tuning hyperparameters. If this happens then reduce ***max_interaction_level*** until the problem disappears.
+Specifies the maximum allowed depth of interaction terms. ***0*** means that interactions are not allowed. This hyperparameter should be tuned. 
 
 #### max_interactions (default = 100000)
 The maximum number of interactions allowed. A lower value may be used to reduce computational time.
@@ -75,7 +75,7 @@ An optional list of strings containing names for each predictor in ***X***. Nami
 An optional list of integers specifying the indexes of observations to be used for validation instead of training. If this is specified then ***validation_ratio*** is not used. Specifying ***validation_set_indexes*** may be useful for example when modelling time series data (you can place more recent observations in the validation set).
 
 
-## Method: predict(X:npt.ArrayLike)
+## Method: predict(X:npt.ArrayLike, cap_outliers:bool=True)
 
 ***Returns a numpy vector containing predictions of the data in X. Requires that the model has been fitted with the fit method.***
 
@@ -83,6 +83,9 @@ An optional list of integers specifying the indexes of observations to be used f
 
 #### X
 A numpy matrix with predictor values.
+
+#### cap_outliers
+If ***true*** then term values will be capped to the minimum and maximum values found during model training. This is recommended since otherwise the predictions may be adversely affected by outliers. However, if you need the model to extrapolate then set ***cap_outliers*** to ***false***.
 
 
 ## Method: set_term_names(X_names:List[str])
@@ -95,7 +98,7 @@ A numpy matrix with predictor values.
 A list of strings containing names for each predictor in the ***X*** matrix that the model was trained on.
 
 
-## Method: calculate_local_feature_importance(X:npt.ArrayLike)
+## Method: calculate_local_feature_importance(X:npt.ArrayLike, cap_outliers:bool=True)
 
 ***Returns a numpy matrix containing local feature importance for new data by each predictor in X.***
 
@@ -104,8 +107,11 @@ A list of strings containing names for each predictor in the ***X*** matrix that
 #### X
 A numpy matrix with predictor values.
 
+#### cap_outliers
+See the ***predict*** method.
 
-## Method: calculate_local_feature_importance_for_terms(X:npt.ArrayLike)
+
+## Method: calculate_local_feature_importance_for_terms(X:npt.ArrayLike, cap_outliers:bool=True)
 
 ***Returns a numpy matrix containing local feature importance for new data by each term in the model.***
 
@@ -114,8 +120,11 @@ A numpy matrix with predictor values.
 #### X
 A numpy matrix with predictor values.
 
+#### cap_outliers
+See the ***predict*** method.
 
-## Method: calculate_terms(X:npt.ArrayLike)
+
+## Method: calculate_terms(X:npt.ArrayLike, cap_outliers:bool=True)
 
 ***Returns a numpy matrix containing values of model terms calculated on X.***
 
@@ -123,6 +132,9 @@ A numpy matrix with predictor values.
 
 #### X
 A numpy matrix with predictor values.
+
+#### cap_outliers
+See the ***predict*** method.
 
 
 ## Method: get_term_names()

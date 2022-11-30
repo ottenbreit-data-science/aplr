@@ -53,9 +53,11 @@ private:
     void estimate_split_point_on_discretized_data();
     void calculate_coefficient_and_error_on_discretized_data(bool direction_right, double split_point);
     void estimate_coefficient_and_error_on_all_data();
+    void find_minimum_and_maximum_training_values();
     void cleanup_after_estimate_split_point();
     void cleanup_after_fit();
     void cleanup_when_this_term_was_added_as_a_given_predictor();
+    VectorXd cap_outliers_to_minmax_in_training(const VectorXd &values);
 
 public:
     //fields
@@ -74,13 +76,15 @@ public:
     size_t ineligible_boosting_steps;
     VectorXd values_discretized; //Discretized values based on split_point=nan
     VectorXd sample_weight_discretized; //Discretized sample_weight based on split_point=nan
+    double min_training_value;
+    double max_training_value;
 
     //methods
     Term(size_t base_term=0,const std::vector<Term> &given_terms=std::vector<Term>(0),double split_point=NAN_DOUBLE,bool direction_right=false,double coefficient=0);
     Term(const Term &other); //copy constructor
     ~Term();
-    VectorXd calculate(const MatrixXd &X); //calculates term values
-    VectorXd calculate_prediction_contribution(const MatrixXd &X);
+    VectorXd calculate(const MatrixXd &X, bool cap_outliers=false); //calculates term values
+    VectorXd calculate_prediction_contribution(const MatrixXd &X, bool cap_outliers=false);
     static bool equals_not_comparing_given_terms(const Term &p1,const Term &p2);
     static bool equals_given_terms(const Term &p1,const Term &p2);
     void estimate_split_point(const MatrixXd &X,const VectorXd &negative_gradient,const VectorXd &sample_weight,size_t bins,double v,size_t min_observations_in_split);
@@ -96,14 +100,15 @@ public:
 //Regular constructor
 Term::Term(size_t base_term,const std::vector<Term> &given_terms,double split_point,bool direction_right,double coefficient):
 name{""},base_term{base_term},given_terms{given_terms},split_point{split_point},direction_right{direction_right},coefficient{coefficient},
-split_point_search_errors_sum{std::numeric_limits<double>::infinity()},ineligible_boosting_steps{0}
+split_point_search_errors_sum{std::numeric_limits<double>::infinity()},ineligible_boosting_steps{0},min_training_value{0},max_training_value{0}
 {
 }
 
 //Copy constructor
 Term::Term(const Term &other):
 name{other.name},base_term{other.base_term},given_terms{other.given_terms},split_point{other.split_point},direction_right{other.direction_right},
-coefficient{other.coefficient},coefficient_steps{other.coefficient_steps},split_point_search_errors_sum{other.split_point_search_errors_sum},ineligible_boosting_steps{0}
+coefficient{other.coefficient},coefficient_steps{other.coefficient_steps},split_point_search_errors_sum{other.split_point_search_errors_sum},ineligible_boosting_steps{0},
+min_training_value{other.min_training_value},max_training_value{other.max_training_value}
 {
 }
 
@@ -174,6 +179,7 @@ void Term::estimate_split_point(const MatrixXd &X,const VectorXd &negative_gradi
     discretize_data_by_bin();
     estimate_split_point_on_discretized_data();
     estimate_coefficient_and_error_on_all_data();
+    find_minimum_and_maximum_training_values();
     cleanup_after_estimate_split_point();
 }
 
@@ -215,7 +221,7 @@ void Term::calculate_given_terms_indices(const MatrixXd &X)
 }
 
 //Calculate term values
-VectorXd Term::calculate(const MatrixXd &X)
+VectorXd Term::calculate(const MatrixXd &X, bool cap_outliers)
 {
     VectorXd values{calculate_without_interactions(X.col(base_term))};
 
@@ -224,13 +230,18 @@ VectorXd Term::calculate(const MatrixXd &X)
     {
         for (size_t j = 0; j < given_terms.size(); ++j)  //for each given term
         {
-            VectorXd values_given_term{given_terms[j].calculate(X)};
+            VectorXd values_given_term{given_terms[j].calculate(X, cap_outliers)};
             for (size_t i = 0; i < static_cast<size_t>(values.size()); ++i) //for each row
             {
                 if(is_approximately_zero(values_given_term[i]))
                     values[i]=0;
             }
         }   
+    }
+
+    if(cap_outliers)
+    {
+        values=cap_outliers_to_minmax_in_training(values);
     }
 
     return values;
@@ -251,6 +262,19 @@ VectorXd Term::calculate_without_interactions(const VectorXd &x)
     }
 
     return values;
+}
+
+VectorXd Term::cap_outliers_to_minmax_in_training(const VectorXd &values)
+{
+    VectorXd capped_values{values};
+    for (size_t i = 0; i < static_cast<size_t>(values.rows()); ++i)
+    {
+        if(std::isgreater(capped_values[i],max_training_value))
+            capped_values[i]=max_training_value;
+        else if(std::isless(capped_values[i],min_training_value))
+            capped_values[i]=min_training_value;
+    }
+    return capped_values;
 }
 
 void Term::calculate_error_where_given_terms_are_zero(const VectorXd &negative_gradient, const VectorXd &sample_weight)
@@ -618,6 +642,12 @@ void Term::estimate_coefficient_and_error_on_all_data()
     }
 }
 
+void Term::find_minimum_and_maximum_training_values()
+{
+    min_training_value = std::min(sorted_vectors.values_sorted[0], 0.0);
+    max_training_value = std::max(sorted_vectors.values_sorted[sorted_vectors.values_sorted.rows()-1], 0.0);
+}
+
 void Term::cleanup_after_estimate_split_point()
 {
     given_terms_indices.not_zeroed.resize(0);
@@ -646,9 +676,9 @@ void Term::cleanup_when_this_term_was_added_as_a_given_predictor()
     coefficient_steps.resize(0);
 }
 
-VectorXd Term::calculate_prediction_contribution(const MatrixXd &X)
+VectorXd Term::calculate_prediction_contribution(const MatrixXd &X, bool cap_outliers)
 {
-    VectorXd values{calculate(X)};
+    VectorXd values{calculate(X, cap_outliers)};
 
     return values.array()*coefficient;
 }

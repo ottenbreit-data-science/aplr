@@ -50,20 +50,20 @@ class APLRRegressor():
         self.__set_params_cpp()
         self.APLRRegressor.fit(X,y,sample_weight,X_names,validation_set_indexes)
 
-    def predict(self,X:npt.ArrayLike)->npt.ArrayLike:
-        return self.APLRRegressor.predict(X)
+    def predict(self,X:npt.ArrayLike, cap_outliers:bool=True)->npt.ArrayLike:
+        return self.APLRRegressor.predict(X,cap_outliers)
 
     def set_term_names(self, X_names:List[str]):
         self.APLRRegressor.set_term_names(X_names)
 
-    def calculate_local_feature_importance(self,X:npt.ArrayLike)->npt.ArrayLike:
-        return self.APLRRegressor.calculate_local_feature_importance(X)
+    def calculate_local_feature_importance(self,X:npt.ArrayLike,cap_outliers:bool=True)->npt.ArrayLike:
+        return self.APLRRegressor.calculate_local_feature_importance(X,cap_outliers)
 
-    def calculate_local_feature_importance_for_terms(self,X:npt.ArrayLike)->npt.ArrayLike:
-        return self.APLRRegressor.calculate_local_feature_importance_for_terms(X)
+    def calculate_local_feature_importance_for_terms(self,X:npt.ArrayLike,cap_outliers:bool=True)->npt.ArrayLike:
+        return self.APLRRegressor.calculate_local_feature_importance_for_terms(X,cap_outliers)
 
-    def calculate_terms(self,X:npt.ArrayLike)->npt.ArrayLike:
-        return self.APLRRegressor.calculate_terms(X)
+    def calculate_terms(self,X:npt.ArrayLike,cap_outliers:bool=True)->npt.ArrayLike:
+        return self.APLRRegressor.calculate_terms(X,cap_outliers)
 
     def get_term_names(self)->List[str]:
         return self.APLRRegressor.get_term_names()
