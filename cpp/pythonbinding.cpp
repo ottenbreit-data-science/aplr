@@ -11,7 +11,7 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(aplr_cpp, m) {
     py::class_<APLRRegressor>(m, "APLRRegressor",py::module_local())
-        .def(py::init<int&, double&, int&, std::string&,std::string&,int&,double&,double&,int&,int&,int&,int&,int&,int&,int&,int&,double&>(),bool&,bool&,
+        .def(py::init<int&, double&, int&, std::string&,std::string&,int&,double&,double&,int&,int&,int&,int&,int&,int&,int&,int&,double&,bool&,bool&>(),
             py::arg("m")=1000,py::arg("v")=0.1,py::arg("random_state")=0,py::arg("family")="gaussian",py::arg("link_function")="identity",
             py::arg("n_jobs")=0,py::arg("validation_ratio")=0.2,py::arg("intercept")=NAN_DOUBLE,
             py::arg("reserved_terms_times_num_x")=100,py::arg("bins")=300,py::arg("verbosity")=0,
