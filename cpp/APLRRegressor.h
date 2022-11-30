@@ -133,6 +133,7 @@ public:
     VectorXd predict(const MatrixXd &X);
     void set_term_names(const std::vector<std::string> &X_names);
     MatrixXd calculate_local_feature_importance(const MatrixXd &X);
+    MatrixXd calculate_local_feature_importance_base_function(const MatrixXd &X, bool cap_outliers);
     MatrixXd calculate_local_feature_importance_for_terms(const MatrixXd &X);
     MatrixXd calculate_terms(const MatrixXd &X);
     std::vector<std::string> get_term_names();
@@ -1000,7 +1001,7 @@ void APLRRegressor::set_term_names(const std::vector<std::string> &X_names)
 void APLRRegressor::calculate_feature_importance_on_validation_set()
 {
     feature_importance=VectorXd::Constant(number_of_base_terms,0);
-    MatrixXd li{calculate_local_feature_importance(X_validation, cap_outliers_in_validation_set)};
+    MatrixXd li{calculate_local_feature_importance_base_function(X_validation, cap_outliers_in_validation_set)};
     for (size_t i = 0; i < static_cast<size_t>(li.cols()); ++i) //for each column calculate mean abs values
     {
         feature_importance[i]=li.col(i).cwiseAbs().mean();
@@ -1011,6 +1012,11 @@ void APLRRegressor::calculate_feature_importance_on_validation_set()
 //Output matrix has columns for each base term in the same order as in X and observations in rows.
 MatrixXd APLRRegressor::calculate_local_feature_importance(const MatrixXd &X)
 {
+    return calculate_local_feature_importance_base_function(X, cap_outliers_when_using_the_model);
+}
+
+MatrixXd APLRRegressor::calculate_local_feature_importance_base_function(const MatrixXd &X, bool cap_outliers)
+{
     validate_that_model_can_be_used(X);
 
     //Computing local feature importance
@@ -1018,7 +1024,7 @@ MatrixXd APLRRegressor::calculate_local_feature_importance(const MatrixXd &X)
     //Terms
     for (size_t i = 0; i < terms.size(); ++i) //for each term
     {
-        VectorXd contrib{terms[i].calculate_prediction_contribution(X, cap_outliers_when_using_the_model)};
+        VectorXd contrib{terms[i].calculate_prediction_contribution(X, cap_outliers)};
         output.col(terms[i].base_term)+=contrib;
     }
 
@@ -1066,7 +1072,7 @@ VectorXd APLRRegressor::predict(const MatrixXd &X)
 {
     validate_that_model_can_be_used(X);
 
-    VectorXd linear_predictor{calculate_linear_predictor(X, cap_outliers_when_using_the_model)};
+    VectorXd linear_predictor{calculate_linear_predictor(X)};
     VectorXd predictions{transform_linear_predictor_to_predictions(linear_predictor,link_function,tweedie_power)};
 
     return predictions;
