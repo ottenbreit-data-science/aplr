@@ -144,6 +144,7 @@ public:
     double get_intercept();
     VectorXd get_intercept_steps();
     size_t get_m();
+    void set_cap_outliers_when_using_the_model(bool cap_outliers_when_using_the_model);
 };
 
 //Regular constructor
@@ -1159,4 +1160,9 @@ VectorXd APLRRegressor::get_intercept_steps()
 size_t APLRRegressor::get_m()
 {
     return m;
+}
+
+void APLRRegressor::set_cap_outliers_when_using_the_model(bool cap_outliers_when_using_the_model)
+{
+    this->cap_outliers_when_using_the_model=cap_outliers_when_using_the_model;
 }
