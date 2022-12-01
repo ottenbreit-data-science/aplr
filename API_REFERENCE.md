@@ -1,6 +1,6 @@
 # APLRRegressor
 
-## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5, cap_outliers_in_validation_set:bool=True, cap_outliers_when_using_the_model:bool=True)
+## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5)
 
 ### Constructor parameters
 
@@ -51,12 +51,6 @@ Limits 1) the number of terms already in the model that can be considered as int
 
 #### tweedie_power (default = 1.5)
 Species the variance power for the "tweedie" ***family*** and ***link_function***.
-
-#### cap_outliers_in_validation_set (default = True)
-If ***True*** then term values will be limited by the minimum and maximum values found during model training when calculating validation error. If you need the model to extrapolate then it may be more appropriate to set ***cap_outliers_in_validation_set*** to ***False***. In the latter case the model may become more vulnerable to outliers.
-
-#### cap_outliers_when_using_the_model (default = True)
-If ***True*** then term values will be limited by the minimum and maximum values found during model training when using the model. This can make the model less vulnerable to outliers and is recommended unless you need the model to extrapolate. If you need the model to extrapolate then set ***cap_outliers_when_using_the_model*** to ***False***.
 
 
 ## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[])
@@ -174,13 +168,3 @@ The index of the term selected. So ***0*** is the first term, ***1*** is the sec
 ## Method: get_m()
 
 ***Returns the number of boosting steps in the model (the value that minimized validation error).***
-
-
-## Method: set_cap_outliers_when_using_the_model(cap_outliers_when_using_the_model:bool)
-
-***Sets cap_outliers_when_using_the_model.***
-
-### Parameters
-
-#### cap_outliers_when_using_the_model
-True or False.

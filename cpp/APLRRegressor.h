@@ -118,22 +118,18 @@ public:
     size_t number_of_base_terms; 
     VectorXd feature_importance; //Populated in fit() using validation set. Rows are in the same order as in X.
     double tweedie_power;
-    bool cap_outliers_in_validation_set;
-    bool cap_outliers_when_using_the_model;
 
     //Methods
     APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string family="gaussian",
         std::string link_function="identity", size_t n_jobs=0, double validation_ratio=0.2,double intercept=NAN_DOUBLE,
         size_t reserved_terms_times_num_x=100, size_t bins=300,size_t verbosity=0,size_t max_interaction_level=1,size_t max_interactions=100000,
-        size_t min_observations_in_split=20, size_t ineligible_boosting_steps_added=10, size_t max_eligible_terms=5,double tweedie_power=1.5,
-        bool cap_outliers_in_validation_set=true, bool cap_outliers_when_using_the_model=true);
+        size_t min_observations_in_split=20, size_t ineligible_boosting_steps_added=10, size_t max_eligible_terms=5,double tweedie_power=1.5);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},const std::vector<size_t> &validation_set_indexes={});
     VectorXd predict(const MatrixXd &X);
     void set_term_names(const std::vector<std::string> &X_names);
     MatrixXd calculate_local_feature_importance(const MatrixXd &X);
-    MatrixXd calculate_local_feature_importance_base_function(const MatrixXd &X, bool cap_outliers);
     MatrixXd calculate_local_feature_importance_for_terms(const MatrixXd &X);
     MatrixXd calculate_terms(const MatrixXd &X);
     std::vector<std::string> get_term_names();
@@ -144,21 +140,18 @@ public:
     double get_intercept();
     VectorXd get_intercept_steps();
     size_t get_m();
-    void set_cap_outliers_when_using_the_model(bool cap_outliers_when_using_the_model);
 };
 
 //Regular constructor
 APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::string family,std::string link_function,size_t n_jobs,
     double validation_ratio,double intercept,size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,
-    size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double tweedie_power,
-    bool cap_outliers_in_validation_set, bool cap_outliers_when_using_the_model):
+    size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double tweedie_power):
         reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{intercept},m{m},v{v},
         family{family},link_function{link_function},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},
         intercept_steps{VectorXd(0)},max_interactions{max_interactions},interactions_eligible{0},validation_error_steps{VectorXd(0)},
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
-        max_eligible_terms{max_eligible_terms},number_of_base_terms{0},tweedie_power{tweedie_power},
-        cap_outliers_in_validation_set{cap_outliers_in_validation_set},cap_outliers_when_using_the_model{cap_outliers_when_using_the_model}
+        max_eligible_terms{max_eligible_terms},number_of_base_terms{0},tweedie_power{tweedie_power}
 {
 }
 
@@ -172,8 +165,7 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other):
     max_interactions{other.max_interactions},interactions_eligible{other.interactions_eligible},validation_error_steps{other.validation_error_steps},
     min_observations_in_split{other.min_observations_in_split},ineligible_boosting_steps_added{other.ineligible_boosting_steps_added},
     max_eligible_terms{other.max_eligible_terms},number_of_base_terms{other.number_of_base_terms},
-    feature_importance{other.feature_importance},tweedie_power{other.tweedie_power},
-    cap_outliers_in_validation_set{other.cap_outliers_in_validation_set},cap_outliers_when_using_the_model{other.cap_outliers_when_using_the_model}
+    feature_importance{other.feature_importance},tweedie_power{other.tweedie_power}
 {
 }
 
@@ -749,7 +741,7 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
 
         //Updating current predictions
         VectorXd values{terms_eligible_current[best_term].calculate(X_train)};
-        VectorXd values_validation{terms_eligible_current[best_term].calculate(X_validation, cap_outliers_in_validation_set)};
+        VectorXd values_validation{terms_eligible_current[best_term].calculate(X_validation)};
         linear_predictor_update=values*terms_eligible_current[best_term].coefficient;
         linear_predictor_update_validation=values_validation*terms_eligible_current[best_term].coefficient;
         double error_after_updating_term=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train));
@@ -1002,7 +994,7 @@ void APLRRegressor::set_term_names(const std::vector<std::string> &X_names)
 void APLRRegressor::calculate_feature_importance_on_validation_set()
 {
     feature_importance=VectorXd::Constant(number_of_base_terms,0);
-    MatrixXd li{calculate_local_feature_importance_base_function(X_validation, cap_outliers_in_validation_set)};
+    MatrixXd li{calculate_local_feature_importance(X_validation)};
     for (size_t i = 0; i < static_cast<size_t>(li.cols()); ++i) //for each column calculate mean abs values
     {
         feature_importance[i]=li.col(i).cwiseAbs().mean();
@@ -1013,11 +1005,6 @@ void APLRRegressor::calculate_feature_importance_on_validation_set()
 //Output matrix has columns for each base term in the same order as in X and observations in rows.
 MatrixXd APLRRegressor::calculate_local_feature_importance(const MatrixXd &X)
 {
-    return calculate_local_feature_importance_base_function(X, cap_outliers_when_using_the_model);
-}
-
-MatrixXd APLRRegressor::calculate_local_feature_importance_base_function(const MatrixXd &X, bool cap_outliers)
-{
     validate_that_model_can_be_used(X);
 
     //Computing local feature importance
@@ -1025,7 +1012,7 @@ MatrixXd APLRRegressor::calculate_local_feature_importance_base_function(const M
     //Terms
     for (size_t i = 0; i < terms.size(); ++i) //for each term
     {
-        VectorXd contrib{terms[i].calculate_prediction_contribution(X, cap_outliers)};
+        VectorXd contrib{terms[i].calculate_prediction_contribution(X)};
         output.col(terms[i].base_term)+=contrib;
     }
 
@@ -1084,7 +1071,7 @@ VectorXd APLRRegressor::calculate_linear_predictor(const MatrixXd &X)
     VectorXd predictions{VectorXd::Constant(X.rows(),intercept)};
     for (size_t i = 0; i < terms.size(); ++i) //for each term
     {
-        VectorXd contrib{terms[i].calculate_prediction_contribution(X, cap_outliers_when_using_the_model)};
+        VectorXd contrib{terms[i].calculate_prediction_contribution(X)};
         predictions+=contrib;
     }
     return predictions;    
@@ -1099,7 +1086,7 @@ MatrixXd APLRRegressor::calculate_local_feature_importance_for_terms(const Matri
     //Terms
     for (size_t i = 0; i < terms.size(); ++i) //for each term
     {
-        VectorXd contrib{terms[i].calculate_prediction_contribution(X, cap_outliers_when_using_the_model)};
+        VectorXd contrib{terms[i].calculate_prediction_contribution(X)};
         output.col(i)+=contrib;
     }
 
@@ -1115,7 +1102,7 @@ MatrixXd APLRRegressor::calculate_terms(const MatrixXd &X)
     //Terms
     for (size_t i = 0; i < terms.size(); ++i) //for each term
     {
-        VectorXd values{terms[i].calculate(X, cap_outliers_when_using_the_model)};
+        VectorXd values{terms[i].calculate(X)};
         output.col(i)+=values;
     }
 
@@ -1160,9 +1147,4 @@ VectorXd APLRRegressor::get_intercept_steps()
 size_t APLRRegressor::get_m()
 {
     return m;
-}
-
-void APLRRegressor::set_cap_outliers_when_using_the_model(bool cap_outliers_when_using_the_model)
-{
-    this->cap_outliers_when_using_the_model=cap_outliers_when_using_the_model;
 }
