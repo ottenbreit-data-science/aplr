@@ -32,7 +32,7 @@ Specifies the intercept term of the model if you want to predict before doing an
 Specifies the maximum number of bins to discretize the data into when searching for the best split. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
 
 #### max_interaction_level (default = 1)
-Specifies the maximum allowed depth of interaction terms. ***0*** means that interactions are not allowed. This hyperparameter should be tuned. Please note that occasionally a too high value produces a model that performs poorly on an independent test set despite looking good when tuning hyperparameters, typically because of a few outlier predictions. If this happens then capping of predictors or predictions should be considered. Alternatively, ***max_interaction_level*** may be decreased until the problem disappears.
+Specifies the maximum allowed depth of interaction terms. ***0*** means that interactions are not allowed. This hyperparameter should be tuned. Please note that occasionally a too high value produces a model that performs poorly on an independent test set despite looking good when tuning hyperparameters, typically because of a few outlier predictions. If this happens then capping of predictions should be considered. Alternatively, ***max_interaction_level*** may be decreased until the problem disappears.
 
 #### max_interactions (default = 100000)
 The maximum number of interactions allowed. A lower value may be used to reduce computational time.
