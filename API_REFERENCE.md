@@ -32,7 +32,7 @@ Specifies the intercept term of the model if you want to predict before doing an
 Specifies the maximum number of bins to discretize the data into when searching for the best split. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
 
 #### max_interaction_level (default = 1)
-Specifies the maximum allowed depth of interaction terms. ***0*** means that interactions are not allowed. This hyperparameter should be tuned. Please note that occasionally a too high value produces a model that performs poorly on an independent test set despite looking good when tuning hyperparameters, typically because of a few outlier predictions. If this happens then capping of predictions should be considered. Alternatively, ***max_interaction_level*** may be decreased until the problem disappears.
+Specifies the maximum allowed depth of interaction terms. ***0*** means that interactions are not allowed. This hyperparameter should be tuned. Please note that occasionally a too high value produces a model that performs poorly on an independent test set despite looking good when tuning hyperparameters, typically because of a few outlier predictions. To alleviate this, the ***predict*** method by default caps predictions to limits calculated on the training data (if you need the model to extrapolate then switch off the default capping). Alternatively, ***max_interaction_level*** may be decreased until the problem disappears.
 
 #### max_interactions (default = 100000)
 The maximum number of interactions allowed. A lower value may be used to reduce computational time.
@@ -75,7 +75,7 @@ An optional list of strings containing names for each predictor in ***X***. Nami
 An optional list of integers specifying the indexes of observations to be used for validation instead of training. If this is specified then ***validation_ratio*** is not used. Specifying ***validation_set_indexes*** may be useful for example when modelling time series data (you can place more recent observations in the validation set).
 
 
-## Method: predict(X:npt.ArrayLike)
+## Method: predict(X:npt.ArrayLike, cap_predictions_to_minmax_in_training:bool=True)
 
 ***Returns a numpy vector containing predictions of the data in X. Requires that the model has been fitted with the fit method.***
 
@@ -83,6 +83,9 @@ An optional list of integers specifying the indexes of observations to be used f
 
 #### X
 A numpy matrix with predictor values.
+
+#### cap_predictions_to_minmax_in_training
+If ***True*** then predictions are capped so that they are not less than the minimum and not greater than the maximum prediction in the training dataset. This is recommended especially if ***max_interaction_level*** is high. However, if you need the model to extrapolate then set this parameter to ***False***.
 
 
 ## Method: set_term_names(X_names:List[str])

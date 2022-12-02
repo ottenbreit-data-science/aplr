@@ -49,7 +49,7 @@ int main()
     std::cout<<is_approximately_equal(model.validation_error_steps.minCoeff(),7.02559,0.00001)<<"\n";
 
     std::cout<<"mean prediction "<<predictions.mean()<<"\n\n";
-    std::cout<<is_approximately_equal(predictions.mean(),23.9213,0.0001)<<"\n";
+    std::cout<<is_approximately_equal(predictions.mean(),23.9133,0.0001)<<"\n";
 
     std::cout<<"best_m: "<<model.m<<"\n";
 

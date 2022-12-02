@@ -20,7 +20,7 @@ PYBIND11_MODULE(aplr_cpp, m) {
             py::arg("tweedie_power")=1.5)
         .def("fit", &APLRRegressor::fit,py::arg("X"),py::arg("y"),py::arg("sample_weight")=VectorXd(0),py::arg("X_names")=std::vector<std::string>(),
             py::arg("validation_set_indexes")=std::vector<size_t>(),py::call_guard<py::scoped_ostream_redirect,py::scoped_estream_redirect>())
-        .def("predict", &APLRRegressor::predict,py::arg("X"))
+        .def("predict", &APLRRegressor::predict,py::arg("X"),py::arg("bool cap_predictions_to_minmax_in_training")=true)
         .def("set_term_names", &APLRRegressor::set_term_names,py::arg("X_names"))
         .def("calculate_local_feature_importance",&APLRRegressor::calculate_local_feature_importance,py::arg("X"))
         .def("calculate_local_feature_importance_for_terms",&APLRRegressor::calculate_local_feature_importance_for_terms,py::arg("X"))
@@ -57,16 +57,18 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def_readwrite("number_of_base_terms",&APLRRegressor::number_of_base_terms)
         .def_readwrite("feature_importance",&APLRRegressor::feature_importance)
         .def_readwrite("tweedie_power",&APLRRegressor::tweedie_power)
+        .def_readwrite("min_training_prediction",&APLRRegressor::min_training_prediction)
+        .def_readwrite("max_training_prediction",&APLRRegressor::max_training_prediction)
         .def(py::pickle(
             [](const APLRRegressor &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
                 return py::make_tuple(a.m,a.v,a.random_state,a.family,a.n_jobs,a.validation_ratio,a.intercept,a.bins,a.verbosity,
                     a.max_interaction_level,a.max_interactions,a.validation_error_steps,a.term_names,a.term_coefficients,a.terms,a.intercept_steps,
                     a.interactions_eligible,a.min_observations_in_split,a.ineligible_boosting_steps_added,a.max_eligible_terms,
-                    a.number_of_base_terms,a.feature_importance,a.link_function,a.tweedie_power);
+                    a.number_of_base_terms,a.feature_importance,a.link_function,a.tweedie_power,a.min_training_prediction,a.max_training_prediction);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 24)
+                if (t.size() != 26)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
@@ -85,6 +87,8 @@ PYBIND11_MODULE(aplr_cpp, m) {
                 a.max_eligible_terms=t[19].cast<size_t>();
                 a.number_of_base_terms=t[20].cast<size_t>();
                 a.feature_importance=t[21].cast<VectorXd>();
+                a.min_training_prediction=t[24].cast<double>();
+                a.max_training_prediction=t[25].cast<double>();
 
                 return a;
             }

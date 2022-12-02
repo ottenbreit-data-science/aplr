@@ -75,6 +75,7 @@ private:
     void find_optimal_m_and_update_model_accordingly();
     void name_terms(const MatrixXd &X, const std::vector<std::string> &X_names);
     void calculate_feature_importance_on_validation_set();
+    void find_min_and_max_training_predictions();
     void cleanup_after_fit();
     void validate_that_model_can_be_used(const MatrixXd &X);
     void throw_error_if_family_does_not_exist();
@@ -89,6 +90,7 @@ private:
     VectorXd differentiate_predictions();
     void scale_training_observations_if_using_log_link_function();
     void revert_scaling_if_using_log_link_function();
+    void cap_predictions_to_minmax_in_training(VectorXd &predictions);
     
 public:
     //Fields
@@ -118,6 +120,8 @@ public:
     size_t number_of_base_terms; 
     VectorXd feature_importance; //Populated in fit() using validation set. Rows are in the same order as in X.
     double tweedie_power;
+    double min_training_prediction;
+    double max_training_prediction;
 
     //Methods
     APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string family="gaussian",
@@ -127,7 +131,7 @@ public:
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},const std::vector<size_t> &validation_set_indexes={});
-    VectorXd predict(const MatrixXd &X);
+    VectorXd predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training=true);
     void set_term_names(const std::vector<std::string> &X_names);
     MatrixXd calculate_local_feature_importance(const MatrixXd &X);
     MatrixXd calculate_local_feature_importance_for_terms(const MatrixXd &X);
@@ -151,7 +155,8 @@ APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::s
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},
         intercept_steps{VectorXd(0)},max_interactions{max_interactions},interactions_eligible{0},validation_error_steps{VectorXd(0)},
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
-        max_eligible_terms{max_eligible_terms},number_of_base_terms{0},tweedie_power{tweedie_power}
+        max_eligible_terms{max_eligible_terms},number_of_base_terms{0},tweedie_power{tweedie_power},min_training_prediction{NAN_DOUBLE},
+        max_training_prediction{NAN_DOUBLE}
 {
 }
 
@@ -165,7 +170,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other):
     max_interactions{other.max_interactions},interactions_eligible{other.interactions_eligible},validation_error_steps{other.validation_error_steps},
     min_observations_in_split{other.min_observations_in_split},ineligible_boosting_steps_added{other.ineligible_boosting_steps_added},
     max_eligible_terms{other.max_eligible_terms},number_of_base_terms{other.number_of_base_terms},
-    feature_importance{other.feature_importance},tweedie_power{other.tweedie_power}
+    feature_importance{other.feature_importance},tweedie_power{other.tweedie_power},min_training_prediction{other.min_training_prediction},
+    max_training_prediction{other.max_training_prediction}
 {
 }
 
@@ -193,6 +199,7 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
     revert_scaling_if_using_log_link_function();
     name_terms(X, X_names);
     calculate_feature_importance_on_validation_set();
+    find_min_and_max_training_predictions();
     cleanup_after_fit();
 }
 
@@ -1019,6 +1026,13 @@ MatrixXd APLRRegressor::calculate_local_feature_importance(const MatrixXd &X)
     return output;
 }
 
+void APLRRegressor::find_min_and_max_training_predictions()
+{
+    VectorXd training_predictions{predict(X_train,false)};
+    min_training_prediction=training_predictions.minCoeff();
+    max_training_prediction=training_predictions.maxCoeff();
+}
+
 void APLRRegressor::validate_that_model_can_be_used(const MatrixXd &X)
 {
     if(std::isnan(intercept) || number_of_base_terms==0) throw std::runtime_error("Model must be trained before predict() can be run.");
@@ -1056,12 +1070,17 @@ void APLRRegressor::cleanup_after_fit()
     }
 }
 
-VectorXd APLRRegressor::predict(const MatrixXd &X)
+VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)
 {
     validate_that_model_can_be_used(X);
 
     VectorXd linear_predictor{calculate_linear_predictor(X)};
     VectorXd predictions{transform_linear_predictor_to_predictions(linear_predictor,link_function,tweedie_power)};
+
+    if(cap_predictions_to_minmax_in_training)
+    {
+        this->cap_predictions_to_minmax_in_training(predictions);
+    }
 
     return predictions;
 }
@@ -1075,6 +1094,17 @@ VectorXd APLRRegressor::calculate_linear_predictor(const MatrixXd &X)
         predictions+=contrib;
     }
     return predictions;    
+}
+
+void APLRRegressor::cap_predictions_to_minmax_in_training(VectorXd &predictions)
+{
+    for (size_t i = 0; i < static_cast<size_t>(predictions.rows()); ++i)
+    {
+        if(std::isgreater(predictions[i],max_training_prediction))
+            predictions[i]=max_training_prediction;
+        else if(std::isless(predictions[i],min_training_prediction))
+            predictions[i]=min_training_prediction;
+    }
 }
 
 MatrixXd APLRRegressor::calculate_local_feature_importance_for_terms(const MatrixXd &X)

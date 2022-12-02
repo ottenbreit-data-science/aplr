@@ -50,8 +50,8 @@ class APLRRegressor():
         self.__set_params_cpp()
         self.APLRRegressor.fit(X,y,sample_weight,X_names,validation_set_indexes)
 
-    def predict(self,X:npt.ArrayLike)->npt.ArrayLike:
-        return self.APLRRegressor.predict(X)
+    def predict(self, X:npt.ArrayLike, cap_predictions_to_minmax_in_training:bool=True)->npt.ArrayLike:
+        return self.APLRRegressor.predict(X, cap_predictions_to_minmax_in_training)
 
     def set_term_names(self, X_names:List[str]):
         self.APLRRegressor.set_term_names(X_names)
