@@ -35,10 +35,8 @@ private:
     double neg_gradient_nullmodel_errors_sum;
     size_t best_term;
     double lowest_error_sum;
-    double error_after_updating_intercept;
     VectorXd linear_predictor_update;
     VectorXd linear_predictor_update_validation;
-    double intercept_test;
     size_t number_of_eligible_terms;
     std::vector<std::vector<size_t>> distributed_terms;
     std::vector<Term> interactions_to_consider;
@@ -64,7 +62,7 @@ private:
     void estimate_split_points_for_interactions_to_consider();
     void sort_errors_for_interactions_to_consider();
     void add_promising_interactions_and_select_the_best_one();
-    void consider_updating_intercept();
+    void update_intercept(size_t boosting_step);
     void select_the_best_term_and_update_errors(size_t boosting_step);
     void update_gradient_and_errors();
     void add_new_term(size_t boosting_step);
@@ -506,13 +504,28 @@ void APLRRegressor::execute_boosting_steps()
 
 void APLRRegressor::execute_boosting_step(size_t boosting_step)
 {
+    update_intercept(boosting_step);
     find_best_split_for_each_eligible_term();
     consider_interactions();
-    consider_updating_intercept();
     select_the_best_term_and_update_errors(boosting_step);
     if(abort_boosting) return;
     update_term_eligibility();
     print_summary_after_boosting_step(boosting_step);
+}
+
+void APLRRegressor::update_intercept(size_t boosting_step)
+{
+    double intercept_update;
+    if(sample_weight_train.size()==0)
+        intercept_update=v*neg_gradient_current.mean();
+    else
+        intercept_update=v*(neg_gradient_current.array()*sample_weight_train.array()).sum()/sample_weight_train.array().sum();
+    linear_predictor_update=VectorXd::Constant(neg_gradient_current.size(),intercept_update);
+    linear_predictor_update_validation=VectorXd::Constant(y_validation.size(),intercept_update);
+    intercept+=intercept_update;
+    intercept_steps[boosting_step]=intercept;
+    update_linear_predictor_and_predictors();
+    update_gradient_and_errors();
 }
 
 void APLRRegressor::find_best_split_for_each_eligible_term()
@@ -713,78 +726,53 @@ void APLRRegressor::add_promising_interactions_and_select_the_best_one()
     }
 }
 
-void APLRRegressor::consider_updating_intercept()
-{
-    if(sample_weight_train.size()==0)
-        intercept_test=neg_gradient_current.mean();
-    else
-        intercept_test=(neg_gradient_current.array()*sample_weight_train.array()).sum()/sample_weight_train.array().sum();
-    intercept_test=intercept_test*v;
-    linear_predictor_update=VectorXd::Constant(neg_gradient_current.size(),intercept_test);
-    linear_predictor_update_validation=VectorXd::Constant(y_validation.size(),intercept_test);
-    error_after_updating_intercept=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train));
-}
-
 void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
 {
-    //If intercept does best
-    if(std::islessequal(error_after_updating_intercept,lowest_error_sum)) 
+    bool no_term_was_selected{best_term == std::numeric_limits<size_t>::max()};
+    if(no_term_was_selected)
     {
-        //Updating intercept, current predictions, gradient and errors
-        lowest_error_sum=error_after_updating_intercept;
-        intercept=intercept+intercept_test;
-        intercept_steps[boosting_step]=intercept;
+        abort_boosting=true;
+        return;
+    }
+
+    //Updating current predictions
+    VectorXd values{terms_eligible_current[best_term].calculate(X_train)};
+    VectorXd values_validation{terms_eligible_current[best_term].calculate(X_validation)};
+    linear_predictor_update=values*terms_eligible_current[best_term].coefficient;
+    linear_predictor_update_validation=values_validation*terms_eligible_current[best_term].coefficient;
+    double error_after_updating_term=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train));
+    bool no_improvement{std::isgreaterequal(error_after_updating_term,neg_gradient_nullmodel_errors_sum)};
+    if(no_improvement)
+    {
+        abort_boosting=true;
+        return;
+    }
+    else
+    {
         update_linear_predictor_and_predictors();
         update_gradient_and_errors();
-    }
-    else //Choosing the next term and updating the model
-    {
-        bool no_term_was_selected{best_term == std::numeric_limits<size_t>::max()};
-        if(no_term_was_selected)
-        {
-            abort_boosting=true;
-            return;
-        }
 
-        //Updating current predictions
-        VectorXd values{terms_eligible_current[best_term].calculate(X_train)};
-        VectorXd values_validation{terms_eligible_current[best_term].calculate(X_validation)};
-        linear_predictor_update=values*terms_eligible_current[best_term].coefficient;
-        linear_predictor_update_validation=values_validation*terms_eligible_current[best_term].coefficient;
-        double error_after_updating_term=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train));
-        if(std::isgreaterequal(error_after_updating_term,neg_gradient_nullmodel_errors_sum)) //if no improvement or worse then terminate search
-        {
-            abort_boosting=true;
-            return;
-        }
-        else //if improvement
-        {
-            //Updating predictions_current, gradient and errors
-            update_linear_predictor_and_predictors();
-            update_gradient_and_errors();
-
-            //Has the term been entered into the model before?
-            if(terms.size()==0) //If nothing is in the model add the term
+        //Has the term been entered into the model before?
+        if(terms.size()==0) //If nothing is in the model add the term
+            add_new_term(boosting_step);
+        else //If at least one term was added before
+        {   
+            //Searching in existing terms
+            bool found{false};
+            for (size_t j = 0; j < terms.size(); ++j)
+            {
+                if(terms[j]==terms_eligible_current[best_term]) //if term was found, update coefficient and coefficient_steps
+                {
+                    terms[j].coefficient+=terms_eligible_current[best_term].coefficient;
+                    terms[j].coefficient_steps[boosting_step]=terms[j].coefficient;
+                    found=true;
+                    break;
+                } 
+            }
+            //term was not in the model and is added to the model
+            if(!found) 
+            {
                 add_new_term(boosting_step);
-            else //If at least one term was added before
-            {   
-                //Searching in existing terms
-                bool found{false};
-                for (size_t j = 0; j < terms.size(); ++j)
-                {
-                    if(terms[j]==terms_eligible_current[best_term]) //if term was found, update coefficient and coefficient_steps
-                    {
-                        terms[j].coefficient+=terms_eligible_current[best_term].coefficient;
-                        terms[j].coefficient_steps[boosting_step]=terms[j].coefficient;
-                        found=true;
-                        break;
-                    } 
-                }
-                //term was not in the model and is added to the model
-                if(!found) 
-                {
-                    add_new_term(boosting_step);
-                }
             }
         }
     }
