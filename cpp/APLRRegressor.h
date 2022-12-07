@@ -64,8 +64,10 @@ private:
     void add_promising_interactions_and_select_the_best_one();
     void update_intercept(size_t boosting_step);
     void select_the_best_term_and_update_errors(size_t boosting_step);
+    void update_terms(size_t boosting_step);
     void update_gradient_and_errors();
     void add_new_term(size_t boosting_step);
+    void calculate_and_validate_validation_error(size_t boosting_step);
     void update_term_eligibility();
     void print_summary_after_boosting_step(size_t boosting_step);
     void update_coefficients_for_all_steps();
@@ -505,9 +507,12 @@ void APLRRegressor::execute_boosting_steps()
 void APLRRegressor::execute_boosting_step(size_t boosting_step)
 {
     update_intercept(boosting_step);
-    find_best_split_for_each_eligible_term();
-    consider_interactions();
-    select_the_best_term_and_update_errors(boosting_step);
+    if(!abort_boosting)
+    {
+        find_best_split_for_each_eligible_term();
+        consider_interactions();
+        select_the_best_term_and_update_errors(boosting_step);
+    }
     if(abort_boosting) return;
     update_term_eligibility();
     print_summary_after_boosting_step(boosting_step);
@@ -522,10 +527,29 @@ void APLRRegressor::update_intercept(size_t boosting_step)
         intercept_update=v*(neg_gradient_current.array()*sample_weight_train.array()).sum()/sample_weight_train.array().sum();
     linear_predictor_update=VectorXd::Constant(neg_gradient_current.size(),intercept_update);
     linear_predictor_update_validation=VectorXd::Constant(y_validation.size(),intercept_update);
-    intercept+=intercept_update;
-    intercept_steps[boosting_step]=intercept;
     update_linear_predictor_and_predictors();
     update_gradient_and_errors();
+    calculate_and_validate_validation_error(boosting_step);
+    if(!abort_boosting)
+    {
+        intercept+=intercept_update;
+        intercept_steps[boosting_step]=intercept;
+    }
+}
+
+void APLRRegressor::update_linear_predictor_and_predictors()
+{
+    linear_predictor_current+=linear_predictor_update;
+    linear_predictor_current_validation+=linear_predictor_update_validation;
+    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function,tweedie_power);
+    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function,tweedie_power);
+}
+
+void APLRRegressor::update_gradient_and_errors()
+{
+    neg_gradient_current=calculate_neg_gradient_current();
+    neg_gradient_nullmodel_errors=calculate_errors(neg_gradient_current,linear_predictor_null_model,sample_weight_train);
+    neg_gradient_nullmodel_errors_sum=calculate_sum_error(neg_gradient_nullmodel_errors);
 }
 
 void APLRRegressor::find_best_split_for_each_eligible_term()
@@ -745,61 +769,46 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
     if(no_improvement)
     {
         abort_boosting=true;
-        return;
     }
     else
     {
         update_linear_predictor_and_predictors();
         update_gradient_and_errors();
+        double backup_of_validation_error{validation_error_steps[boosting_step]};
+        calculate_and_validate_validation_error(boosting_step);
+        if(abort_boosting)
+            validation_error_steps[boosting_step]=backup_of_validation_error;
+        else
+            update_terms(boosting_step);
+    }
+}
 
-        //Has the term been entered into the model before?
-        if(terms.size()==0) //If nothing is in the model add the term
+void APLRRegressor::update_terms(size_t boosting_step)
+{
+    bool no_term_is_in_model{terms.size()==0};
+    if(no_term_is_in_model)
+        add_new_term(boosting_step);
+    else
+    {   
+        //Searching in existing terms
+        bool found{false};
+        for (size_t j = 0; j < terms.size(); ++j)
+        {
+            bool term_is_already_in_model{terms[j]==terms_eligible_current[best_term]};
+            if(term_is_already_in_model)
+            {
+                terms[j].coefficient+=terms_eligible_current[best_term].coefficient;
+                terms[j].coefficient_steps[boosting_step]=terms[j].coefficient;
+                found=true;
+                break;
+            } 
+        }
+        //term was not in the model and is added to the model
+        if(!found) 
+        {
             add_new_term(boosting_step);
-        else //If at least one term was added before
-        {   
-            //Searching in existing terms
-            bool found{false};
-            for (size_t j = 0; j < terms.size(); ++j)
-            {
-                if(terms[j]==terms_eligible_current[best_term]) //if term was found, update coefficient and coefficient_steps
-                {
-                    terms[j].coefficient+=terms_eligible_current[best_term].coefficient;
-                    terms[j].coefficient_steps[boosting_step]=terms[j].coefficient;
-                    found=true;
-                    break;
-                } 
-            }
-            //term was not in the model and is added to the model
-            if(!found) 
-            {
-                add_new_term(boosting_step);
-            }
         }
     }
-
-    validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation,family,tweedie_power),sample_weight_validation);
-    bool validation_error_is_invalid{std::isinf(validation_error_steps[boosting_step])};
-    if(validation_error_is_invalid)
-    {
-        abort_boosting=true;
-        std::string warning_message{"Warning: Encountered numerical problems when calculating prediction errors in the previous boosting step. Not continuing with further boosting steps. One potential reason is if the combination of family and link_function is invalid."};
-        std::cout<<warning_message<<"\n";
-    }
-}
-
-void APLRRegressor::update_linear_predictor_and_predictors()
-{
-    linear_predictor_current+=linear_predictor_update;
-    linear_predictor_current_validation+=linear_predictor_update_validation;
-    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function,tweedie_power);
-    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function,tweedie_power);
-}
-
-void APLRRegressor::update_gradient_and_errors()
-{
-    neg_gradient_current=calculate_neg_gradient_current();
-    neg_gradient_nullmodel_errors=calculate_errors(neg_gradient_current,linear_predictor_null_model,sample_weight_train);
-    neg_gradient_nullmodel_errors_sum=calculate_sum_error(neg_gradient_nullmodel_errors);
 }
 
 void APLRRegressor::add_new_term(size_t boosting_step)
@@ -810,6 +819,18 @@ void APLRRegressor::add_new_term(size_t boosting_step)
 
     //Appending a copy of the chosen term to terms
     terms.push_back(Term(terms_eligible_current[best_term]));
+}
+
+void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step)
+{
+    validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation,family,tweedie_power),sample_weight_validation);
+    bool validation_error_is_invalid{std::isinf(validation_error_steps[boosting_step])};
+    if(validation_error_is_invalid)
+    {
+        abort_boosting=true;
+        std::string warning_message{"Warning: Encountered numerical problems when calculating prediction errors in the previous boosting step. Not continuing with further boosting steps. One potential reason is if the combination of family and link_function is invalid."};
+        std::cout<<warning_message<<"\n";
+    }
 }
 
 void APLRRegressor::update_term_eligibility()
