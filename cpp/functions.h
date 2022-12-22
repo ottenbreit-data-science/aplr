@@ -42,7 +42,7 @@ static bool is_approximately_zero(TReal a, TReal tolerance = std::numeric_limits
 
 double set_error_to_infinity_if_invalid(double error)
 {
-    bool error_is_invalid{std::isless(error,0) || std::isnan(error) || std::isinf(error)};
+    bool error_is_invalid{!std::isfinite(error)};
     if(error_is_invalid)
         error=std::numeric_limits<double>::infinity();
     
@@ -70,13 +70,13 @@ VectorXd calculate_poisson_errors(const VectorXd &y,const VectorXd &predicted)
 
 VectorXd calculate_gamma_errors(const VectorXd &y,const VectorXd &predicted)
 {
-    VectorXd errors{predicted.array().log() - y.array().log() + y.array()/predicted.array()-1};
+    VectorXd errors{predicted.array().log() + y.array()/predicted.array()-1};
     return errors;
 }
 
 VectorXd calculate_tweedie_errors(const VectorXd &y,const VectorXd &predicted,double tweedie_power=1.5)
 {
-    VectorXd errors{y.array().pow(2-tweedie_power).array() / (1-tweedie_power) / (2-tweedie_power) - y.array()*predicted.array().pow(1-tweedie_power) / (1-tweedie_power) + predicted.array().pow(2-tweedie_power) / (2-tweedie_power)};
+    VectorXd errors{-y.array()*predicted.array().pow(1-tweedie_power) / (1-tweedie_power) + predicted.array().pow(2-tweedie_power) / (2-tweedie_power)};
     return errors;
 }
 
