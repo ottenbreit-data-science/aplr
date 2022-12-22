@@ -76,6 +76,7 @@ private:
     void name_terms(const MatrixXd &X, const std::vector<std::string> &X_names);
     void calculate_feature_importance_on_validation_set();
     void find_min_and_max_training_predictions();
+    void calculate_validation_group_mse();
     void cleanup_after_fit();
     void validate_that_model_can_be_used(const MatrixXd &X);
     void throw_error_if_family_does_not_exist();
@@ -122,12 +123,15 @@ public:
     double tweedie_power;
     double min_training_prediction;
     double max_training_prediction;
+    double validation_group_mse;
+    size_t group_size_for_validation_group_mse;
 
     //Methods
     APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string family="gaussian",
         std::string link_function="identity", size_t n_jobs=0, double validation_ratio=0.2,double intercept=NAN_DOUBLE,
         size_t reserved_terms_times_num_x=100, size_t bins=300,size_t verbosity=0,size_t max_interaction_level=1,size_t max_interactions=100000,
-        size_t min_observations_in_split=20, size_t ineligible_boosting_steps_added=10, size_t max_eligible_terms=5,double tweedie_power=1.5);
+        size_t min_observations_in_split=20, size_t ineligible_boosting_steps_added=10, size_t max_eligible_terms=5,double tweedie_power=1.5,
+        size_t group_size_for_validation_group_mse=100);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},const std::vector<size_t> &validation_set_indexes={});
@@ -144,19 +148,21 @@ public:
     double get_intercept();
     VectorXd get_intercept_steps();
     size_t get_m();
+    double get_validation_group_mse();
 };
 
 //Regular constructor
 APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::string family,std::string link_function,size_t n_jobs,
     double validation_ratio,double intercept,size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,
-    size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double tweedie_power):
+    size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double tweedie_power,
+    size_t group_size_for_validation_group_mse):
         reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{intercept},m{m},v{v},
         family{family},link_function{link_function},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},
         intercept_steps{VectorXd(0)},max_interactions{max_interactions},interactions_eligible{0},validation_error_steps{VectorXd(0)},
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
         max_eligible_terms{max_eligible_terms},number_of_base_terms{0},tweedie_power{tweedie_power},min_training_prediction{NAN_DOUBLE},
-        max_training_prediction{NAN_DOUBLE}
+        max_training_prediction{NAN_DOUBLE},validation_group_mse{NAN_DOUBLE},group_size_for_validation_group_mse{group_size_for_validation_group_mse}
 {
 }
 
@@ -171,7 +177,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other):
     min_observations_in_split{other.min_observations_in_split},ineligible_boosting_steps_added{other.ineligible_boosting_steps_added},
     max_eligible_terms{other.max_eligible_terms},number_of_base_terms{other.number_of_base_terms},
     feature_importance{other.feature_importance},tweedie_power{other.tweedie_power},min_training_prediction{other.min_training_prediction},
-    max_training_prediction{other.max_training_prediction}
+    max_training_prediction{other.max_training_prediction},validation_group_mse{other.validation_group_mse},
+    group_size_for_validation_group_mse{other.group_size_for_validation_group_mse}
 {
 }
 
@@ -200,6 +207,7 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
     name_terms(X, X_names);
     calculate_feature_importance_on_validation_set();
     find_min_and_max_training_predictions();
+    calculate_validation_group_mse();
     cleanup_after_fit();
 }
 
@@ -1042,6 +1050,17 @@ void APLRRegressor::find_min_and_max_training_predictions()
     max_training_prediction=training_predictions.maxCoeff();
 }
 
+void APLRRegressor::calculate_validation_group_mse()
+{
+    VectorXd validation_predictions{predict(X_validation,false)};
+    VectorXi y_validation_sorted_index{sort_indexes_ascending(y_validation)};
+    VectorXd y_validation_centered{calculate_rolling_centered_mean(y_validation,y_validation_sorted_index,group_size_for_validation_group_mse,sample_weight_validation)};
+    VectorXd validation_predictions_centered{calculate_rolling_centered_mean(validation_predictions,y_validation_sorted_index,group_size_for_validation_group_mse,sample_weight_validation)};
+
+    VectorXd squared_residuals{(y_validation_centered-validation_predictions_centered).array().pow(2)};
+    validation_group_mse =  squared_residuals.mean();
+}
+
 void APLRRegressor::validate_that_model_can_be_used(const MatrixXd &X)
 {
     if(std::isnan(intercept) || number_of_base_terms==0) throw std::runtime_error("Model must be trained before predict() can be run.");
@@ -1186,4 +1205,9 @@ VectorXd APLRRegressor::get_intercept_steps()
 size_t APLRRegressor::get_m()
 {
     return m;
+}
+
+double APLRRegressor::get_validation_group_mse()
+{
+    return validation_group_mse;
 }

@@ -311,3 +311,64 @@ void throw_error_if_matrix_has_nan_or_infinite_elements(const T &x, const std::s
         throw std::runtime_error(matrix_name + " has nan or infinite elements.");
     }
 }
+
+VectorXd calculate_rolling_centered_mean(const VectorXd &vector, const VectorXi &sorted_index, size_t rolling_window, const VectorXd &sample_weight=VectorXd(0))
+{
+    bool sample_weight_is_provided{sample_weight.rows()==vector.rows()};
+    bool rolling_window_contains_one_observation{rolling_window<=1};
+    bool rolling_window_encompasses_all_observations_in_validation_set{rolling_window >= static_cast<size_t>(vector.rows())};
+    size_t half_rolling_window{(rolling_window-1)/2};
+    
+    VectorXd rolling_centered_mean;
+    if(rolling_window_contains_one_observation)
+        rolling_centered_mean = vector;
+    else if(rolling_window_encompasses_all_observations_in_validation_set)
+    {
+        if(sample_weight_is_provided)
+        {
+            double weighted_centered_mean{(vector.array() * sample_weight.array()).sum() / sample_weight.sum()};
+            rolling_centered_mean = VectorXd::Constant(vector.rows(),weighted_centered_mean);
+        }
+        else
+            rolling_centered_mean = VectorXd::Constant(vector.rows(),vector.mean());
+    }
+    else
+    {
+        rolling_centered_mean = VectorXd::Constant(vector.rows(),0);
+
+        size_t vector_size{static_cast<size_t>(sorted_index.rows())};
+        for (size_t i = 0; i < vector_size; ++i)
+        {
+            size_t min_index;
+            if(i<half_rolling_window)
+                min_index=0;
+            else
+                min_index=i-half_rolling_window;
+            
+            size_t max_index{std::min(vector_size-1, i+half_rolling_window)};
+
+            double rolling_centered_weighted_sum{0};
+            if(sample_weight_is_provided)
+            {
+                double rolling_centered_sample_weight_sum{0};
+                for (size_t j = min_index; j <= max_index; ++j)
+                {
+                    rolling_centered_weighted_sum += vector[sorted_index[j]] * sample_weight[sorted_index[j]];
+                    rolling_centered_sample_weight_sum += sample_weight[sorted_index[j]];
+                }
+                rolling_centered_mean[sorted_index[i]] = rolling_centered_weighted_sum / rolling_centered_sample_weight_sum;
+            }
+            else
+            {
+                size_t observations{max_index-min_index+1};
+                for (size_t j = min_index; j <= max_index; ++j)
+                {
+                    rolling_centered_mean[sorted_index[i]] += vector[sorted_index[j]];
+                }
+                rolling_centered_mean[sorted_index[i]] /= observations;
+            }
+        }
+    }
+    
+    return rolling_centered_mean;
+}

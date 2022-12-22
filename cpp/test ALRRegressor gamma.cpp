@@ -28,6 +28,7 @@ int main()
     model.min_observations_in_split=20;
     model.ineligible_boosting_steps_added=10;
     model.max_eligible_terms=5;
+    model.group_size_for_validation_group_mse=30;
 
     //Data    
     MatrixXd X_train{load_csv<MatrixXd>("data/X_train.csv")};
@@ -53,6 +54,9 @@ int main()
 
     std::cout<<predictions.mean()<<"\n\n";
     tests.push_back(is_approximately_equal(predictions.mean(),23.6503,0.00001));
+
+    std::cout<<model.get_validation_group_mse()<<"\n\n";
+    tests.push_back(is_approximately_equal(model.get_validation_group_mse(),470.287,0.00001));
 
     //std::cout<<model.validation_error_steps<<"\n\n";
 

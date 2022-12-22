@@ -33,24 +33,68 @@ int main()
     std::cout<<"pred\n"<<pred<<"\n\n";
     std::cout<<"sample_weight\n"<<sample_weight<<"\n\n";
     VectorXd errors_mse{calculate_errors(y,pred)};
-    VectorXd errors_mae{calculate_errors(y,pred,VectorXd(0),false)};
     VectorXd errors_mse_sw{calculate_errors(y,pred,sample_weight)};
-    VectorXd errors_mae_sw{calculate_errors(y,pred,sample_weight,false)};
 
     //compute_error
     //calculating errors
     double error_mse{calculate_mean_error(errors_mse)};
     std::cout<<"error_mse: "<<error_mse<<"\n\n";   
     tests.push_back((is_approximately_equal(error_mse,3.482)?true:false));
-    double error_mae{calculate_mean_error(errors_mae)};
-    std::cout<<"error_mae: "<<error_mae<<"\n\n";   
-    tests.push_back((is_approximately_equal(error_mae,1.18)?true:false)); 
     double error_mse_sw{calculate_mean_error(errors_mse_sw,sample_weight)};
     std::cout<<"error_mse_sw: "<<error_mse_sw<<"\n\n";   
     tests.push_back((is_approximately_equal(error_mse_sw,0.4433,0.0001)?true:false));
-    double error_mae_sw{calculate_mean_error(errors_mae_sw,sample_weight)};
-    std::cout<<"error_mae_sw: "<<error_mae_sw<<"\n\n";   
-    tests.push_back((is_approximately_equal(error_mae_sw,0.5666,0.0001)?true:false));
+
+    //calculate_rolling_centered_mean
+    VectorXi sorted_index{sort_indexes_ascending(y)};
+    VectorXd y_sorted(5);
+    VectorXd sample_weight_sorted(5);
+    for (size_t i = 0; i < y_sorted.size(); ++i)
+    {
+        y_sorted[i]=y[sorted_index[i]];
+        sample_weight_sorted[i]=sample_weight[sorted_index[i]];
+    }
+
+    VectorXd c1{calculate_rolling_centered_mean(y,sorted_index,1)};
+    std::cout<<"rolling_centered_mean_1: "<<c1.mean()<<"\n\n";
+    bool test_passed{c1.isApprox(y)};
+    tests.push_back(test_passed);
+
+    VectorXd c2{calculate_rolling_centered_mean(y,sorted_index,1,sample_weight)};
+    std::cout<<"rolling_centered_mean_2: "<<c2.mean()<<"\n\n";
+    test_passed=c2.isApprox(y);
+    tests.push_back(test_passed);
+
+    VectorXd c3{calculate_rolling_centered_mean(y,sorted_index,100)};
+    std::cout<<"rolling_centered_mean_3: "<<c3.mean()<<"\n\n";
+    test_passed=is_approximately_equal(c3.mean(),y.mean());
+    tests.push_back(test_passed);
+
+    VectorXd c4{calculate_rolling_centered_mean(y,sorted_index,100,sample_weight)};
+    std::cout<<"rolling_centered_mean_4: "<<c4.mean()<<"\n\n";
+    double correct_weighted_average{(y.array()*sample_weight.array()).sum() / sample_weight.sum()};
+    test_passed=is_approximately_equal(c4.mean(),correct_weighted_average);
+    tests.push_back(test_passed);
+
+    VectorXd c5{calculate_rolling_centered_mean(y,sorted_index,4)};
+    std::cout<<"rolling_centered_mean_5: "<<c5.mean()<<"\n\n";
+    VectorXd correct_weighted_average_vector(5);
+    correct_weighted_average_vector[0]=(y_sorted[0]+y_sorted[1]+y_sorted[2])/3;
+    correct_weighted_average_vector[1]=(y_sorted[2]+y_sorted[3]+y_sorted[4])/3;
+    correct_weighted_average_vector[2]=(y_sorted[1]+y_sorted[2]+y_sorted[3])/3;
+    correct_weighted_average_vector[3]=(y_sorted[3]+y_sorted[4])/2;
+    correct_weighted_average_vector[4]=(y_sorted[0]+y_sorted[1])/2;
+    test_passed=c5.isApprox(correct_weighted_average_vector);
+    tests.push_back(test_passed);
+
+    VectorXd c6{calculate_rolling_centered_mean(y,sorted_index,4,sample_weight)};
+    std::cout<<"rolling_centered_mean_6: "<<c6.mean()<<"\n\n";
+    correct_weighted_average_vector[0]=(y_sorted[0]*sample_weight_sorted[0] + y_sorted[1]*sample_weight_sorted[1] + y_sorted[2]*sample_weight_sorted[2]) / (sample_weight_sorted[0]+sample_weight_sorted[1]+sample_weight_sorted[2]);
+    correct_weighted_average_vector[1]=(y_sorted[2]*sample_weight_sorted[2] + y_sorted[3]*sample_weight_sorted[3] + y_sorted[4]*sample_weight_sorted[4]) / (sample_weight_sorted[2]+sample_weight_sorted[3]+sample_weight_sorted[4]);
+    correct_weighted_average_vector[2]=(y_sorted[1]*sample_weight_sorted[1] + y_sorted[2]*sample_weight_sorted[2] + y_sorted[3]*sample_weight_sorted[3]) / (sample_weight_sorted[1]+sample_weight_sorted[2]+sample_weight_sorted[3]);
+    correct_weighted_average_vector[3]=(y_sorted[3]*sample_weight_sorted[3] + y_sorted[4]*sample_weight_sorted[4] )/ (sample_weight_sorted[3]+sample_weight_sorted[4]);
+    correct_weighted_average_vector[4]=(y_sorted[0]*sample_weight_sorted[0] + y_sorted[1]*sample_weight_sorted[1]) / (sample_weight_sorted[0]+sample_weight_sorted[1]);
+    test_passed=c6.isApprox(correct_weighted_average_vector);
+    tests.push_back(test_passed);
 
     //testing for nan and infinity
     //matrix without nan or inf

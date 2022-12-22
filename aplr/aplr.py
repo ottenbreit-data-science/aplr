@@ -5,7 +5,7 @@ import aplr_cpp
 
 
 class APLRRegressor():
-    def __init__(self, m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5):
+    def __init__(self, m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5, group_size_for_validation_group_mse:int=100):
         self.m=m
         self.v=v
         self.random_state=random_state
@@ -22,6 +22,7 @@ class APLRRegressor():
         self.max_eligible_terms=max_eligible_terms
         self.verbosity=verbosity
         self.tweedie_power=tweedie_power
+        self.group_size_for_validation_group_mse=group_size_for_validation_group_mse
 
         #Creating aplr_cpp and setting parameters
         self.APLRRegressor=aplr_cpp.APLRRegressor()
@@ -45,6 +46,7 @@ class APLRRegressor():
         self.APLRRegressor.max_eligible_terms=self.max_eligible_terms
         self.APLRRegressor.verbosity=self.verbosity
         self.APLRRegressor.tweedie_power=self.tweedie_power
+        self.APLRRegressor.group_size_for_validation_group_mse=self.group_size_for_validation_group_mse
 
     def fit(self, X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[]):
         self.__set_params_cpp()
@@ -89,9 +91,12 @@ class APLRRegressor():
     def get_m(self)->int:
         return self.APLRRegressor.get_m()
 
+    def get_validation_group_mse(self)->float:
+        return self.APLRRegressor.get_validation_group_mse()
+
     #For sklearn
     def get_params(self, deep=True):
-        return {"m": self.m, "v": self.v,"random_state":self.random_state,"family":self.family,"link_function":self.link_function,"n_jobs":self.n_jobs,"validation_ratio":self.validation_ratio,"intercept":self.intercept,"bins":self.bins,"max_interaction_level":self.max_interaction_level,"max_interactions":self.max_interactions,"verbosity":self.verbosity,"min_observations_in_split":self.min_observations_in_split,"ineligible_boosting_steps_added":self.ineligible_boosting_steps_added,"max_eligible_terms":self.max_eligible_terms,"tweedie_power":self.tweedie_power}
+        return {"m": self.m, "v": self.v,"random_state":self.random_state,"family":self.family,"link_function":self.link_function,"n_jobs":self.n_jobs,"validation_ratio":self.validation_ratio,"intercept":self.intercept,"bins":self.bins,"max_interaction_level":self.max_interaction_level,"max_interactions":self.max_interactions,"verbosity":self.verbosity,"min_observations_in_split":self.min_observations_in_split,"ineligible_boosting_steps_added":self.ineligible_boosting_steps_added,"max_eligible_terms":self.max_eligible_terms,"tweedie_power":self.tweedie_power,"group_size_for_validation_group_mse":self.group_size_for_validation_group_mse}
 
     #For sklearn
     def set_params(self, **parameters):

@@ -1,6 +1,6 @@
 # APLRRegressor
 
-## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5)
+## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5, group_size_for_validation_group_mse:int=100)
 
 ### Constructor parameters
 
@@ -14,7 +14,7 @@ The learning rate. Must be greater than zero and not more than one. The higher t
 Used to randomly split training observations into training and validation if ***validation_set_indexes*** is not specified when fitting.
 
 #### family (default = "gaussian")
-Determines the loss function used. Allowed values are "gaussian", "binomial", "poisson", "gamma" and "tweedie". This is used together with ***link_function***. Please note that this is not a tuning parameter because it defines how the loss function is calculated.
+Determines the loss function used. Allowed values are "gaussian", "binomial", "poisson", "gamma" and "tweedie". This is used together with ***link_function***. Please note that this is not a tuning parameter because it defines how the loss function is calculated. However, it can be tuned with ***get_validation_group_mse()*** as the tuning metric.
 
 #### link_function (default = "identity")
 Determines how the linear predictor is transformed to predictions. Allowed values are "identity", "logit" and "log". For an ordinary regression model use ***family*** "gaussian" and ***link_function*** "identity". For logistic regression use ***family*** "binomial" and ***link_function*** "logit". For a multiplicative model use the "log" ***link_function***. The "log" ***link_function*** often works best with a "poisson", "gamma" or "tweedie" ***family***, depending on the data. The ***family*** "poisson", "gamma" or "tweedie" should only be used with the "log" ***link_function***. Inappropriate combinations of ***family*** and ***link_function*** may result in a warning message when fitting the model and/or a poor model fit. Please note that values other than "identity" typically require a significantly higher ***m*** (or ***v***) in order to converge.
@@ -50,7 +50,10 @@ Limits 1) the number of terms already in the model that can be considered as int
 ***0*** does not print progress reports during fitting. ***1*** prints a summary after running the ***fit*** method. ***2*** prints a summary after each boosting step.
 
 #### tweedie_power (default = 1.5)
-Species the variance power for the "tweedie" ***family*** and ***link_function***. Please note that this is not a tuning parameter because it defines how the loss function is calculated.
+Species the variance power for the "tweedie" ***family*** and ***link_function***. Please note that this is not a tuning parameter because it defines how the loss function is calculated. However, it can be tuned with ***get_validation_group_mse()*** as the tuning metric.
+
+#### group_size_for_validation_group_mse (default = 100)
+APLR calculates mean squared error on grouped data in the validation set. This can be useful for comparing models that have different ***family*** or ***tweedie_power*** parameters. The maximum number of observations in each group is specified by  ***group_size_for_validation_group_mse***. Some of the observations with the lowest or highest response values will belong to groups with less than   ***group_size_for_validation_group_mse*** observations. The minimum number of observations in a group is ***group_size_for_validation_group_mse/2***. If ***group_size_for_validation_group_mse*** is equal to or higher than the number of observations in the validation set, then there will only be one group (in this case the grouped validation MSE is not so useful). ***group_size_for_validation_group_mse*** should be large enough so that the Central Limit Theorem holds (at least 60, but 100 is a safer choice). Also, the number of observations in the validation set should be substantially higher than ***group_size_for_validation_group_mse*** for group validation MSE to be useful.
 
 
 ## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[])
@@ -171,3 +174,8 @@ The index of the term selected. So ***0*** is the first term, ***1*** is the sec
 ## Method: get_m()
 
 ***Returns the number of boosting steps in the model (the value that minimized validation error).***
+
+
+## Method: get_validation_group_mse()
+
+***Returns mean squared error on grouped data in the validation set.*** See ***group_size_for_validation_group_mse*** for more information.

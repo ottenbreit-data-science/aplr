@@ -11,13 +11,14 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(aplr_cpp, m) {
     py::class_<APLRRegressor>(m, "APLRRegressor",py::module_local())
-        .def(py::init<int&, double&, int&, std::string&,std::string&,int&,double&,double&,int&,int&,int&,int&,int&,int&,int&,int&,double&>(),
+        .def(py::init<int&, double&, int&, std::string&,std::string&,int&,double&,double&,int&,int&,int&,int&,int&,int&,int&,int&,double&,int&>(),
             py::arg("m")=1000,py::arg("v")=0.1,py::arg("random_state")=0,py::arg("family")="gaussian",py::arg("link_function")="identity",
             py::arg("n_jobs")=0,py::arg("validation_ratio")=0.2,py::arg("intercept")=NAN_DOUBLE,
             py::arg("reserved_terms_times_num_x")=100,py::arg("bins")=300,py::arg("verbosity")=0,
             py::arg("max_interaction_level")=1,py::arg("max_interactions")=100000,py::arg("min_observations_in_split")=20,
             py::arg("ineligible_boosting_steps_added")=10,py::arg("max_eligible_terms")=5,
-            py::arg("tweedie_power")=1.5)
+            py::arg("tweedie_power")=1.5,
+            py::arg("group_size_for_validation_group_mse")=100)
         .def("fit", &APLRRegressor::fit,py::arg("X"),py::arg("y"),py::arg("sample_weight")=VectorXd(0),py::arg("X_names")=std::vector<std::string>(),
             py::arg("validation_set_indexes")=std::vector<size_t>(),py::call_guard<py::scoped_ostream_redirect,py::scoped_estream_redirect>())
         .def("predict", &APLRRegressor::predict,py::arg("X"),py::arg("bool cap_predictions_to_minmax_in_training")=true)
@@ -33,6 +34,7 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def("get_intercept", &APLRRegressor::get_intercept)
         .def("get_intercept_steps", &APLRRegressor::get_intercept_steps)
         .def("get_m", &APLRRegressor::get_m)
+        .def("get_validation_group_mse", &APLRRegressor::get_validation_group_mse)
         .def_readwrite("intercept", &APLRRegressor::intercept)
         .def_readwrite("intercept_steps", &APLRRegressor::intercept_steps)
         .def_readwrite("m", &APLRRegressor::m)
@@ -59,16 +61,19 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def_readwrite("tweedie_power",&APLRRegressor::tweedie_power)
         .def_readwrite("min_training_prediction",&APLRRegressor::min_training_prediction)
         .def_readwrite("max_training_prediction",&APLRRegressor::max_training_prediction)
+        .def_readwrite("validation_group_mse",&APLRRegressor::validation_group_mse)
+        .def_readwrite("group_size_for_validation_group_mse",&APLRRegressor::group_size_for_validation_group_mse)
         .def(py::pickle(
             [](const APLRRegressor &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
                 return py::make_tuple(a.m,a.v,a.random_state,a.family,a.n_jobs,a.validation_ratio,a.intercept,a.bins,a.verbosity,
                     a.max_interaction_level,a.max_interactions,a.validation_error_steps,a.term_names,a.term_coefficients,a.terms,a.intercept_steps,
                     a.interactions_eligible,a.min_observations_in_split,a.ineligible_boosting_steps_added,a.max_eligible_terms,
-                    a.number_of_base_terms,a.feature_importance,a.link_function,a.tweedie_power,a.min_training_prediction,a.max_training_prediction);
+                    a.number_of_base_terms,a.feature_importance,a.link_function,a.tweedie_power,a.min_training_prediction,a.max_training_prediction,
+                    a.validation_group_mse,a.group_size_for_validation_group_mse);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 26)
+                if (t.size() != 28)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
@@ -89,6 +94,8 @@ PYBIND11_MODULE(aplr_cpp, m) {
                 a.feature_importance=t[21].cast<VectorXd>();
                 a.min_training_prediction=t[24].cast<double>();
                 a.max_training_prediction=t[25].cast<double>();
+                a.validation_group_mse=t[26].cast<double>();
+                a.group_size_for_validation_group_mse=t[27].cast<size_t>();
 
                 return a;
             }
