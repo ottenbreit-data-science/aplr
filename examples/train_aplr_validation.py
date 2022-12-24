@@ -38,7 +38,7 @@ for params in param_grid:
     model = APLRRegressor(random_state=random_state,verbosity=3,m=1000,v=0.1,family=family,link_function=link_function,**params) 
     model.fit(data_train[predictors].values,data_train[response].values,X_names=predictors)
     validation_error_for_this_model=np.min(model.get_validation_error_steps())
-    #validation_error_for_this_model=model.get_validation_group_mse() #Experimental metric for tuning tweedie_power
+    #validation_error_for_this_model=model.get_validation_group_mse() #Metric that may be useful for tuning tweedie_power, family or link_function.
     validation_results_for_this_model=pd.DataFrame(model.get_params(),index=[0])
     validation_results_for_this_model["validation_error"]=validation_error_for_this_model
     validation_results=pd.concat([validation_results,validation_results_for_this_model])
