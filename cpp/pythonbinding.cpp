@@ -59,8 +59,8 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def_readwrite("number_of_base_terms",&APLRRegressor::number_of_base_terms)
         .def_readwrite("feature_importance",&APLRRegressor::feature_importance)
         .def_readwrite("tweedie_power",&APLRRegressor::tweedie_power)
-        .def_readwrite("min_training_prediction",&APLRRegressor::min_training_prediction)
-        .def_readwrite("max_training_prediction",&APLRRegressor::max_training_prediction)
+        .def_readwrite("min_training_prediction_or_response",&APLRRegressor::min_training_prediction_or_response)
+        .def_readwrite("max_training_prediction_or_response",&APLRRegressor::max_training_prediction_or_response)
         .def_readwrite("validation_group_mse",&APLRRegressor::validation_group_mse)
         .def_readwrite("group_size_for_validation_group_mse",&APLRRegressor::group_size_for_validation_group_mse)
         .def(py::pickle(
@@ -69,7 +69,7 @@ PYBIND11_MODULE(aplr_cpp, m) {
                 return py::make_tuple(a.m,a.v,a.random_state,a.family,a.n_jobs,a.validation_ratio,a.intercept,a.bins,a.verbosity,
                     a.max_interaction_level,a.max_interactions,a.validation_error_steps,a.term_names,a.term_coefficients,a.terms,a.intercept_steps,
                     a.interactions_eligible,a.min_observations_in_split,a.ineligible_boosting_steps_added,a.max_eligible_terms,
-                    a.number_of_base_terms,a.feature_importance,a.link_function,a.tweedie_power,a.min_training_prediction,a.max_training_prediction,
+                    a.number_of_base_terms,a.feature_importance,a.link_function,a.tweedie_power,a.min_training_prediction_or_response,a.max_training_prediction_or_response,
                     a.validation_group_mse,a.group_size_for_validation_group_mse);
             },
             [](py::tuple t) { // __setstate__
@@ -92,8 +92,8 @@ PYBIND11_MODULE(aplr_cpp, m) {
                 a.max_eligible_terms=t[19].cast<size_t>();
                 a.number_of_base_terms=t[20].cast<size_t>();
                 a.feature_importance=t[21].cast<VectorXd>();
-                a.min_training_prediction=t[24].cast<double>();
-                a.max_training_prediction=t[25].cast<double>();
+                a.min_training_prediction_or_response=t[24].cast<double>();
+                a.max_training_prediction_or_response=t[25].cast<double>();
                 a.validation_group_mse=t[26].cast<double>();
                 a.group_size_for_validation_group_mse=t[27].cast<size_t>();
 

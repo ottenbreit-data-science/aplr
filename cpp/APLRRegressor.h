@@ -75,7 +75,7 @@ private:
     void find_optimal_m_and_update_model_accordingly();
     void name_terms(const MatrixXd &X, const std::vector<std::string> &X_names);
     void calculate_feature_importance_on_validation_set();
-    void find_min_and_max_training_predictions();
+    void find_min_and_max_training_predictions_or_responses();
     void calculate_validation_group_mse();
     void cleanup_after_fit();
     void validate_that_model_can_be_used(const MatrixXd &X);
@@ -121,8 +121,8 @@ public:
     size_t number_of_base_terms; 
     VectorXd feature_importance; //Populated in fit() using validation set. Rows are in the same order as in X.
     double tweedie_power;
-    double min_training_prediction;
-    double max_training_prediction;
+    double min_training_prediction_or_response;
+    double max_training_prediction_or_response;
     double validation_group_mse;
     size_t group_size_for_validation_group_mse;
 
@@ -161,8 +161,8 @@ APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::s
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},
         intercept_steps{VectorXd(0)},max_interactions{max_interactions},interactions_eligible{0},validation_error_steps{VectorXd(0)},
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
-        max_eligible_terms{max_eligible_terms},number_of_base_terms{0},tweedie_power{tweedie_power},min_training_prediction{NAN_DOUBLE},
-        max_training_prediction{NAN_DOUBLE},validation_group_mse{NAN_DOUBLE},group_size_for_validation_group_mse{group_size_for_validation_group_mse}
+        max_eligible_terms{max_eligible_terms},number_of_base_terms{0},tweedie_power{tweedie_power},min_training_prediction_or_response{NAN_DOUBLE},
+        max_training_prediction_or_response{NAN_DOUBLE},validation_group_mse{NAN_DOUBLE},group_size_for_validation_group_mse{group_size_for_validation_group_mse}
 {
 }
 
@@ -176,8 +176,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other):
     max_interactions{other.max_interactions},interactions_eligible{other.interactions_eligible},validation_error_steps{other.validation_error_steps},
     min_observations_in_split{other.min_observations_in_split},ineligible_boosting_steps_added{other.ineligible_boosting_steps_added},
     max_eligible_terms{other.max_eligible_terms},number_of_base_terms{other.number_of_base_terms},
-    feature_importance{other.feature_importance},tweedie_power{other.tweedie_power},min_training_prediction{other.min_training_prediction},
-    max_training_prediction{other.max_training_prediction},validation_group_mse{other.validation_group_mse},
+    feature_importance{other.feature_importance},tweedie_power{other.tweedie_power},min_training_prediction_or_response{other.min_training_prediction_or_response},
+    max_training_prediction_or_response{other.max_training_prediction_or_response},validation_group_mse{other.validation_group_mse},
     group_size_for_validation_group_mse{other.group_size_for_validation_group_mse}
 {
 }
@@ -206,7 +206,7 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
     revert_scaling_if_using_log_link_function();
     name_terms(X, X_names);
     calculate_feature_importance_on_validation_set();
-    find_min_and_max_training_predictions();
+    find_min_and_max_training_predictions_or_responses();
     calculate_validation_group_mse();
     cleanup_after_fit();
 }
@@ -944,6 +944,7 @@ void APLRRegressor::revert_scaling_if_using_log_link_function()
     if(link_function=="log")
     {
         intercept+=std::log(1/scaling_factor_for_log_link_function);
+        y_train/=scaling_factor_for_log_link_function;
         y_validation/=scaling_factor_for_log_link_function;
     }
 }
@@ -1044,19 +1045,19 @@ MatrixXd APLRRegressor::calculate_local_feature_importance(const MatrixXd &X)
     return output;
 }
 
-void APLRRegressor::find_min_and_max_training_predictions()
+void APLRRegressor::find_min_and_max_training_predictions_or_responses()
 {
     VectorXd training_predictions{predict(X_train,false)};
-    min_training_prediction=training_predictions.minCoeff();
-    max_training_prediction=training_predictions.maxCoeff();
+    min_training_prediction_or_response=std::max(training_predictions.minCoeff(), y_train.minCoeff());
+    max_training_prediction_or_response=std::min(training_predictions.maxCoeff(), y_train.maxCoeff());
 }
 
 void APLRRegressor::calculate_validation_group_mse()
 {
     VectorXd validation_predictions{predict(X_validation,false)};
-    VectorXi y_validation_sorted_index{sort_indexes_ascending(y_validation)};
-    VectorXd y_validation_centered{calculate_rolling_centered_mean(y_validation,y_validation_sorted_index,group_size_for_validation_group_mse,sample_weight_validation)};
-    VectorXd validation_predictions_centered{calculate_rolling_centered_mean(validation_predictions,y_validation_sorted_index,group_size_for_validation_group_mse,sample_weight_validation)};
+    VectorXi validation_predictions_sorted_index{sort_indexes_ascending(validation_predictions)};
+    VectorXd y_validation_centered{calculate_rolling_centered_mean(y_validation,validation_predictions_sorted_index,group_size_for_validation_group_mse,sample_weight_validation)};
+    VectorXd validation_predictions_centered{calculate_rolling_centered_mean(validation_predictions,validation_predictions_sorted_index,group_size_for_validation_group_mse,sample_weight_validation)};
 
     VectorXd squared_residuals{(y_validation_centered-validation_predictions_centered).array().pow(2)};
     validation_group_mse =  squared_residuals.mean();
@@ -1129,10 +1130,10 @@ void APLRRegressor::cap_predictions_to_minmax_in_training(VectorXd &predictions)
 {
     for (size_t i = 0; i < static_cast<size_t>(predictions.rows()); ++i)
     {
-        if(std::isgreater(predictions[i],max_training_prediction))
-            predictions[i]=max_training_prediction;
-        else if(std::isless(predictions[i],min_training_prediction))
-            predictions[i]=min_training_prediction;
+        if(std::isgreater(predictions[i],max_training_prediction_or_response))
+            predictions[i]=max_training_prediction_or_response;
+        else if(std::isless(predictions[i],min_training_prediction_or_response))
+            predictions[i]=min_training_prediction_or_response;
     }
 }
 

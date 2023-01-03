@@ -88,7 +88,7 @@ An optional list of integers specifying the indexes of observations to be used f
 A numpy matrix with predictor values.
 
 #### cap_predictions_to_minmax_in_training
-If ***True*** then predictions are capped so that they are not less than the minimum and not greater than the maximum prediction in the training dataset. This is recommended especially if ***max_interaction_level*** is high. However, if you need the model to extrapolate then set this parameter to ***False***.
+If ***True*** then predictions are capped so that they are not less than the minimum and not greater than the maximum prediction or response in the training dataset. This is recommended especially if ***max_interaction_level*** is high. However, if you need the model to extrapolate then set this parameter to ***False***.
 
 
 ## Method: set_term_names(X_names:List[str])
