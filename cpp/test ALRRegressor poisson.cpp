@@ -52,7 +52,7 @@ int main()
     save_data("data/output.csv",predictions);
 
     std::cout<<predictions.mean()<<"\n\n";
-    tests.push_back(is_approximately_equal(predictions.mean(),1.89175,0.00001));
+    tests.push_back(is_approximately_equal(predictions.mean(),1.90828,0.00001));
 
     //std::cout<<model.validation_error_steps<<"\n\n";
 

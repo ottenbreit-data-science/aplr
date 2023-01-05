@@ -24,7 +24,7 @@ int main()
     model.verbosity=3;
     model.max_interaction_level=100;
     model.max_interactions=30;
-    model.min_observations_in_split=30;
+    model.min_observations_in_split=50;
     model.ineligible_boosting_steps_added=10;
     model.max_eligible_terms=5;
 
@@ -51,7 +51,7 @@ int main()
     save_data("data/output.csv",predictions);
 
     std::cout<<predictions.mean()<<"\n\n";
-    tests.push_back(is_approximately_equal(predictions.mean(),23.6434,0.00001));
+    tests.push_back(is_approximately_equal(predictions.mean(),23.7917,0.00001));
 
     //std::cout<<model.validation_error_steps<<"\n\n";
 

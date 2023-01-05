@@ -29,7 +29,7 @@ The ratio of training observations to use for validation instead of training. Th
 Specifies the intercept term of the model if you want to predict before doing any training. However, when the ***fit*** method is run then the intercept is estimated based on data and whatever was specified as ***intercept*** when instantiating ***APLRRegressor*** gets overwritten.
 
 #### bins (default = 300)
-Specifies the maximum number of bins to discretize the data into when searching for the best split. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
+Specifies the maximum number of bins to discretize the data into when searching for the best split. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs. Must be greater than 1.
 
 #### max_interaction_level (default = 1)
 Specifies the maximum allowed depth of interaction terms. ***0*** means that interactions are not allowed. This hyperparameter should be tuned.

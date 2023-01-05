@@ -56,6 +56,7 @@ private:
     void cleanup_after_estimate_split_point();
     void cleanup_after_fit();
     void cleanup_when_this_term_was_added_as_a_given_predictor();
+    void make_term_ineligible();
 
 public:
     //fields
@@ -161,9 +162,7 @@ void Term::estimate_split_point(const MatrixXd &X,const VectorXd &negative_gradi
     bool too_few_observations{static_cast<size_t>(given_terms_indices.not_zeroed.size())<min_observations_in_split};
     if(too_few_observations)
     {
-        coefficient=0;
-        split_point_search_errors_sum=std::numeric_limits<double>::infinity();
-        ineligible_boosting_steps=std::numeric_limits<size_t>::max();
+        make_term_ineligible();
         return;
     }
 
@@ -171,6 +170,12 @@ void Term::estimate_split_point(const MatrixXd &X,const VectorXd &negative_gradi
     calculate_error_where_given_terms_are_zero(negative_gradient, sample_weight);
     sort_vectors_ascending_by_base_term(X, negative_gradient, sample_weight);    
     setup_bins();
+    bool too_few_bins_for_main_effect{bins_start_index.size()<=1 && get_interaction_level()==0};
+    if(too_few_bins_for_main_effect)
+    {
+        make_term_ineligible();
+        return;
+    }
     discretize_data_by_bin();
     estimate_split_point_on_discretized_data();
     estimate_coefficient_and_error_on_all_data();
@@ -251,6 +256,13 @@ VectorXd Term::calculate_without_interactions(const VectorXd &x)
     }
 
     return values;
+}
+
+void Term::make_term_ineligible()
+{
+    coefficient=0;
+    split_point_search_errors_sum=std::numeric_limits<double>::infinity();
+    ineligible_boosting_steps=std::numeric_limits<size_t>::max();
 }
 
 void Term::calculate_error_where_given_terms_are_zero(const VectorXd &negative_gradient, const VectorXd &sample_weight)
@@ -347,7 +359,8 @@ SortedData Term::sort_data(const VectorXd &values_to_sort, const VectorXd &negat
 
 void Term::setup_bins()
 {
-    if(bins_start_index.size()==0) //if not previously calculated or wrongly sized
+    bool bins_not_calculated_yet_or_wrongly_sized{bins_start_index.size()==0};
+    if(bins_not_calculated_yet_or_wrongly_sized)
     {
         bins_start_index.reserve(bins+1);
         bins_end_index.reserve(bins+1);
