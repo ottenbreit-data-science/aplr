@@ -62,7 +62,7 @@ private:
     void estimate_split_points_for_interactions_to_consider();
     void sort_errors_for_interactions_to_consider();
     void add_promising_interactions_and_select_the_best_one();
-    void update_intercept(size_t boosting_step);
+    void update_intercept();
     void select_the_best_term_and_update_errors(size_t boosting_step);
     void update_terms(size_t boosting_step);
     void update_gradient_and_errors();
@@ -505,6 +505,7 @@ VectorXd APLRRegressor::differentiate_predictions()
 void APLRRegressor::execute_boosting_steps()
 {
     abort_boosting = false;
+    update_intercept();
     for (size_t boosting_step = 0; boosting_step < m; ++boosting_step)
     {
         execute_boosting_step(boosting_step);
@@ -514,7 +515,6 @@ void APLRRegressor::execute_boosting_steps()
 
 void APLRRegressor::execute_boosting_step(size_t boosting_step)
 {
-    update_intercept(boosting_step);
     if(!abort_boosting)
     {
         find_best_split_for_each_eligible_term();
@@ -526,23 +526,18 @@ void APLRRegressor::execute_boosting_step(size_t boosting_step)
     print_summary_after_boosting_step(boosting_step);
 }
 
-void APLRRegressor::update_intercept(size_t boosting_step)
+void APLRRegressor::update_intercept()
 {
-    double intercept_update;
     if(sample_weight_train.size()==0)
-        intercept_update=v*neg_gradient_current.mean();
+        intercept=neg_gradient_current.mean();
     else
-        intercept_update=v*(neg_gradient_current.array()*sample_weight_train.array()).sum()/sample_weight_train.array().sum();
-    linear_predictor_update=VectorXd::Constant(neg_gradient_current.size(),intercept_update);
-    linear_predictor_update_validation=VectorXd::Constant(y_validation.size(),intercept_update);
+        intercept=(neg_gradient_current.array()*sample_weight_train.array()).sum()/sample_weight_train.array().sum();
+    intercept_steps=VectorXd::Constant(m,intercept);
+    linear_predictor_update=VectorXd::Constant(neg_gradient_current.size(),intercept);
+    linear_predictor_update_validation=VectorXd::Constant(y_validation.size(),intercept);
     update_linear_predictor_and_predictors();
     update_gradient_and_errors();
-    calculate_and_validate_validation_error(boosting_step);
-    if(!abort_boosting)
-    {
-        intercept+=intercept_update;
-        intercept_steps[boosting_step]=intercept;
-    }
+    calculate_and_validate_validation_error(0);
 }
 
 void APLRRegressor::update_linear_predictor_and_predictors()
