@@ -513,19 +513,6 @@ void APLRRegressor::execute_boosting_steps()
     }
 }
 
-void APLRRegressor::execute_boosting_step(size_t boosting_step)
-{
-    if(!abort_boosting)
-    {
-        find_best_split_for_each_eligible_term();
-        consider_interactions();
-        select_the_best_term_and_update_errors(boosting_step);
-    }
-    if(abort_boosting) return;
-    update_term_eligibility();
-    print_summary_after_boosting_step(boosting_step);
-}
-
 void APLRRegressor::update_intercept()
 {
     if(sample_weight_train.size()==0)
@@ -538,6 +525,19 @@ void APLRRegressor::update_intercept()
     update_linear_predictor_and_predictors();
     update_gradient_and_errors();
     calculate_and_validate_validation_error(0);
+}
+
+void APLRRegressor::execute_boosting_step(size_t boosting_step)
+{
+    if(!abort_boosting)
+    {
+        find_best_split_for_each_eligible_term();
+        consider_interactions();
+        select_the_best_term_and_update_errors(boosting_step);
+    }
+    if(abort_boosting) return;
+    update_term_eligibility();
+    print_summary_after_boosting_step(boosting_step);
 }
 
 void APLRRegressor::update_linear_predictor_and_predictors()
