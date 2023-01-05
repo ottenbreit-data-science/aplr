@@ -51,7 +51,6 @@ private:
     void throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes);
     void define_training_and_validation_sets(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight, const std::vector<size_t> &validation_set_indexes);
     void initialize();
-    void initialize_intercept();
     bool check_if_base_term_has_only_one_unique_value(size_t base_term);
     void add_term_to_terms_eligible_current(Term &term);
     VectorXd calculate_neg_gradient_current();
@@ -63,6 +62,7 @@ private:
     void estimate_split_points_for_interactions_to_consider();
     void sort_errors_for_interactions_to_consider();
     void add_promising_interactions_and_select_the_best_one();
+    void update_intercept(size_t boosting_step);
     void select_the_best_term_and_update_errors(size_t boosting_step);
     void update_terms(size_t boosting_step);
     void update_gradient_and_errors();
@@ -419,7 +419,8 @@ void APLRRegressor::initialize()
     terms.reserve(X_train.cols()*reserved_terms_times_num_x);
     terms.clear();
 
-    initialize_intercept();
+    intercept=0;
+    intercept_steps=VectorXd::Constant(m,0);
 
     terms_eligible_current.reserve(X_train.cols()*reserved_terms_times_num_x);
     for (size_t i = 0; i < static_cast<size_t>(X_train.cols()); ++i)
@@ -443,16 +444,6 @@ void APLRRegressor::initialize()
     validation_error_steps.setConstant(std::numeric_limits<double>::infinity());
                                     
     update_gradient_and_errors();
-}
-
-void APLRRegressor::initialize_intercept()
-{
-    bool sample_weights_are_not_provided{sample_weight_train.size()==0};
-    if(sample_weights_are_not_provided)
-        intercept=y_train.mean();
-    else
-        intercept=(y_train.array()*sample_weight_train.array()).sum()/sample_weight_train.array().sum();
-    intercept_steps=VectorXd::Constant(m,intercept);
 }
 
 bool APLRRegressor::check_if_base_term_has_only_one_unique_value(size_t base_term)
@@ -523,12 +514,35 @@ void APLRRegressor::execute_boosting_steps()
 
 void APLRRegressor::execute_boosting_step(size_t boosting_step)
 {
-    find_best_split_for_each_eligible_term();
-    consider_interactions();
-    select_the_best_term_and_update_errors(boosting_step);
+    update_intercept(boosting_step);
+    if(!abort_boosting)
+    {
+        find_best_split_for_each_eligible_term();
+        consider_interactions();
+        select_the_best_term_and_update_errors(boosting_step);
+    }
     if(abort_boosting) return;
     update_term_eligibility();
     print_summary_after_boosting_step(boosting_step);
+}
+
+void APLRRegressor::update_intercept(size_t boosting_step)
+{
+    double intercept_update;
+    if(sample_weight_train.size()==0)
+        intercept_update=v*neg_gradient_current.mean();
+    else
+        intercept_update=v*(neg_gradient_current.array()*sample_weight_train.array()).sum()/sample_weight_train.array().sum();
+    linear_predictor_update=VectorXd::Constant(neg_gradient_current.size(),intercept_update);
+    linear_predictor_update_validation=VectorXd::Constant(y_validation.size(),intercept_update);
+    update_linear_predictor_and_predictors();
+    update_gradient_and_errors();
+    calculate_and_validate_validation_error(boosting_step);
+    if(!abort_boosting)
+    {
+        intercept+=intercept_update;
+        intercept_steps[boosting_step]=intercept;
+    }
 }
 
 void APLRRegressor::update_linear_predictor_and_predictors()
