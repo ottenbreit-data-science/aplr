@@ -59,8 +59,7 @@ validation_error_per_boosting_step = best_model.get_validation_error_steps()
 #Terms in the best model
 terms=pd.DataFrame({"term":best_model.get_term_names(),"coefficient":best_model.get_term_coefficients()})
 
-#Coefficients for intercept and the first term per boosting step
-intercept_coefficient_per_boosting_step = best_model.get_intercept_steps()
+#Coefficients for the first term per boosting step
 first_term_coefficient_per_boosting_step = best_model.get_term_coefficient_steps(term_index=0)
 
 #Estimated feature importance was estimated on the validation set when the best model was trained
