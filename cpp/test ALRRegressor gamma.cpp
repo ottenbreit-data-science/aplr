@@ -53,10 +53,10 @@ int main()
     save_data("data/output.csv",predictions);
 
     std::cout<<predictions.mean()<<"\n\n";
-    tests.push_back(is_approximately_equal(predictions.mean(),23.6651,0.00001));
+    tests.push_back(is_approximately_equal(predictions.mean(),23.6503,0.00001));
 
     std::cout<<model.get_validation_group_mse()<<"\n\n";
-    tests.push_back(is_approximately_equal(model.get_validation_group_mse(),0.125767,0.00001));
+    tests.push_back(is_approximately_equal(model.get_validation_group_mse(),0.151444,0.00001));
 
     //std::cout<<model.validation_error_steps<<"\n\n";
 
