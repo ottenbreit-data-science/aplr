@@ -943,9 +943,13 @@ void APLRRegressor::revert_scaling_if_using_log_link_function()
 {
     if(link_function=="log")
     {
-        intercept+=std::log(1/scaling_factor_for_log_link_function);
         y_train/=scaling_factor_for_log_link_function;
         y_validation/=scaling_factor_for_log_link_function;
+        intercept+=std::log(1/scaling_factor_for_log_link_function);
+        for (size_t i = 0; i < static_cast<size_t>(intercept_steps.size()); ++i)
+        {
+            intercept_steps[i]+=std::log(1/scaling_factor_for_log_link_function);
+        }
     }
 }
 
