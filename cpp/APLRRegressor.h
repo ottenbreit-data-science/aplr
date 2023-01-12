@@ -1042,7 +1042,7 @@ MatrixXd APLRRegressor::calculate_local_feature_importance(const MatrixXd &X)
     //Terms
     for (size_t i = 0; i < terms.size(); ++i) //for each term
     {
-        VectorXd contrib{terms[i].calculate_prediction_contribution(X)};
+        VectorXd contrib{terms[i].calculate_contribution_to_linear_predictor(X)};
         output.col(terms[i].base_term)+=contrib;
     }
 
@@ -1124,7 +1124,7 @@ VectorXd APLRRegressor::calculate_linear_predictor(const MatrixXd &X)
     VectorXd predictions{VectorXd::Constant(X.rows(),intercept)};
     for (size_t i = 0; i < terms.size(); ++i) //for each term
     {
-        VectorXd contrib{terms[i].calculate_prediction_contribution(X)};
+        VectorXd contrib{terms[i].calculate_contribution_to_linear_predictor(X)};
         predictions+=contrib;
     }
     return predictions;    
@@ -1150,7 +1150,7 @@ MatrixXd APLRRegressor::calculate_local_feature_importance_for_terms(const Matri
     //Terms
     for (size_t i = 0; i < terms.size(); ++i) //for each term
     {
-        VectorXd contrib{terms[i].calculate_prediction_contribution(X)};
+        VectorXd contrib{terms[i].calculate_contribution_to_linear_predictor(X)};
         output.col(i)+=contrib;
     }
 

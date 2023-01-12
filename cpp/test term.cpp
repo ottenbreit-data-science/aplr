@@ -33,7 +33,7 @@ int main()
         is_approximately_zero(values[2])?true:false);
 
     //Testing calculate_prediction_contribution
-    VectorXd contrib{p.calculate_prediction_contribution(X)};
+    VectorXd contrib{p.calculate_contribution_to_linear_predictor(X)};
     std::cout<<"Prediction contribution\n";
     std::cout<<contrib<<"\n\n";
     tests.push_back(is_approximately_equal(contrib[1],-1.42247,0.0001) && is_approximately_zero(contrib[0]) 

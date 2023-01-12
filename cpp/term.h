@@ -81,7 +81,7 @@ public:
     Term(const Term &other); //copy constructor
     ~Term();
     VectorXd calculate(const MatrixXd &X); //calculates term values
-    VectorXd calculate_prediction_contribution(const MatrixXd &X);
+    VectorXd calculate_contribution_to_linear_predictor(const MatrixXd &X);
     static bool equals_not_comparing_given_terms(const Term &p1,const Term &p2);
     static bool equals_given_terms(const Term &p1,const Term &p2);
     void estimate_split_point(const MatrixXd &X,const VectorXd &negative_gradient,const VectorXd &sample_weight,size_t bins,double v,size_t min_observations_in_split);
@@ -659,7 +659,7 @@ void Term::cleanup_when_this_term_was_added_as_a_given_predictor()
     coefficient_steps.resize(0);
 }
 
-VectorXd Term::calculate_prediction_contribution(const MatrixXd &X)
+VectorXd Term::calculate_contribution_to_linear_predictor(const MatrixXd &X)
 {
     VectorXd values{calculate(X)};
 
