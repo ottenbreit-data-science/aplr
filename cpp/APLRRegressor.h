@@ -198,6 +198,7 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
     throw_error_if_tweedie_power_is_invalid();
     validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes);
     define_training_and_validation_sets(X,y,sample_weight,validation_set_indexes);
+    scale_training_observations_if_using_log_link_function();
     initialize();
     execute_boosting_steps();
     update_coefficients_for_all_steps();
@@ -391,8 +392,6 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X,const 
             sample_weight_validation[i]=sample_weight[validation_indexes[i]];
         }
     }
-
-    scale_training_observations_if_using_log_link_function();
 }
 
 void APLRRegressor::scale_training_observations_if_using_log_link_function()
