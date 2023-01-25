@@ -767,10 +767,8 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
     }
 
     //Updating current predictions
-    VectorXd values{terms_eligible_current[best_term].calculate(X_train)};
-    VectorXd values_validation{terms_eligible_current[best_term].calculate(X_validation)};
-    linear_predictor_update=values*terms_eligible_current[best_term].coefficient;
-    linear_predictor_update_validation=values_validation*terms_eligible_current[best_term].coefficient;
+    linear_predictor_update=terms_eligible_current[best_term].calculate_contribution_to_linear_predictor(X_train);
+    linear_predictor_update_validation=terms_eligible_current[best_term].calculate_contribution_to_linear_predictor(X_validation);
     double error_after_updating_term=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train));
     bool no_improvement{std::isgreaterequal(error_after_updating_term,neg_gradient_nullmodel_errors_sum)};
     if(no_improvement)
