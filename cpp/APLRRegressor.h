@@ -92,6 +92,8 @@ private:
     void scale_training_observations_if_using_log_link_function();
     void revert_scaling_if_using_log_link_function();
     void cap_predictions_to_minmax_in_training(VectorXd &predictions);
+    std::string compute_raw_base_term_name(const Term &term, const std::string &X_name);
+    std::string compute_raw_given_term_name(const Term &term, const std::vector<std::string> &X_names);
     
 public:
     //Fields
@@ -562,8 +564,9 @@ void APLRRegressor::update_gradient_and_errors()
 void APLRRegressor::find_best_split_for_each_eligible_term()
 {
     best_term=std::numeric_limits<size_t>::max();
-    lowest_error_sum=neg_gradient_nullmodel_errors_sum; 
-    if(n_jobs!=1 && terms_eligible_current.size()>1) //if multithreading
+    lowest_error_sum=neg_gradient_nullmodel_errors_sum;
+    bool multithreading{n_jobs!=1 && terms_eligible_current.size()>1};
+    if(multithreading)
     {
         distributed_terms=distribute_terms_to_cores(terms_eligible_current,n_jobs);
 
@@ -592,7 +595,8 @@ void APLRRegressor::find_best_split_for_each_eligible_term()
         //Chooses best term
         for (size_t i = 0; i < terms_eligible_current.size(); ++i)
         {
-            if(terms_eligible_current[i].ineligible_boosting_steps==0) //if term is actually eligible
+            bool term_is_eligible{terms_eligible_current[i].ineligible_boosting_steps==0};
+            if(term_is_eligible)
             {
                 if(std::isless(terms_eligible_current[i].split_point_search_errors_sum,lowest_error_sum))
                 {
@@ -602,11 +606,12 @@ void APLRRegressor::find_best_split_for_each_eligible_term()
             }
         }
     }
-    else //Not multithreading
+    else
     {
         for (size_t i = 0; i < terms_eligible_current.size(); ++i)
         {
-            if(terms_eligible_current[i].ineligible_boosting_steps==0) //if term is actually eligible
+            bool term_is_eligible{terms_eligible_current[i].ineligible_boosting_steps==0};
+            if(term_is_eligible)
             {
                 terms_eligible_current[i].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,bins,v,min_observations_in_split);
                 if(std::isless(terms_eligible_current[i].split_point_search_errors_sum,lowest_error_sum))
