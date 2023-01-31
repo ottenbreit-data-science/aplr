@@ -55,7 +55,7 @@ private:
     void estimate_coefficient_and_error_on_all_data();
     void cleanup_after_estimate_split_point();
     void cleanup_after_fit();
-    void cleanup_when_this_term_was_added_as_a_given_predictor();
+    void cleanup_when_this_term_was_added_as_a_given_term();
     void make_term_ineligible();
 
 public:
@@ -653,7 +653,7 @@ void Term::cleanup_after_fit()
     sample_weight_discretized.resize(0);
 }
 
-void Term::cleanup_when_this_term_was_added_as_a_given_predictor()
+void Term::cleanup_when_this_term_was_added_as_a_given_term()
 {
     cleanup_after_fit();
     coefficient_steps.resize(0);
