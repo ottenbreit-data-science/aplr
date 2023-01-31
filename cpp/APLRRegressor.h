@@ -678,7 +678,6 @@ void APLRRegressor::determine_interactions_to_consider()
                         }
                     }
                     if(already_exists) continue;
-                    interaction.given_terms[interaction.given_terms.size()-1].name="P"+std::to_string(sorted_latest_split_point_errors_indices[i]);
                     if(interaction.get_interaction_level()>max_interaction_level) continue;
                     interactions_to_consider.push_back(interaction);
                 }
