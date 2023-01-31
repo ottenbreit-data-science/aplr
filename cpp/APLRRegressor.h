@@ -977,37 +977,17 @@ void APLRRegressor::name_terms(const MatrixXd &X, const std::vector<std::string>
 //These names will be used to derive names for the actually used terms in the trained model.
 void APLRRegressor::set_term_names(const std::vector<std::string> &X_names)
 {
-    if(std::isnan(intercept)) //model has not been trained
+    bool model_has_not_been_trained{!std::isfinite(intercept)};
+    if(model_has_not_been_trained)
         throw std::runtime_error("The model must be trained with fit() before term names can be set.");
 
-    for (size_t i = 0; i < terms.size(); ++i) //for each term
+    for (size_t i = 0; i < terms.size(); ++i)
     {
-        //Base name
-        terms[i].name=X_names[terms[i].base_term];
-
-        //Adding cut-point and direction
-        if(!std::isnan(terms[i].split_point)) //If not linear effect
+        terms[i].name = compute_raw_base_term_name(terms[i], X_names[terms[i].base_term]);
+        for (size_t j = 0; j < terms[i].given_terms.size(); ++j)
         {
-            double temp_split_point{terms[i].split_point}; //For prettier printing (+5.0 instead 0f --5.0 as an example when split_point is negative)
-            std::string sign{"-"};
-            if(std::isless(temp_split_point,0))
-            {
-                temp_split_point=-temp_split_point;
-                sign="+";
-            }
-            if(terms[i].direction_right)
-                terms[i].name="max("+terms[i].name+sign+std::to_string(temp_split_point)+",0)";
-            else
-                terms[i].name="min("+terms[i].name+sign+std::to_string(temp_split_point)+",0)";
+            terms[i].name += " * I("+compute_raw_given_term_name(terms[i].given_terms[j], X_names)+"!=0)";
         }
-
-        //Adding given terms
-        for (size_t j = 0; j < terms[i].given_terms.size(); ++j) //for each given term
-        {
-            terms[i].name+=" * I("+terms[i].given_terms[j].name+"!=0)";
-        }
-
-        //Adding interaction level
         terms[i].name="P"+std::to_string(i)+". Interaction level: "+std::to_string(terms[i].get_interaction_level())+". "+terms[i].name;
     }
 
@@ -1021,6 +1001,44 @@ void APLRRegressor::set_term_names(const std::vector<std::string> &X_names)
         term_names[i+1]=terms[i].name;
         term_coefficients[i+1]=terms[i].coefficient;
     }   
+}
+
+std::string APLRRegressor::compute_raw_base_term_name(const Term &term, const std::string &X_name)
+{
+    std::string name{""};
+    bool is_linear_effect{std::isnan(term.split_point)};
+    if(is_linear_effect)
+        name=X_name;
+    else
+    {
+        double temp_split_point{term.split_point};
+        std::string sign{"-"};
+        if(std::isless(temp_split_point,0))
+        {
+            temp_split_point=-temp_split_point;
+            sign="+";
+        }
+        if(term.direction_right)
+            name="max("+X_name+sign+std::to_string(temp_split_point)+",0)";
+        else
+            name="min("+X_name+sign+std::to_string(temp_split_point)+",0)";
+    }
+    return name;
+}
+
+std::string APLRRegressor::compute_raw_given_term_name(const Term &term, const std::vector<std::string> &X_names)
+{
+    std::string name{compute_raw_base_term_name(term, X_names[term.base_term])};
+    bool term_has_interactions{term.given_terms.size()>0};
+    if(term_has_interactions)
+    {
+        for (size_t i = 0; i < term.given_terms.size(); ++i)
+        {
+            name += "*" + compute_raw_given_term_name(term.given_terms[i], X_names);
+        }
+    }
+
+    return name;
 }
 
 void APLRRegressor::calculate_feature_importance_on_validation_set()
