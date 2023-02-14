@@ -685,16 +685,10 @@ size_t Term::get_interaction_level(size_t previous_int_level)
 }
 
 
-//Distribution of terms to multiple cores
-std::vector<std::vector<size_t>> distribute_terms_to_cores(std::vector<Term> &terms,size_t n_jobs)
+std::vector<std::vector<size_t>> distribute_terms_indexes_to_cores(std::vector<size_t> &term_indexes,size_t n_jobs)
 {
     //Determing number of terms actually eligible
-    size_t num_eligible_terms{0};
-    for (size_t i = 0; i < terms.size(); ++i)
-    {
-        if(terms[i].ineligible_boosting_steps==0)
-            ++num_eligible_terms;
-    }
+    size_t num_eligible_terms{term_indexes.size()};
     
     //Determining how many items to evaluate per core
     size_t available_cores{static_cast<size_t>(std::thread::hardware_concurrency())};
@@ -713,13 +707,10 @@ std::vector<std::vector<size_t>> distribute_terms_to_cores(std::vector<Term> &te
     //Distributing
     size_t core{0};
     size_t count{0};
-    for (size_t i = 0; i < terms.size(); ++i) //for each term
+    for (size_t i = 0; i < term_indexes.size(); ++i) //for each term
     {
-        if(terms[i].ineligible_boosting_steps==0) //if can be distributed to cores
-        {
-            output[core].push_back(i);
-            ++count;
-        }
+        output[core].push_back(i);
+        ++count;
         if(count>=units_per_core)
         {
             if(core<available_cores-1)
@@ -737,4 +728,18 @@ std::vector<std::vector<size_t>> distribute_terms_to_cores(std::vector<Term> &te
     }
 
     return output;
+}
+
+std::vector<size_t> create_term_indexes(std::vector<Term> &terms)
+{
+    std::vector<size_t> term_indexes;
+    term_indexes.reserve(terms.size());
+    for (size_t i = 0; i < terms.size(); ++i)
+    {
+        bool term_is_eligible{terms[i].ineligible_boosting_steps==0};
+        if(term_is_eligible)
+            term_indexes.push_back(i);
+    }
+    term_indexes.shrink_to_fit();
+    return term_indexes;
 }

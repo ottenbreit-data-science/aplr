@@ -20,7 +20,8 @@ PYBIND11_MODULE(aplr_cpp, m) {
             py::arg("tweedie_power")=1.5,
             py::arg("group_size_for_validation_group_mse")=100)
         .def("fit", &APLRRegressor::fit,py::arg("X"),py::arg("y"),py::arg("sample_weight")=VectorXd(0),py::arg("X_names")=std::vector<std::string>(),
-            py::arg("validation_set_indexes")=std::vector<size_t>(),py::call_guard<py::scoped_ostream_redirect,py::scoped_estream_redirect>())
+            py::arg("validation_set_indexes")=std::vector<size_t>(),py::arg("prioritized_predictors_indexes")=std::vector<size_t>(),
+            py::call_guard<py::scoped_ostream_redirect,py::scoped_estream_redirect>())
         .def("predict", &APLRRegressor::predict,py::arg("X"),py::arg("bool cap_predictions_to_minmax_in_training")=true)
         .def("set_term_names", &APLRRegressor::set_term_names,py::arg("X_names"))
         .def("calculate_local_feature_importance",&APLRRegressor::calculate_local_feature_importance,py::arg("X"))
