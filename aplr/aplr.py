@@ -48,9 +48,9 @@ class APLRRegressor():
         self.APLRRegressor.tweedie_power=self.tweedie_power
         self.APLRRegressor.group_size_for_validation_group_mse=self.group_size_for_validation_group_mse
 
-    def fit(self, X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[]):
+    def fit(self, X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[]):
         self.__set_params_cpp()
-        self.APLRRegressor.fit(X,y,sample_weight,X_names,validation_set_indexes)
+        self.APLRRegressor.fit(X,y,sample_weight,X_names,validation_set_indexes,prioritized_predictors_indexes)
 
     def predict(self, X:npt.ArrayLike, cap_predictions_to_minmax_in_training:bool=True)->npt.ArrayLike:
         return self.APLRRegressor.predict(X, cap_predictions_to_minmax_in_training)

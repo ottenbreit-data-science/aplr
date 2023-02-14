@@ -41,7 +41,8 @@ int main()
     //Fitting
     //model.fit(X_train,y_train);
     //model.fit(X_train,y_train,sample_weight);
-    model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+    //model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+    model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)},{1,8});
     std::cout<<"feature importance\n"<<model.feature_importance<<"\n\n";
 
     VectorXd predictions{model.predict(X_test)};
@@ -51,7 +52,7 @@ int main()
     save_data("data/output.csv",predictions);
 
     std::cout<<predictions.mean()<<"\n\n";
-    tests.push_back(is_approximately_equal(predictions.mean(),23.7858,0.00001));
+    tests.push_back(is_approximately_equal(predictions.mean(),23.6889,0.00001));
 
     //std::cout<<model.validation_error_steps<<"\n\n";
 

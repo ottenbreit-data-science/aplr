@@ -33,37 +33,42 @@ private:
     VectorXd neg_gradient_current;
     VectorXd neg_gradient_nullmodel_errors;
     double neg_gradient_nullmodel_errors_sum;
-    size_t best_term;
-    double lowest_error_sum;
+    size_t best_term_index;
     VectorXd linear_predictor_update;
     VectorXd linear_predictor_update_validation;
     size_t number_of_eligible_terms;
     std::vector<std::vector<size_t>> distributed_terms;
     std::vector<Term> interactions_to_consider;
-    VectorXi error_index_for_interactions_to_consider;
+    VectorXi sorted_indexes_of_errors_for_interactions_to_consider;
     bool abort_boosting;
     VectorXd linear_predictor_current;
     VectorXd linear_predictor_current_validation;
     double scaling_factor_for_log_link_function;
+    std::vector<size_t> predictor_indexes;
+    std::vector<size_t> prioritized_predictors_indexes;
 
     //Methods
-    void validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes);
+    void validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes, const std::vector<size_t> &prioritized_predictors_indexes);
     void throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes);
+    void throw_error_if_prioritized_predictors_indexes_has_invalid_indexes(const MatrixXd &X, const std::vector<size_t> &prioritized_predictors_indexes);
     void define_training_and_validation_sets(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight, const std::vector<size_t> &validation_set_indexes);
-    void initialize();
+    void initialize(const std::vector<size_t> &prioritized_predictors_indexes);
     bool check_if_base_term_has_only_one_unique_value(size_t base_term);
     void add_term_to_terms_eligible_current(Term &term);
     VectorXd calculate_neg_gradient_current();
     void execute_boosting_steps();
     void execute_boosting_step(size_t boosting_step);
-    void find_best_split_for_each_eligible_term();
-    void consider_interactions();
-    void determine_interactions_to_consider();
-    void estimate_split_points_for_interactions_to_consider();
-    void sort_errors_for_interactions_to_consider();
+    std::vector<size_t> find_terms_eligible_current_indexes_for_a_base_term(size_t base_term);
+    void estimate_split_point_for_each_term(std::vector<Term> &terms, std::vector<size_t> &terms_indexes);
+    size_t find_best_term_index(std::vector<Term> &terms, std::vector<size_t> &terms_indexes);
+    void consider_interactions(const std::vector<size_t> &available_predictor_indexes);
+    void determine_interactions_to_consider(const std::vector<size_t> &available_predictor_indexes);
+    VectorXi find_indexes_for_terms_to_consider_as_interaction_partners();
+    size_t find_out_how_many_terms_to_consider_as_interaction_partners();
+    void find_sorted_indexes_for_errors_for_interactions_to_consider();
     void add_promising_interactions_and_select_the_best_one();
     void update_intercept(size_t boosting_step);
-    void select_the_best_term_and_update_errors(size_t boosting_step);
+    void select_the_best_term_and_update_errors(size_t boosting_step, bool not_evaluating_prioritized_predictors=true);
     void update_terms(size_t boosting_step);
     void update_gradient_and_errors();
     void add_new_term(size_t boosting_step);
@@ -82,7 +87,7 @@ private:
     void throw_error_if_family_does_not_exist();
     void throw_error_if_link_function_does_not_exist();
     VectorXd calculate_linear_predictor(const MatrixXd &X);
-    void update_linear_predictor_and_predictors();
+    void update_linear_predictor_and_predictions();
     void throw_error_if_response_contains_invalid_values(const VectorXd &y);
     void throw_error_if_response_is_not_between_0_and_1(const VectorXd &y,const std::string &error_message);
     void throw_error_if_response_is_negative(const VectorXd &y, const std::string &error_message);
@@ -136,7 +141,7 @@ public:
         size_t group_size_for_validation_group_mse=100);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
-    void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},const std::vector<size_t> &validation_set_indexes={});
+    void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},const std::vector<size_t> &validation_set_indexes={},const std::vector<size_t> &prioritized_predictors_indexes={});
     VectorXd predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training=true);
     void set_term_names(const std::vector<std::string> &X_names);
     MatrixXd calculate_local_feature_importance(const MatrixXd &X);
@@ -191,17 +196,17 @@ APLRRegressor::~APLRRegressor()
 
 //Fits the model
 //X_names specifies names for each column in X. If not specified then X1, X2, X3, ... will be used as names for each column in X.
-//If validation_set_indexes.size()>0 then validation_set_indexes defines which of the indices in X, y and sample_weight are used to validate, 
-//invalidating validation_ratio. The rest of indices are used to train. 
-void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names,const std::vector<size_t> &validation_set_indexes)
+//If validation_set_indexes.size()>0 then validation_set_indexes defines which of the indexes in X, y and sample_weight are used to validate, 
+//invalidating validation_ratio. The rest of indexes are used to train. 
+void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names,const std::vector<size_t> &validation_set_indexes,const std::vector<size_t> &prioritized_predictors_indexes)
 {
     throw_error_if_family_does_not_exist();
     throw_error_if_link_function_does_not_exist();
     throw_error_if_tweedie_power_is_invalid();
-    validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes);
+    validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes,prioritized_predictors_indexes);
     define_training_and_validation_sets(X,y,sample_weight,validation_set_indexes);
     scale_training_observations_if_using_log_link_function();
-    initialize();
+    initialize(prioritized_predictors_indexes);
     execute_boosting_steps();
     update_coefficients_for_all_steps();
     print_final_summary();
@@ -253,7 +258,7 @@ void APLRRegressor::throw_error_if_tweedie_power_is_invalid()
         throw std::runtime_error("Tweedie power is invalid. It must not equal 1.0 or 2.0 and cannot be below 1.0.");
 }
 
-void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes)
+void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes, const std::vector<size_t> &prioritized_predictors_indexes)
 {
     if(X.rows()!=y.size()) throw std::runtime_error("X and y must have the same number of rows.");
     if(X.rows()<2) throw std::runtime_error("X and y cannot have less than two rows.");
@@ -263,6 +268,7 @@ void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,co
     throw_error_if_matrix_has_nan_or_infinite_elements(y, "y");
     throw_error_if_matrix_has_nan_or_infinite_elements(sample_weight, "sample_weight");
     throw_error_if_validation_set_indexes_has_invalid_indexes(y, validation_set_indexes);
+    throw_error_if_prioritized_predictors_indexes_has_invalid_indexes(X, prioritized_predictors_indexes);
     throw_error_if_response_contains_invalid_values(y);
 }
 
@@ -275,6 +281,18 @@ void APLRRegressor::throw_error_if_validation_set_indexes_has_invalid_indexes(co
         bool validation_set_indexes_has_elements_out_of_bounds{max_index > static_cast<size_t>(y.size()-1)};
         if(validation_set_indexes_has_elements_out_of_bounds)
             throw std::runtime_error("validation_set_indexes has elements that are out of bounds.");
+    }
+}
+
+void APLRRegressor::throw_error_if_prioritized_predictors_indexes_has_invalid_indexes(const MatrixXd &X, const std::vector<size_t> &prioritized_predictors_indexes)
+{
+    bool prioritized_predictors_indexes_is_provided{prioritized_predictors_indexes.size()>0};
+    if(prioritized_predictors_indexes_is_provided)
+    {
+        size_t max_index{*std::max_element(prioritized_predictors_indexes.begin(), prioritized_predictors_indexes.end())};
+        bool prioritized_predictors_indexes_has_elements_out_of_bounds{max_index > static_cast<size_t>(X.cols()-1)};
+        if(prioritized_predictors_indexes_has_elements_out_of_bounds)
+            throw std::runtime_error("prioritized_predictors_indexes has elements that are out of bounds.");
     }
 }
 
@@ -413,7 +431,7 @@ void APLRRegressor::scale_training_observations_if_using_log_link_function()
     }
 }
 
-void APLRRegressor::initialize()
+void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors_indexes)
 {
     number_of_base_terms=static_cast<size_t>(X_train.cols());
 
@@ -434,6 +452,13 @@ void APLRRegressor::initialize()
             terms_eligible_current[terms_eligible_current.size()-1].ineligible_boosting_steps=std::numeric_limits<size_t>::max();
         }
     }
+
+    predictor_indexes.resize(X_train.cols());
+    for (size_t i = 0; i < static_cast<size_t>(X_train.cols()); ++i)
+    {
+        predictor_indexes[i]=i;
+    }
+    this->prioritized_predictors_indexes=prioritized_predictors_indexes;
 
     linear_predictor_current=VectorXd::Constant(y_train.size(),intercept);
     linear_predictor_null_model=linear_predictor_current;
@@ -516,10 +541,29 @@ void APLRRegressor::execute_boosting_steps()
 void APLRRegressor::execute_boosting_step(size_t boosting_step)
 {
     update_intercept(boosting_step);
+    bool prioritize_predictors{!abort_boosting && prioritized_predictors_indexes.size()>0};
+    if(prioritize_predictors)
+    {
+        for (auto &index:prioritized_predictors_indexes)
+        {
+            std::vector<size_t> terms_eligible_current_indexes_for_a_base_term{find_terms_eligible_current_indexes_for_a_base_term(index)};
+            bool eligible_terms_exist{terms_eligible_current_indexes_for_a_base_term.size()>0};
+            if(eligible_terms_exist)
+            {
+                estimate_split_point_for_each_term(terms_eligible_current, terms_eligible_current_indexes_for_a_base_term);
+                best_term_index=find_best_term_index(terms_eligible_current, terms_eligible_current_indexes_for_a_base_term);
+                std::vector<size_t> predictor_index{index};
+                consider_interactions(predictor_index);
+                select_the_best_term_and_update_errors(boosting_step,false);
+            }
+        }
+    }
     if(!abort_boosting)
     {
-        find_best_split_for_each_eligible_term();
-        consider_interactions();
+        std::vector<size_t> term_indexes{create_term_indexes(terms_eligible_current)};
+        estimate_split_point_for_each_term(terms_eligible_current, term_indexes);
+        best_term_index=find_best_term_index(terms_eligible_current, term_indexes);
+        consider_interactions(predictor_indexes);
         select_the_best_term_and_update_errors(boosting_step);
     }
     if(abort_boosting) return;
@@ -536,7 +580,7 @@ void APLRRegressor::update_intercept(size_t boosting_step)
         intercept_update=v*(neg_gradient_current.array()*sample_weight_train.array()).sum()/sample_weight_train.array().sum();
     linear_predictor_update=VectorXd::Constant(neg_gradient_current.size(),intercept_update);
     linear_predictor_update_validation=VectorXd::Constant(y_validation.size(),intercept_update);
-    update_linear_predictor_and_predictors();
+    update_linear_predictor_and_predictions();
     update_gradient_and_errors();
     calculate_and_validate_validation_error(boosting_step);
     if(!abort_boosting)
@@ -546,7 +590,7 @@ void APLRRegressor::update_intercept(size_t boosting_step)
     }
 }
 
-void APLRRegressor::update_linear_predictor_and_predictors()
+void APLRRegressor::update_linear_predictor_and_predictions()
 {
     linear_predictor_current+=linear_predictor_update;
     linear_predictor_current_validation+=linear_predictor_update_validation;
@@ -561,24 +605,35 @@ void APLRRegressor::update_gradient_and_errors()
     neg_gradient_nullmodel_errors_sum=calculate_sum_error(neg_gradient_nullmodel_errors);
 }
 
-void APLRRegressor::find_best_split_for_each_eligible_term()
+std::vector<size_t> APLRRegressor::find_terms_eligible_current_indexes_for_a_base_term(size_t base_term)
 {
-    best_term=std::numeric_limits<size_t>::max();
-    lowest_error_sum=neg_gradient_nullmodel_errors_sum;
-    bool multithreading{n_jobs!=1 && terms_eligible_current.size()>1};
+    std::vector<size_t> terms_eligible_current_indexes_for_a_base_term;
+    terms_eligible_current_indexes_for_a_base_term.reserve(terms_eligible_current.size());
+    for (size_t i = 0; i < terms_eligible_current.size(); ++i)
+    {
+        bool term_is_eligible{terms_eligible_current[i].base_term==base_term && terms_eligible_current[i].ineligible_boosting_steps==0};
+        if(term_is_eligible)
+            terms_eligible_current_indexes_for_a_base_term.push_back(i);
+    }
+    terms_eligible_current_indexes_for_a_base_term.shrink_to_fit();
+    return terms_eligible_current_indexes_for_a_base_term;
+}
+
+void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms, std::vector<size_t> &terms_indexes)
+{
+    bool multithreading{n_jobs!=1 && terms_indexes.size()>1};
     if(multithreading)
     {
-        distributed_terms=distribute_terms_to_cores(terms_eligible_current,n_jobs);
+        distributed_terms=distribute_terms_indexes_to_cores(terms_indexes,n_jobs);
 
-        //defining threads
         std::vector<std::thread> threads(distributed_terms.size());
         
         //lambda function to call in each thread
-        auto estimate_split_point_for_distributed_terms=[this](size_t thread_index)
+        auto estimate_split_point_for_distributed_terms=[this, &terms, &terms_indexes](size_t thread_index)
         {
             for (size_t i = 0; i < distributed_terms[thread_index].size(); ++i) //for each eligible term in group do evaluation
             {
-                terms_eligible_current[distributed_terms[thread_index][i]].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,bins,v,min_observations_in_split);
+                terms[terms_indexes[distributed_terms[thread_index][i]]].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,bins,v,min_observations_in_split);
             }
         };
         
@@ -592,92 +647,79 @@ void APLRRegressor::find_best_split_for_each_eligible_term()
             threads[i].join();
         }
 
-        //Chooses best term
-        for (size_t i = 0; i < terms_eligible_current.size(); ++i)
-        {
-            bool term_is_eligible{terms_eligible_current[i].ineligible_boosting_steps==0};
-            if(term_is_eligible)
-            {
-                if(std::isless(terms_eligible_current[i].split_point_search_errors_sum,lowest_error_sum))
-                {
-                    best_term=i;
-                    lowest_error_sum=terms_eligible_current[i].split_point_search_errors_sum;
-                }                
-            }
-        }
     }
     else
     {
-        for (size_t i = 0; i < terms_eligible_current.size(); ++i)
+        for (size_t i = 0; i < terms_indexes.size(); ++i)
         {
-            bool term_is_eligible{terms_eligible_current[i].ineligible_boosting_steps==0};
-            if(term_is_eligible)
-            {
-                terms_eligible_current[i].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,bins,v,min_observations_in_split);
-                if(std::isless(terms_eligible_current[i].split_point_search_errors_sum,lowest_error_sum))
-                {
-                    best_term=i;
-                    lowest_error_sum=terms_eligible_current[i].split_point_search_errors_sum;
-                }
-            }
+            terms[terms_indexes[i]].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,bins,v,min_observations_in_split);
         }            
     }
 }
 
-void APLRRegressor::consider_interactions()
+size_t APLRRegressor::find_best_term_index(std::vector<Term> &terms, std::vector<size_t> &terms_indexes)
+{
+    size_t best_term_index{std::numeric_limits<size_t>::max()};
+    double lowest_errors_sum{neg_gradient_nullmodel_errors_sum};
+
+    for (auto &term_index:terms_indexes)
+    {
+        bool term_is_eligible{terms[term_index].ineligible_boosting_steps==0};
+        if(term_is_eligible)
+        {
+            if(std::isless(terms[term_index].split_point_search_errors_sum,lowest_errors_sum))
+            {
+                best_term_index=term_index;
+                lowest_errors_sum=terms[term_index].split_point_search_errors_sum;
+            }                
+        }
+    }
+
+    return best_term_index;
+}
+
+void APLRRegressor::consider_interactions(const std::vector<size_t> &available_predictor_indexes)
 {
     bool consider_interactions{terms.size()>0 && max_interaction_level>0 && interactions_eligible<max_interactions};
     if(consider_interactions)
     {
-        determine_interactions_to_consider();
-        estimate_split_points_for_interactions_to_consider();
-        sort_errors_for_interactions_to_consider();
+        determine_interactions_to_consider(available_predictor_indexes);
+        std::vector<size_t> interactions_to_consider_indexes{create_term_indexes(interactions_to_consider)};
+        estimate_split_point_for_each_term(interactions_to_consider, interactions_to_consider_indexes);
+        find_sorted_indexes_for_errors_for_interactions_to_consider();
         add_promising_interactions_and_select_the_best_one();
     }
 }
 
-void APLRRegressor::determine_interactions_to_consider()
+void APLRRegressor::determine_interactions_to_consider(const std::vector<size_t> &available_predictor_indexes)
 {
     interactions_to_consider=std::vector<Term>();
     interactions_to_consider.reserve(static_cast<size_t>(X_train.cols())*terms.size());
 
-    //Determining number of terms already in the model to consider
-    size_t terms_to_consider{terms.size()};
-    //Getting sorted split point errors indices
-    VectorXd latest_split_point_errors(terms.size());
-    VectorXi sorted_latest_split_point_errors_indices(terms.size());
-    for (size_t i = 0; i < terms.size(); ++i)
+    VectorXi indexes_for_terms_to_consider_as_interaction_partners{find_indexes_for_terms_to_consider_as_interaction_partners()};
+    for (auto &model_term_index:indexes_for_terms_to_consider_as_interaction_partners)
     {
-        latest_split_point_errors[i]=terms[i].split_point_search_errors_sum;
-        sorted_latest_split_point_errors_indices[i]=i;
-    }
-    //Restricting if max_eligible_terms>0
-    if(max_eligible_terms>0)
-    {
-        sorted_latest_split_point_errors_indices=sort_indexes_ascending(latest_split_point_errors);
-        terms_to_consider=std::min(max_eligible_terms,terms.size());
-    }
-    for (size_t i = 0; i < terms_to_consider; ++i) //for each term already in the model or for max_eligible_terms previous best terms measured on cut point search error
-    {
-        for (size_t j = 0; j < static_cast<size_t>(X_train.cols()); ++j) //for each base term
+        for(auto &new_term_index:available_predictor_indexes)
         {
-            if(terms_eligible_current[j].ineligible_boosting_steps==0) //if term is actually eligible
+            bool term_is_eligible{terms_eligible_current[new_term_index].ineligible_boosting_steps==0};
+            if(term_is_eligible)
             {
-                Term interaction{Term(j)};
-                if(!(terms[sorted_latest_split_point_errors_indices[i]]==interaction))
+                Term interaction{Term(new_term_index)};
+                bool interaction_is_not_already_in_the_model{!(terms[model_term_index]==interaction)};
+                if(interaction_is_not_already_in_the_model)
                 {
-                    interaction.given_terms.push_back(terms[sorted_latest_split_point_errors_indices[i]]);
+                    interaction.given_terms.push_back(terms[model_term_index]);
                     interaction.given_terms[interaction.given_terms.size()-1].cleanup_when_this_term_was_added_as_a_given_term();
-                    bool already_exists{false};
+                    bool interaction_already_exists_in_terms_eligible_current{false};
                     for (size_t k = 0; k < terms_eligible_current.size(); ++k)
                     {
                         if(interaction.base_term==terms_eligible_current[k].base_term && Term::equals_given_terms(interaction,terms_eligible_current[k]))
                         {
-                            already_exists=true;
+                            interaction_already_exists_in_terms_eligible_current=true;
                             break;
                         }
                     }
-                    if(already_exists) continue;
+                    if(interaction_already_exists_in_terms_eligible_current) continue;
                     if(interaction.get_interaction_level()>max_interaction_level) continue;
                     interactions_to_consider.push_back(interaction);
                 }
@@ -686,73 +728,59 @@ void APLRRegressor::determine_interactions_to_consider()
     }
 }
 
-void APLRRegressor::estimate_split_points_for_interactions_to_consider()
+VectorXi APLRRegressor::find_indexes_for_terms_to_consider_as_interaction_partners()
 {
-    if(n_jobs!=1 && interactions_to_consider.size()>1) //if multithreading
+    size_t number_of_terms_to_consider_as_interaction_partners{find_out_how_many_terms_to_consider_as_interaction_partners()};
+    VectorXd split_point_errors(terms.size());
+    VectorXi indexes_for_terms_to_consider_as_interaction_partners(terms.size());
+    for (size_t i = 0; i < terms.size(); ++i)
     {
-        //Distributing eligible terms to cores
-        DistributedIndices distributed_interactions{distribute_to_indices(interactions_to_consider,n_jobs)};
-        
-        //defining threads
-        std::vector<std::thread> threads(distributed_interactions.index_lowest.size());
-
-        //lambda function to call in each thread
-        auto evaluate_group=[this](size_t lowest,size_t highest)
-        {
-            for (size_t i = lowest; i <= highest; ++i) //for each eligible term in group do evaluation
-            {
-                interactions_to_consider[i].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,bins,v,min_observations_in_split);
-            }
-        };
-
-        //run and join threads
-        for (size_t i = 0; i < threads.size(); ++i) //for each thread
-        {
-            threads[i]=std::thread(evaluate_group,distributed_interactions.index_lowest[i],distributed_interactions.index_highest[i]);
-        }
-        for (size_t i = 0; i < threads.size(); ++i)
-        {
-            threads[i].join();
-        }
+        split_point_errors[i]=terms[i].split_point_search_errors_sum;
+        indexes_for_terms_to_consider_as_interaction_partners[i]=i;
     }
-    else //not multithreading
+    bool selecting_the_terms_with_lowest_previous_errors_is_necessary{max_eligible_terms<terms.size()};
+    if(selecting_the_terms_with_lowest_previous_errors_is_necessary)
     {
-        //Testing predictiveness of interactions to add
-        for (size_t j = 0; j < interactions_to_consider.size(); ++j)
-        {
-            interactions_to_consider[j].estimate_split_point(X_train,neg_gradient_current,sample_weight_train,bins,v,min_observations_in_split);                                
-        }
+        indexes_for_terms_to_consider_as_interaction_partners=sort_indexes_ascending(split_point_errors);
+        indexes_for_terms_to_consider_as_interaction_partners.conservativeResize(number_of_terms_to_consider_as_interaction_partners);
     }
+    return indexes_for_terms_to_consider_as_interaction_partners;
 }
 
-void APLRRegressor::sort_errors_for_interactions_to_consider()
+size_t APLRRegressor::find_out_how_many_terms_to_consider_as_interaction_partners()
 {
-    VectorXd errors_for_interactions_to_consider(interactions_to_consider.size()); //Sorting interactions to add after lowest error
+    size_t terms_to_consider{terms.size()};
+    if(max_eligible_terms>0)
+    {
+        terms_to_consider=std::min(max_eligible_terms,terms.size());
+    }
+    return terms_to_consider;
+}
+void APLRRegressor::find_sorted_indexes_for_errors_for_interactions_to_consider()
+{
+    VectorXd errors_for_interactions_to_consider(interactions_to_consider.size());
     for (size_t i = 0; i < interactions_to_consider.size(); ++i)
     {
         errors_for_interactions_to_consider[i]=interactions_to_consider[i].split_point_search_errors_sum;
     }
-    error_index_for_interactions_to_consider=sort_indexes_ascending(errors_for_interactions_to_consider);
+    sorted_indexes_of_errors_for_interactions_to_consider=sort_indexes_ascending(errors_for_interactions_to_consider);
 }
 
 void APLRRegressor::add_promising_interactions_and_select_the_best_one()
 {
-    size_t best_term_before_interactions{best_term};
-    for (size_t j = 0; j < static_cast<size_t>(error_index_for_interactions_to_consider.size()); ++j) //for each interaction to consider starting from lowest to highest error
+    size_t best_term_before_interactions{best_term_index};
+    for (size_t j = 0; j < static_cast<size_t>(sorted_indexes_of_errors_for_interactions_to_consider.size()); ++j) //for each interaction to consider starting from lowest to highest error
     {
         bool allowed_to_add_one_interaction{interactions_eligible<max_interactions};
         if(allowed_to_add_one_interaction)
         {
-            bool error_is_less_than_for_best_term_before_interactions{std::isless(interactions_to_consider[error_index_for_interactions_to_consider[j]].split_point_search_errors_sum,terms_eligible_current[best_term_before_interactions].split_point_search_errors_sum)};
+            bool error_is_less_than_for_best_term_before_interactions{std::isless(interactions_to_consider[sorted_indexes_of_errors_for_interactions_to_consider[j]].split_point_search_errors_sum,terms_eligible_current[best_term_before_interactions].split_point_search_errors_sum)};
             if(error_is_less_than_for_best_term_before_interactions)
             {
-                add_term_to_terms_eligible_current(interactions_to_consider[error_index_for_interactions_to_consider[j]]);
+                add_term_to_terms_eligible_current(interactions_to_consider[sorted_indexes_of_errors_for_interactions_to_consider[j]]);
                 bool is_best_interaction{j==0};
                 if(is_best_interaction)
-                {
-                    best_term=terms_eligible_current.size()-1;        
-                    lowest_error_sum=terms_eligible_current[best_term].split_point_search_errors_sum;
-                }
+                    best_term_index=terms_eligible_current.size()-1;        
                 ++interactions_eligible;
             }
             else
@@ -761,27 +789,29 @@ void APLRRegressor::add_promising_interactions_and_select_the_best_one()
     }
 }
 
-void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
+void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step, bool not_evaluating_prioritized_predictors)
 {
-    bool no_term_was_selected{best_term == std::numeric_limits<size_t>::max()};
+    bool no_term_was_selected{best_term_index == std::numeric_limits<size_t>::max()};
     if(no_term_was_selected)
     {
-        abort_boosting=true;
+        if(not_evaluating_prioritized_predictors) 
+            abort_boosting=true;
         return;
     }
 
     //Updating current predictions
-    linear_predictor_update=terms_eligible_current[best_term].calculate_contribution_to_linear_predictor(X_train);
-    linear_predictor_update_validation=terms_eligible_current[best_term].calculate_contribution_to_linear_predictor(X_validation);
+    linear_predictor_update=terms_eligible_current[best_term_index].calculate_contribution_to_linear_predictor(X_train);
+    linear_predictor_update_validation=terms_eligible_current[best_term_index].calculate_contribution_to_linear_predictor(X_validation);
     double error_after_updating_term=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train));
     bool no_improvement{std::isgreaterequal(error_after_updating_term,neg_gradient_nullmodel_errors_sum)};
     if(no_improvement)
     {
-        abort_boosting=true;
+        if(not_evaluating_prioritized_predictors)
+            abort_boosting=true;
     }
     else
     {
-        update_linear_predictor_and_predictors();
+        update_linear_predictor_and_predictions();
         update_gradient_and_errors();
         double backup_of_validation_error{validation_error_steps[boosting_step]};
         calculate_and_validate_validation_error(boosting_step);
@@ -803,10 +833,10 @@ void APLRRegressor::update_terms(size_t boosting_step)
         bool found{false};
         for (size_t j = 0; j < terms.size(); ++j)
         {
-            bool term_is_already_in_model{terms[j]==terms_eligible_current[best_term]};
+            bool term_is_already_in_model{terms[j]==terms_eligible_current[best_term_index]};
             if(term_is_already_in_model)
             {
-                terms[j].coefficient+=terms_eligible_current[best_term].coefficient;
+                terms[j].coefficient+=terms_eligible_current[best_term_index].coefficient;
                 terms[j].coefficient_steps[boosting_step]=terms[j].coefficient;
                 found=true;
                 break;
@@ -823,11 +853,11 @@ void APLRRegressor::update_terms(size_t boosting_step)
 void APLRRegressor::add_new_term(size_t boosting_step)
 {
     //Setting coefficient_steps
-    terms_eligible_current[best_term].coefficient_steps=VectorXd::Constant(m,0);
-    terms_eligible_current[best_term].coefficient_steps[boosting_step]=terms_eligible_current[best_term].coefficient;
+    terms_eligible_current[best_term_index].coefficient_steps=VectorXd::Constant(m,0);
+    terms_eligible_current[best_term_index].coefficient_steps[boosting_step]=terms_eligible_current[best_term_index].coefficient;
 
     //Appending a copy of the chosen term to terms
-    terms.push_back(Term(terms_eligible_current[best_term]));
+    terms.push_back(Term(terms_eligible_current[best_term_index]));
 }
 
 void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step)
@@ -845,30 +875,33 @@ void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step
 void APLRRegressor::update_term_eligibility()
 {
     number_of_eligible_terms=terms_eligible_current.size();
-    if(ineligible_boosting_steps_added>0 && max_eligible_terms>0) //if using eligibility
+    bool eligibility_is_used{ineligible_boosting_steps_added>0 && max_eligible_terms>0};
+    if(eligibility_is_used)
     {
-        //Getting sorted cut point errors indices
+        //Getting sorted split point errors indexes
         VectorXd terms_eligible_current_split_point_errors(terms_eligible_current.size());
         for (size_t i = 0; i < terms_eligible_current.size(); ++i)
         {
             terms_eligible_current_split_point_errors[i]=terms_eligible_current[i].split_point_search_errors_sum;
         }
-        VectorXi sorted_split_point_errors_indices{sort_indexes_ascending(terms_eligible_current_split_point_errors)};
+        VectorXi sorted_split_point_errors_indexes{sort_indexes_ascending(terms_eligible_current_split_point_errors)};
 
         //Adding ineligible_boosting_steps_added to each term that will become ineligible and reducing ineligible_boosting_steps_added for
         //the terms that are already ineligible
         size_t count{0};
         for (size_t i = 0; i < terms_eligible_current.size(); ++i)
         {
-            if(terms_eligible_current[sorted_split_point_errors_indices[i]].ineligible_boosting_steps==0) //If term is eligible now
+            bool term_is_eligible_now{terms_eligible_current[sorted_split_point_errors_indexes[i]].ineligible_boosting_steps==0};
+            if(term_is_eligible_now)
             {
                 ++count;
-                if(count>max_eligible_terms)
-                    terms_eligible_current[sorted_split_point_errors_indices[i]].ineligible_boosting_steps+=ineligible_boosting_steps_added;
+                bool term_should_receive_added_boosting_steps{count>max_eligible_terms};
+                if(term_should_receive_added_boosting_steps)
+                    terms_eligible_current[sorted_split_point_errors_indexes[i]].ineligible_boosting_steps+=ineligible_boosting_steps_added;
             }
-            else //If term is ineligible now
+            else
             {
-                terms_eligible_current[sorted_split_point_errors_indices[i]].ineligible_boosting_steps-=1;
+                terms_eligible_current[sorted_split_point_errors_indexes[i]].ineligible_boosting_steps-=1;
             }
         }
 
@@ -876,7 +909,8 @@ void APLRRegressor::update_term_eligibility()
         number_of_eligible_terms=0;
         for (size_t i = 0; i < terms_eligible_current.size(); ++i)
         {
-            if(terms_eligible_current[i].ineligible_boosting_steps==0)
+            bool term_is_eligible{terms_eligible_current[i].ineligible_boosting_steps==0};
+            if(term_is_eligible)
                 ++number_of_eligible_terms;
         }
     }
@@ -1114,13 +1148,15 @@ void APLRRegressor::cleanup_after_fit()
     linear_predictor_update_validation.resize(0);
     distributed_terms.clear();
     interactions_to_consider.clear();
-    error_index_for_interactions_to_consider.resize(0);
+    sorted_indexes_of_errors_for_interactions_to_consider.resize(0);
     linear_predictor_current.resize(0);
     linear_predictor_current_validation.resize(0);
     for (size_t i = 0; i < terms.size(); ++i)
     {
         terms[i].cleanup_after_fit();
     }
+    predictor_indexes.clear();
+    prioritized_predictors_indexes.clear();
 }
 
 VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)

@@ -17,6 +17,9 @@ data["target"] = pd.Series(diabetes.target)
 #This means that if you have missing values in the data then you need to either drop rows with missing data or impute them.
 #This also means that if you have a categorical text variable then you need to convert it to for example dummy variables for each category.
 
+#Please also note that APLR may be vulnerable to outliers in predictor values. If you experience this problem then please consider winsorising 
+#the predictors (or similar methods) before passing them to APLR.
+
 #Randomly splitting data into training and test sets
 data_train, data_test = train_test_split(data, test_size=0.3, random_state=random_state)
 del data
