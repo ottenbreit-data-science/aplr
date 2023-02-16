@@ -733,16 +733,28 @@ VectorXi APLRRegressor::find_indexes_for_terms_to_consider_as_interaction_partne
     size_t number_of_terms_to_consider_as_interaction_partners{find_out_how_many_terms_to_consider_as_interaction_partners()};
     VectorXd split_point_errors(terms.size());
     VectorXi indexes_for_terms_to_consider_as_interaction_partners(terms.size());
+    size_t count{0};
     for (size_t i = 0; i < terms.size(); ++i)
     {
-        split_point_errors[i]=terms[i].split_point_search_errors_sum;
-        indexes_for_terms_to_consider_as_interaction_partners[i]=i;
+        if(terms[i].can_be_used_as_a_given_term)
+        {
+            split_point_errors[count] = terms[i].split_point_search_errors_sum;
+            indexes_for_terms_to_consider_as_interaction_partners[count] = i;
+            ++count;
+        }
     }
-    bool selecting_the_terms_with_lowest_previous_errors_is_necessary{max_eligible_terms<terms.size()};
+    split_point_errors.conservativeResize(count);
+    indexes_for_terms_to_consider_as_interaction_partners.conservativeResize(count);
+    bool selecting_the_terms_with_lowest_previous_errors_is_necessary{number_of_terms_to_consider_as_interaction_partners < indexes_for_terms_to_consider_as_interaction_partners.size()};
     if(selecting_the_terms_with_lowest_previous_errors_is_necessary)
     {
-        indexes_for_terms_to_consider_as_interaction_partners=sort_indexes_ascending(split_point_errors);
-        indexes_for_terms_to_consider_as_interaction_partners.conservativeResize(number_of_terms_to_consider_as_interaction_partners);
+        VectorXi sorted_indexes{sort_indexes_ascending(split_point_errors)};
+        VectorXi temp_indexes(number_of_terms_to_consider_as_interaction_partners);
+        for (size_t i = 0; i < number_of_terms_to_consider_as_interaction_partners; ++i)
+        {
+            temp_indexes[i] = indexes_for_terms_to_consider_as_interaction_partners[sorted_indexes[i]];
+        }
+        indexes_for_terms_to_consider_as_interaction_partners=std::move(temp_indexes);
     }
     return indexes_for_terms_to_consider_as_interaction_partners;
 }
@@ -756,6 +768,7 @@ size_t APLRRegressor::find_out_how_many_terms_to_consider_as_interaction_partner
     }
     return terms_to_consider;
 }
+
 void APLRRegressor::find_sorted_indexes_for_errors_for_interactions_to_consider()
 {
     VectorXd errors_for_interactions_to_consider(interactions_to_consider.size());

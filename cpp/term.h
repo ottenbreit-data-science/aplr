@@ -57,6 +57,7 @@ private:
     void cleanup_after_fit();
     void cleanup_when_this_term_was_added_as_a_given_term();
     void make_term_ineligible();
+    void determine_if_can_be_used_as_a_given_term(const VectorXd &x);
 
 public:
     //fields
@@ -75,6 +76,7 @@ public:
     size_t ineligible_boosting_steps;
     VectorXd values_discretized; //Discretized values based on split_point=nan
     VectorXd sample_weight_discretized; //Discretized sample_weight based on split_point=nan
+    bool can_be_used_as_a_given_term;
 
     //methods
     Term(size_t base_term=0,const std::vector<Term> &given_terms=std::vector<Term>(0),double split_point=NAN_DOUBLE,bool direction_right=false,double coefficient=0);
@@ -97,14 +99,15 @@ public:
 //Regular constructor
 Term::Term(size_t base_term,const std::vector<Term> &given_terms,double split_point,bool direction_right,double coefficient):
 name{""},base_term{base_term},given_terms{given_terms},split_point{split_point},direction_right{direction_right},coefficient{coefficient},
-split_point_search_errors_sum{std::numeric_limits<double>::infinity()},ineligible_boosting_steps{0}
+split_point_search_errors_sum{std::numeric_limits<double>::infinity()},ineligible_boosting_steps{0},can_be_used_as_a_given_term{false}
 {
 }
 
 //Copy constructor
 Term::Term(const Term &other):
 name{other.name},base_term{other.base_term},given_terms{other.given_terms},split_point{other.split_point},direction_right{other.direction_right},
-coefficient{other.coefficient},coefficient_steps{other.coefficient_steps},split_point_search_errors_sum{other.split_point_search_errors_sum},ineligible_boosting_steps{0}
+coefficient{other.coefficient},coefficient_steps{other.coefficient_steps},split_point_search_errors_sum{other.split_point_search_errors_sum},
+ineligible_boosting_steps{0},can_be_used_as_a_given_term{other.can_be_used_as_a_given_term}
 {
 }
 
@@ -180,6 +183,7 @@ void Term::estimate_split_point(const MatrixXd &X,const VectorXd &negative_gradi
     estimate_split_point_on_discretized_data();
     estimate_coefficient_and_error_on_all_data();
     cleanup_after_estimate_split_point();
+    determine_if_can_be_used_as_a_given_term(X.col(base_term));
 }
 
 //Calculate indices that get zeroed out during calculate() because of given terms. Also calculates indices of those observations that do not.
@@ -640,6 +644,20 @@ void Term::cleanup_after_estimate_split_point()
     sorted_vectors.sample_weight_sorted.resize(0);
     negative_gradient_discretized.resize(0);
     errors_initial.resize(0);
+}
+
+void Term::determine_if_can_be_used_as_a_given_term(const VectorXd &x)
+{
+    VectorXd values{calculate_without_interactions(x)};
+    can_be_used_as_a_given_term = false;
+    for (auto &value:values)
+    {
+        if(is_approximately_zero(value))
+        {
+            can_be_used_as_a_given_term=true;
+            break;
+        }
+    }
 }
 
 void Term::cleanup_after_fit()
