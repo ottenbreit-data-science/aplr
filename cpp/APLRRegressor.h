@@ -706,14 +706,11 @@ void APLRRegressor::determine_interactions_to_consider(const std::vector<size_t>
             {
                 Term interaction{Term(new_term_index)};
                 Term model_term_without_given_terms{terms[model_term_index]};
-                bool model_term_has_given_terms{terms[model_term_index].given_terms.size()>0};
-                if(model_term_has_given_terms)
-                {
-                    model_term_without_given_terms.given_terms.clear();
-                    add_necessary_given_terms_to_interaction(interaction, terms[model_term_index]);
-                }
+                model_term_without_given_terms.given_terms.clear();
                 model_term_without_given_terms.cleanup_when_this_term_was_added_as_a_given_term();
-                interaction.given_terms.push_back(model_term_without_given_terms);
+                Term model_term_with_added_given_term{terms[model_term_index]};
+                model_term_with_added_given_term.given_terms.push_back(model_term_without_given_terms);
+                add_necessary_given_terms_to_interaction(interaction, model_term_with_added_given_term);
                 bool interaction_level_is_too_high{interaction.get_interaction_level()>max_interaction_level};
                 if(interaction_level_is_too_high) continue;
                 bool interaction_is_already_in_the_model{false};
