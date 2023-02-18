@@ -12,8 +12,6 @@
 
 using namespace Eigen;
 
-//implements relative method - do not use for comparing with zero
-//use this most of the time, tolerance needs to be meaningful in your context
 template<typename TReal>
 static bool is_approximately_equal(TReal a, TReal b, TReal tolerance = std::numeric_limits<TReal>::epsilon())
 {
@@ -30,8 +28,6 @@ static bool is_approximately_equal(TReal a, TReal b, TReal tolerance = std::nume
     return false;
 }
 
-//supply tolerance that is meaningful in your context
-//for example, default tolerance may not work if you are comparing double with float
 template<typename TReal>
 static bool is_approximately_zero(TReal a, TReal tolerance = std::numeric_limits<TReal>::epsilon())
 {
@@ -80,10 +76,8 @@ VectorXd calculate_tweedie_errors(const VectorXd &y,const VectorXd &predicted,do
     return errors;
 }
 
-//Computes errors (for each observation) based on error metric for a vector
 VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0),const std::string &family="gaussian",double tweedie_power=1.5)
 {   
-    //Error per observation before adjustment for sample weights
     VectorXd errors;
     if(family=="gaussian")
         errors=calculate_gaussian_errors(y,predicted);
@@ -95,7 +89,7 @@ VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const Vect
         errors=calculate_gamma_errors(y,predicted);
     else if(family=="tweedie")
         errors=calculate_tweedie_errors(y,predicted,tweedie_power);
-    //Adjusting for sample weights if specified
+    
     if(sample_weight.size()>0)
         errors=errors.array()*sample_weight.array();
     
@@ -109,25 +103,20 @@ double calculate_gaussian_error_one_observation(double y,double predicted)
     return error;
 }
 
-//Computes error for one observation based on error metric
 double calculate_error_one_observation(double y,double predicted,double sample_weight=NAN_DOUBLE)
 {   
-    //Error per observation before adjustment for sample weights
     double error{calculate_gaussian_error_one_observation(y,predicted)};    
     
-    //Adjusting for sample weights if specified
     if(!std::isnan(sample_weight))
         error=error*sample_weight;
 
     return error;
 }
 
-//Computes overall error based on errors from calculate_errors(), returning one value
 double calculate_mean_error(const VectorXd &errors,const VectorXd &sample_weight=VectorXd(0))
 {   
     double error{std::numeric_limits<double>::infinity()};
 
-    //Adjusting for sample weights if specified
     if(sample_weight.size()>0)
         error=errors.sum()/sample_weight.sum();
     else
@@ -138,7 +127,6 @@ double calculate_mean_error(const VectorXd &errors,const VectorXd &sample_weight
     return error;
 }
 
-//Computes overall error based on errors from calculate_errors(), returning one value
 double calculate_sum_error(const VectorXd &errors)
 {   
     double error{errors.sum()};
@@ -192,22 +180,18 @@ VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predic
     return VectorXd(0);
 }
 
-//sorts index based on v
-VectorXi sort_indexes_ascending(const VectorXd &v)
+VectorXi sort_indexes_ascending(const VectorXd &sort_based_on_me)
 {
-    // initialize original index locations
-    VectorXi idx(v.size());
+    VectorXi idx(sort_based_on_me.size());
     std::iota(idx.begin(),idx.end(),0);
 
-    // sort indexes based on comparing values in v
-    std::sort(idx.begin(), idx.end(),[&v](size_t i1, size_t i2) {return v(i1) < v(i2);});
+    std::sort(idx.begin(), idx.end(),[&sort_based_on_me](size_t i1, size_t i2) {return sort_based_on_me(i1) < sort_based_on_me(i2);});
 
     return idx;
 }
 
-//Loads a csv file into an Eigen matrix
 template<typename M>
-M load_csv (const std::string &path) {
+M load_csv_into_eigen_matrix (const std::string &path) {
     std::ifstream indata;
     indata.open(path);
     std::string line;
@@ -224,8 +208,7 @@ M load_csv (const std::string &path) {
     return Map<const Matrix<typename M::Scalar, M::RowsAtCompileTime, M::ColsAtCompileTime, RowMajor>>(values.data(), rows, values.size()/rows);
 }
 
-//Saves an Eigen matrix as a csv file
-void save_data(std::string fileName, MatrixXd matrix)
+void save_as_csv_file(std::string fileName, MatrixXd matrix)
 {
     //https://eigen.tuxfamily.org/dox/structEigen_1_1IOFormat.html
     const static IOFormat CSVFormat(FullPrecision, DontAlignCols, ", ", "\n");
@@ -238,50 +221,11 @@ void save_data(std::string fileName, MatrixXd matrix)
     }
 }
 
-//For multicore distribution of elements
 struct DistributedIndices
 {
     std::vector<size_t> index_lowest;
     std::vector<size_t> index_highest; 
 };
-
-//Distribution of elements to multiple cores
-template <typename T> //type must implement a size() method
-DistributedIndices distribute_to_indices(T &collection,size_t n_jobs)
-{
-    size_t collection_size=static_cast<size_t>(collection.size());
-
-    //Initializing output
-    DistributedIndices output;
-    output.index_lowest.reserve(collection_size);
-    output.index_highest.reserve(collection_size);
-
-    //Determining how many items to evaluate per core
-    size_t available_cores{static_cast<size_t>(std::thread::hardware_concurrency())};
-    if(n_jobs>1)
-        available_cores=std::min(n_jobs,available_cores);
-    size_t units_per_core{std::max(collection_size/available_cores,static_cast<size_t>(1))};
-
-    //For each set of items going into one core
-    for (size_t i = 0; i < collection_size; i=i+units_per_core) 
-    {                
-        output.index_lowest.push_back(i); 
-    }
-    for (size_t i = 0; i < output.index_lowest.size()-1; ++i)
-    {
-        output.index_highest.push_back(output.index_lowest[i+1]-1);
-    }
-    output.index_highest.push_back(collection_size-1);
-    //Removing last bunch and adjusting the second last if necessary
-    if(output.index_lowest.size()>available_cores) 
-    {
-        output.index_lowest.pop_back();
-        output.index_highest.pop_back();
-        output.index_highest[output.index_highest.size()-1]=collection_size-1;
-    }
-
-    return output;
-}
 
 template <typename T> //type must implement a size() method
 size_t calculate_max_index_in_vector(T &vector)
@@ -371,4 +315,26 @@ VectorXd calculate_rolling_centered_mean(const VectorXd &vector, const VectorXi 
     }
     
     return rolling_centered_mean;
+}
+
+VectorXi calculate_indicator(const VectorXd &v)
+{
+    VectorXi indicator{VectorXi::Constant(v.rows(),1)};
+    for (size_t i = 0; i < static_cast<size_t>(v.size()); ++i)
+    {
+        if(is_approximately_zero(v[i]))
+            indicator[i]=0;
+    }
+    return indicator;
+}
+
+VectorXi calculate_indicator(const VectorXi &v)
+{
+    VectorXi indicator{VectorXi::Constant(v.rows(),1)};
+    for (size_t i = 0; i < static_cast<size_t>(v.size()); ++i)
+    {
+        if(v[i]==0)
+            indicator[i]=0;
+    }
+    return indicator;
 }

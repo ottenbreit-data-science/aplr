@@ -3,7 +3,7 @@
 #include <limits>
 #include "../dependencies/eigen-master/Eigen/Dense"
 #include "functions.h"
-#include <functional>   // std::function
+#include <functional>
 #include "constants.h"
 #include <vector>
 #include <algorithm>
@@ -11,8 +11,7 @@
 using namespace Eigen;
 
 
-//Output structure for term method calculate_given_terms_indices()
-struct GivenTermsIndices
+struct RowsToZeroOutAndNotDueToGivenTerms
 {
     VectorXi zeroed;
     VectorXi not_zeroed;
@@ -28,8 +27,7 @@ struct SortedData
 class Term
 {
 private:
-    //fields
-    GivenTermsIndices given_terms_indices;
+    RowsToZeroOutAndNotDueToGivenTerms rows_to_zero_out_and_not_due_to_given_terms;
     size_t max_index;
     size_t max_index_discretized;
     size_t min_observations_in_split;
@@ -42,10 +40,9 @@ private:
     double error_initial;
     std::vector<size_t> observations_in_bins;
 
-    //methods
     void calculate_error_where_given_terms_are_zero(const VectorXd &negative_gradient, const VectorXd &sample_weight);
     void initialize_parameters_in_estimate_split_point(size_t bins,double v,size_t min_observations_in_split);
-    void adjust_min_observations_in_split(size_t min_observations_in_split);
+    void adjust_min_observations_in_split_to_avoid_computational_errors(size_t min_observations_in_split);
     void sort_vectors_ascending_by_base_term(const MatrixXd &X, const VectorXd &negative_gradient,const VectorXd &sample_weight);
     SortedData sort_data(const VectorXd &values_to_sort, const VectorXd &negative_gradient_to_sort, const VectorXd &sample_weight_to_sort);
     void setup_bins();
@@ -60,50 +57,46 @@ private:
     void determine_if_can_be_used_as_a_given_term(const VectorXd &x);
 
 public:
-    //fields
     std::string name;
     size_t base_term; //Index of underlying term in X to use
-    std::vector<Term> given_terms; //Indexes of given terms already in the model. Will zero out term values for this term when at least one of the given terms have zero values.
+    std::vector<Term> given_terms;
     double split_point;
     bool direction_right;
     double coefficient;
     VectorXd coefficient_steps;
-    double split_point_search_errors_sum; //lowest error from estimate_split_point 
-    std::vector<size_t> bins_start_index; //Start index for values_sorted in bin
-    std::vector<size_t> bins_end_index; //End index for values_sorted in bin
-    std::vector<double> bins_split_points_left; //split_point values
-    std::vector<double> bins_split_points_right; //split_point values
+    double split_point_search_errors_sum;
+    std::vector<size_t> bins_start_index;
+    std::vector<size_t> bins_end_index;
+    std::vector<double> bins_split_points_left;
+    std::vector<double> bins_split_points_right;
     size_t ineligible_boosting_steps;
-    VectorXd values_discretized; //Discretized values based on split_point=nan
-    VectorXd sample_weight_discretized; //Discretized sample_weight based on split_point=nan
+    VectorXd values_discretized;
+    VectorXd sample_weight_discretized;
     bool can_be_used_as_a_given_term;
 
-    //methods
     Term(size_t base_term=0,const std::vector<Term> &given_terms=std::vector<Term>(0),double split_point=NAN_DOUBLE,bool direction_right=false,double coefficient=0);
-    Term(const Term &other); //copy constructor
+    Term(const Term &other);
     ~Term();
-    VectorXd calculate(const MatrixXd &X); //calculates term values
+    VectorXd calculate(const MatrixXd &X);
     VectorXd calculate_contribution_to_linear_predictor(const MatrixXd &X);
     static bool equals_not_comparing_given_terms(const Term &p1,const Term &p2);
     static bool equals_given_terms(const Term &p1,const Term &p2);
     void estimate_split_point(const MatrixXd &X,const VectorXd &negative_gradient,const VectorXd &sample_weight,size_t bins,double v,size_t min_observations_in_split);
     size_t get_interaction_level(size_t previous_int_level=0);
     VectorXd calculate_without_interactions(const VectorXd &x);
-    void calculate_given_terms_indices(const MatrixXd &X);
+    void calculate_rows_to_zero_out_and_not_due_to_given_terms(const MatrixXd &X);
+    bool get_can_be_used_as_a_given_term();
 
-    //friends
     friend bool operator== (const Term &p1, const Term &p2);
     friend class APLRRegressor;
 };
 
-//Regular constructor
 Term::Term(size_t base_term,const std::vector<Term> &given_terms,double split_point,bool direction_right,double coefficient):
 name{""},base_term{base_term},given_terms{given_terms},split_point{split_point},direction_right{direction_right},coefficient{coefficient},
 split_point_search_errors_sum{std::numeric_limits<double>::infinity()},ineligible_boosting_steps{0},can_be_used_as_a_given_term{false}
 {
 }
 
-//Copy constructor
 Term::Term(const Term &other):
 name{other.name},base_term{other.base_term},given_terms{other.given_terms},split_point{other.split_point},direction_right{other.direction_right},
 coefficient{other.coefficient},coefficient_steps{other.coefficient_steps},split_point_search_errors_sum{other.split_point_search_errors_sum},
@@ -111,12 +104,10 @@ ineligible_boosting_steps{0},can_be_used_as_a_given_term{other.can_be_used_as_a_
 {
 }
 
-//Destructor
 Term::~Term()
 {
 }
 
-//Compare everything except given_terms
 bool Term::equals_not_comparing_given_terms(const Term &p1,const Term &p2)
 {
     bool split_point_and_direction{(is_approximately_equal(p1.split_point,p2.split_point) && p1.direction_right==p2.direction_right) || (std::isnan(p1.split_point) && std::isnan(p2.split_point))};
@@ -124,7 +115,6 @@ bool Term::equals_not_comparing_given_terms(const Term &p1,const Term &p2)
     return split_point_and_direction && base_term;
 }
 
-//Returns true if term other has the same unique elements in given_terms
 bool Term::equals_given_terms(const Term &p1,const Term &p2)
 {
     if(p1.given_terms.size()!=p2.given_terms.size()) return false;
@@ -133,14 +123,14 @@ bool Term::equals_given_terms(const Term &p1,const Term &p2)
 
     bool p1_isin_p2{false};
 
-    //Checking if elements in p1.given_terms are in p2.given_terms. This also implies vica versa because p1.given_terms.size()=p2.given_terms.size().
-    for (size_t i = 0; i < p1.given_terms.size(); ++i) //for all elements in p1
+    for (auto &p1_given_term:p1.given_terms)
     {
-        for (size_t j = 0; j < p2.given_terms.size(); ++j) //for all elements in p2
+        for (auto &p2_given_term:p2.given_terms)
         {
-            if(equals_not_comparing_given_terms(p1.given_terms[i],p2.given_terms[j]))
+            p1_isin_p2 = equals_not_comparing_given_terms(p1_given_term, p2_given_term);
+            if(p1_isin_p2)
             {
-                p1_isin_p2=equals_given_terms(p1.given_terms[i],p2.given_terms[j]);
+                break;
             }
         }
         if(!p1_isin_p2) return false;
@@ -149,20 +139,18 @@ bool Term::equals_given_terms(const Term &p1,const Term &p2)
     return true;
 }
 
-//Equals operator
 bool operator== (const Term &p1, const Term &p2)
 {
-    bool cmp_ex_given{Term::equals_not_comparing_given_terms(p1,p2)};
-    bool cmp{Term::equals_given_terms(p1,p2)};
-    return cmp_ex_given && cmp;
+    bool cmp_ex_given_terms{Term::equals_not_comparing_given_terms(p1,p2)};
+    bool cmp_given_terms{Term::equals_given_terms(p1,p2)};
+    return cmp_ex_given_terms && cmp_given_terms;
 }
 
-//estimates best split point
 void Term::estimate_split_point(const MatrixXd &X,const VectorXd &negative_gradient,const VectorXd &sample_weight,size_t bins,double v,size_t min_observations_in_split)
 {
-    calculate_given_terms_indices(X);
+    calculate_rows_to_zero_out_and_not_due_to_given_terms(X);
 
-    bool too_few_observations{static_cast<size_t>(given_terms_indices.not_zeroed.size())<min_observations_in_split};
+    bool too_few_observations{static_cast<size_t>(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.size())<min_observations_in_split};
     if(too_few_observations)
     {
         make_term_ineligible();
@@ -186,62 +174,67 @@ void Term::estimate_split_point(const MatrixXd &X,const VectorXd &negative_gradi
     determine_if_can_be_used_as_a_given_term(X.col(base_term));
 }
 
-//Calculate indices that get zeroed out during calculate() because of given terms. Also calculates indices of those observations that do not.
-void Term::calculate_given_terms_indices(const MatrixXd &X)
+void Term::calculate_rows_to_zero_out_and_not_due_to_given_terms(const MatrixXd &X)
 {
-    if(given_terms.size()>0)
+    bool term_has_given_terms{given_terms.size()>0};
+    if(term_has_given_terms)
     {
-        given_terms_indices.zeroed.resize(X.rows());
-        given_terms_indices.not_zeroed.resize(X.rows());
-        size_t count_zeroed{0};
-        size_t count_not_zeroed{0};
-        for (size_t j = 0; j < given_terms.size(); ++j)  //for each given term
+        VectorXi non_zero_values{VectorXi::Constant(X.rows(),1)};
+        for (auto &given_term:given_terms)
         {
-            VectorXd values_given_term{given_terms[j].calculate(X)};
-            for (size_t i = 0; i < static_cast<size_t>(X.rows()); ++i) //for each row
+            VectorXd values_given_term{given_term.calculate(X)};
+            for (size_t i = 0; i < static_cast<size_t>(X.rows()); ++i)
             {
-                if(is_approximately_zero(values_given_term[i])) //if zeroed out by given term
+                if(is_approximately_zero(values_given_term[i]))
                 {
-                    given_terms_indices.zeroed[count_zeroed]=i;
-                    ++count_zeroed;
-                }
-                else //if not zeroed out by given term
-                {
-                    given_terms_indices.not_zeroed[count_not_zeroed]=i;
-                    ++count_not_zeroed;
+                    non_zero_values[i]=0;
                 }
             }
-        }   
-        given_terms_indices.zeroed.conservativeResize(count_zeroed);
-        given_terms_indices.not_zeroed.conservativeResize(count_not_zeroed);
+        }
+        rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.resize(non_zero_values.sum());
+        rows_to_zero_out_and_not_due_to_given_terms.zeroed.resize(X.rows()-rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.rows());
+        size_t count_zeroed{0};
+        size_t count_not_zeroed{0};
+        for (size_t i = 0; i < static_cast<size_t>(X.rows()); ++i)
+        {
+            bool value_is_non_zero{non_zero_values[i]==1};
+            if(value_is_non_zero)
+            {
+                rows_to_zero_out_and_not_due_to_given_terms.not_zeroed[count_not_zeroed]=i;
+                ++count_not_zeroed;
+            }
+            else
+            {
+                rows_to_zero_out_and_not_due_to_given_terms.zeroed[count_zeroed]=i;
+                ++count_zeroed;
+            }
+        }
     }
     else
     {
-        given_terms_indices.zeroed.resize(0);
-        given_terms_indices.not_zeroed.resize(X.rows());
-        std::iota(given_terms_indices.not_zeroed.begin(),given_terms_indices.not_zeroed.end(),0);
+        rows_to_zero_out_and_not_due_to_given_terms.zeroed.resize(0);
+        rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.resize(X.rows());
+        std::iota(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.begin(),rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.end(),0);
     }
 }
 
-//Calculate term values
 VectorXd Term::calculate(const MatrixXd &X)
 {
     VectorXd values{calculate_without_interactions(X.col(base_term))};
 
-    //Zeroing out where given terms have zero values
-    if(given_terms.size()>0)
+    bool has_given_terms{given_terms.size()>0};
+    if(has_given_terms)
     {
-        for (size_t j = 0; j < given_terms.size(); ++j)  //for each given term
+        for(auto &given_term:given_terms)
         {
-            VectorXd values_given_term{given_terms[j].calculate(X)};
-            for (size_t i = 0; i < static_cast<size_t>(values.size()); ++i) //for each row
+            VectorXd values_given_term{given_term.calculate(X)};
+            for (size_t i = 0; i < static_cast<size_t>(values.size()); ++i)
             {
                 if(is_approximately_zero(values_given_term[i]))
                     values[i]=0;
             }
-        }   
+        }
     }
-
     return values;
 }
 
@@ -249,9 +242,10 @@ VectorXd Term::calculate_without_interactions(const VectorXd &x)
 {
     VectorXd values;
 
-    if(std::isnan(split_point)) //If split_point is nan then we have a linear effect and just use x values
+    bool linear_effect{std::isnan(split_point)};
+    if(linear_effect)
         values=x;
-    else //split_point is specified and we calculate values
+    else
     {
         if(direction_right)
             values=(x.array()-split_point).array().max(0);
@@ -272,20 +266,21 @@ void Term::make_term_ineligible()
 void Term::calculate_error_where_given_terms_are_zero(const VectorXd &negative_gradient, const VectorXd &sample_weight)
 {
     error_where_given_terms_are_zero=0;
-    if(given_terms_indices.zeroed.size()>0)
+    bool rows_need_to_be_zeroed_due_to_given_terms{rows_to_zero_out_and_not_due_to_given_terms.zeroed.size()>0};
+    if(rows_need_to_be_zeroed_due_to_given_terms)
     {
         if(sample_weight.size()==0)
         {
-            for (size_t i = 0; i < static_cast<size_t>(given_terms_indices.zeroed.size()); ++i)
+            for (size_t i = 0; i < static_cast<size_t>(rows_to_zero_out_and_not_due_to_given_terms.zeroed.size()); ++i)
             {
-                error_where_given_terms_are_zero+=calculate_error_one_observation(negative_gradient[given_terms_indices.zeroed[i]],0.0,NAN_DOUBLE);
+                error_where_given_terms_are_zero+=calculate_error_one_observation(negative_gradient[rows_to_zero_out_and_not_due_to_given_terms.zeroed[i]],0.0,NAN_DOUBLE);
             }
         }
         else
         {
-            for (size_t i = 0; i < static_cast<size_t>(given_terms_indices.zeroed.size()); ++i)
+            for (size_t i = 0; i < static_cast<size_t>(rows_to_zero_out_and_not_due_to_given_terms.zeroed.size()); ++i)
             {
-                error_where_given_terms_are_zero+=calculate_error_one_observation(negative_gradient[given_terms_indices.zeroed[i]],0.0,sample_weight[given_terms_indices.zeroed[i]]);
+                error_where_given_terms_are_zero+=calculate_error_one_observation(negative_gradient[rows_to_zero_out_and_not_due_to_given_terms.zeroed[i]],0.0,sample_weight[rows_to_zero_out_and_not_due_to_given_terms.zeroed[i]]);
             }
         }
     }
@@ -295,39 +290,38 @@ void Term::initialize_parameters_in_estimate_split_point(size_t bins,double v,si
 {
     this->bins=bins;
     this->v=v;
-    adjust_min_observations_in_split(min_observations_in_split);
-    max_index=calculate_max_index_in_vector(given_terms_indices.not_zeroed);
+    adjust_min_observations_in_split_to_avoid_computational_errors(min_observations_in_split);
+    max_index=calculate_max_index_in_vector(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed);
 }
 
-//Min observations in split, adjusting if necessary to avoid computational errors
-void Term::adjust_min_observations_in_split(size_t min_observations_in_split)
+void Term::adjust_min_observations_in_split_to_avoid_computational_errors(size_t min_observations_in_split)
 { 
-    this->min_observations_in_split=std::min(min_observations_in_split,static_cast<size_t>(given_terms_indices.not_zeroed.size()));
+    this->min_observations_in_split=std::min(min_observations_in_split,static_cast<size_t>(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.size()));
     this->min_observations_in_split=std::max(min_observations_in_split,static_cast<size_t>(1));
 }
 
 void Term::sort_vectors_ascending_by_base_term(const MatrixXd &X, const VectorXd &negative_gradient,const VectorXd &sample_weight)
 {
-    if(given_terms_indices.zeroed.size()>0)
+    bool rows_need_to_be_zeroed_due_to_given_terms{rows_to_zero_out_and_not_due_to_given_terms.zeroed.size()>0};
+    if(rows_need_to_be_zeroed_due_to_given_terms)
     {
-        //Calculating subset of values, negative_gradient and sample_weight
-        VectorXd values_subset(given_terms_indices.not_zeroed.size());
-        VectorXd negative_gradient_subset(given_terms_indices.not_zeroed.size());
+        VectorXd values_subset(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.size());
+        VectorXd negative_gradient_subset(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.size());
         size_t count{0};
-        for (size_t i = 0; i <= max_index; ++i) //for each non-zeroed observation
+        for (size_t i = 0; i <= max_index; ++i)
         {
-            values_subset[count]=X.col(base_term)[given_terms_indices.not_zeroed[i]];
-            negative_gradient_subset[count]=negative_gradient[given_terms_indices.not_zeroed[i]];
+            values_subset[count]=X.col(base_term)[rows_to_zero_out_and_not_due_to_given_terms.not_zeroed[i]];
+            negative_gradient_subset[count]=negative_gradient[rows_to_zero_out_and_not_due_to_given_terms.not_zeroed[i]];
             ++count;
         }
         VectorXd sample_weight_subset(0);
         if(sample_weight.size()>0)
         {
             count=0;
-            sample_weight_subset.resize(given_terms_indices.not_zeroed.size());
-            for (size_t i = 0; i <= max_index; ++i) //for each non-zeroed observation
+            sample_weight_subset.resize(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.size());
+            for (size_t i = 0; i <= max_index; ++i)
             {
-                sample_weight_subset[count]=sample_weight[given_terms_indices.not_zeroed[i]];
+                sample_weight_subset[count]=sample_weight[rows_to_zero_out_and_not_due_to_given_terms.not_zeroed[i]];
                 ++count;
             }
         }
@@ -348,8 +342,9 @@ SortedData Term::sort_data(const VectorXd &values_to_sort, const VectorXd &negat
     {
         output.values_sorted[i]=values_to_sort[values_sorted_index[i]];
         output.negative_gradient_sorted[i]=negative_gradient_to_sort[values_sorted_index[i]];
-    }    
-    if(sample_weight_to_sort.size()>0)
+    }
+    bool sample_weight_exist{sample_weight_to_sort.size()>0};
+    if(sample_weight_exist)
     {
         output.sample_weight_sorted.resize(values_sorted_index.size());
         for (size_t i = 0; i <= max_index; ++i)
@@ -369,15 +364,13 @@ void Term::setup_bins()
         bins_start_index.reserve(bins+1);
         bins_end_index.reserve(bins+1);
         bins_start_index.push_back(0);
-
-        //Start indexes       
+     
         bool can_create_bins{bins>1};
         if(can_create_bins)
         {
             size_t start_row{min_observations_in_split};
             size_t end_row{max_index+1-min_observations_in_split};
 
-            //find potential start indexes
             std::vector<size_t> potential_start_indexes;
             potential_start_indexes.reserve(sorted_vectors.values_sorted.size());
             for (size_t i = start_row; i <= end_row; ++i)
@@ -432,23 +425,21 @@ void Term::setup_bins()
                 }
             }
         }
-        //End indexes
-        if(bins_start_index.size()>0)
+        bool start_indexes_exist{bins_start_index.size()>0};
+        if(start_indexes_exist)
         {
             for (size_t i = 1; i < bins_start_index.size(); ++i)
             {
                 bins_end_index.push_back(bins_start_index[i]-1);
             }
             bins_end_index.push_back(max_index);
-        }   
-        //Shrinking to save memory
+        }
         bins_start_index.shrink_to_fit();
         bins_end_index.shrink_to_fit();
 
-        //split_point values
         bins_split_points_left.reserve(bins_start_index.size());
         bins_split_points_right.reserve(bins_start_index.size());
-        for (size_t i = 0; i < bins_start_index.size(); ++i) //for each bin
+        for (size_t i = 0; i < bins_start_index.size(); ++i)
         {
             if(bins_start_index[i]>0 && bins_start_index[i]<max_index)
             {
@@ -462,7 +453,6 @@ void Term::setup_bins()
         bins_split_points_left.shrink_to_fit();
         bins_split_points_right.shrink_to_fit();
 
-        //observations in bins
         observations_in_bins.reserve(bins_start_index.size());
         for (size_t i = 0; i < bins_start_index.size(); ++i)
         {
@@ -473,7 +463,8 @@ void Term::setup_bins()
 
 void Term::discretize_data_by_bin()
 {
-    if(values_discretized.size()==0) //Calculate values_discretized and sample_weight_discretized if it has not been done before
+    bool calculate_if_it_has_not_been_done_before{values_discretized.size()==0};
+    if(calculate_if_it_has_not_been_done_before)
     {
         values_discretized.resize(bins_start_index.size());
         for (size_t i = 0; i < bins_start_index.size(); ++i)
@@ -512,51 +503,50 @@ void Term::estimate_split_point_on_discretized_data()
     errors_initial=calculate_errors(negative_gradient_discretized,VectorXd::Constant(negative_gradient_discretized.size(),0.0),sample_weight_discretized);
     error_initial=calculate_sum_error(errors_initial);
 
-    //FINDING BEST SPLIT ON DISCRETIZED DATA
     double split_point_temp;
     
-    //Split-point nan
-    calculate_coefficient_and_error_on_discretized_data(false,NAN_DOUBLE);
+    bool SPLIT_POINT_NAN{false};
+    calculate_coefficient_and_error_on_discretized_data(SPLIT_POINT_NAN, NAN_DOUBLE);
     double error_cp_nan{split_point_search_errors_sum};
 
-    //Direction left: For each observation update coefficient and calculate prediction error
+    bool DIRECTION_LEFT{false};
     double split_point_left{NAN_DOUBLE};
     double error_min_left{error_cp_nan};
-    for (size_t i = 0; i < bins_split_points_left.size(); ++i) //for each bin
+    for (size_t i = 0; i < bins_split_points_left.size(); ++i)
     {
         split_point_temp=bins_split_points_left[i];
      
-        calculate_coefficient_and_error_on_discretized_data(false,split_point_temp);
-        if(std::islessequal(split_point_search_errors_sum,error_min_left)) //if equal or improvement (preferring linear relationships)
+        calculate_coefficient_and_error_on_discretized_data(DIRECTION_LEFT, split_point_temp);
+        if(std::islessequal(split_point_search_errors_sum,error_min_left))
         {
             error_min_left=split_point_search_errors_sum;
             split_point_left=split_point;
         }
     }
 
-    //Direction right: For each observation update coefficient and calculate prediction error
+    bool DIRECTION_RIGHT{true};
     double split_point_right{NAN_DOUBLE};
     double error_min_right{error_cp_nan};
-    for (size_t i = 0; i < bins_split_points_right.size(); ++i) //for each bin
+    for (size_t i = 0; i < bins_split_points_right.size(); ++i)
     {
         split_point_temp=bins_split_points_right[i];
      
-        calculate_coefficient_and_error_on_discretized_data(true,split_point_temp);
-        if(std::islessequal(split_point_search_errors_sum,error_min_right)) //if equal or improvement (preferring linear relationships)
+        calculate_coefficient_and_error_on_discretized_data(DIRECTION_RIGHT, split_point_temp);
+        if(std::islessequal(split_point_search_errors_sum,error_min_right))
         {
             error_min_right=split_point_search_errors_sum;
             split_point_right=split_point;
         }
     }
 
-    //Comparing left and right and populating direction as well as split_point
-    if(std::islessequal(error_min_left,error_min_right)) //using direction left
+    bool use_left_direction{std::islessequal(error_min_left,error_min_right)};
+    if(use_left_direction)
     {
         direction_right=false;
         split_point=split_point_left;
         split_point_search_errors_sum=error_min_left;
     }
-    else //using direction right
+    else
     {
         direction_right=true;
         split_point=split_point_right;
@@ -569,14 +559,11 @@ void Term::calculate_coefficient_and_error_on_discretized_data(bool direction_ri
     this->direction_right=direction_right;
     this->split_point=split_point;
     
-    //Calculating values and values_sorted
     VectorXd values_sorted{calculate_without_interactions(values_discretized)};
 
-    //Start and end indexes
     size_t index_start{0};
     size_t index_end{max_index_discretized};
 
-    //Calculating coefficient and errors
     double xwx{0};
     double xwy{0};
     for (size_t i = index_start; i <= index_end; ++i)
@@ -637,8 +624,8 @@ void Term::estimate_coefficient_and_error_on_all_data()
 
 void Term::cleanup_after_estimate_split_point()
 {
-    given_terms_indices.not_zeroed.resize(0);
-    given_terms_indices.zeroed.resize(0);
+    rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.resize(0);
+    rows_to_zero_out_and_not_due_to_given_terms.zeroed.resize(0);
     sorted_vectors.values_sorted.resize(0);
     sorted_vectors.negative_gradient_sorted.resize(0);
     sorted_vectors.sample_weight_sorted.resize(0);
@@ -684,48 +671,35 @@ VectorXd Term::calculate_contribution_to_linear_predictor(const MatrixXd &X)
     return values.array()*coefficient;
 }
 
-//Returns the interaction level of this term
 size_t Term::get_interaction_level(size_t previous_int_level)
 {   
-    if(given_terms.size()==0) //stopping criteria
-        return previous_int_level;
-
-    //Finding maximum interaction level in given terms
-    size_t max_int_level_gp{0}; 
-    for (size_t i = 0; i < given_terms.size(); ++i) //for each given term
-    {
-        size_t int_level_given_term{given_terms[i].get_interaction_level()};
-        if(int_level_given_term>max_int_level_gp)
-            max_int_level_gp=int_level_given_term;
-    }   
-
-    return previous_int_level+1+max_int_level_gp;
+    return given_terms.size();
 }
 
+bool Term::get_can_be_used_as_a_given_term()
+{
+    return can_be_used_as_a_given_term;
+}
 
 std::vector<std::vector<size_t>> distribute_terms_indexes_to_cores(std::vector<size_t> &term_indexes,size_t n_jobs)
 {
-    //Determing number of terms actually eligible
     size_t num_eligible_terms{term_indexes.size()};
     
-    //Determining how many items to evaluate per core
     size_t available_cores{static_cast<size_t>(std::thread::hardware_concurrency())};
     if(n_jobs>1)
         available_cores=std::min(n_jobs,available_cores);
     size_t units_per_core{std::max(num_eligible_terms/available_cores,static_cast<size_t>(1))};
 
-    //Initializing output
     std::vector<std::vector<size_t>> output(available_cores);
-    for (size_t i = 0; i < available_cores; ++i) //for each available core
+    for (size_t i = 0; i < available_cores; ++i)
     {
         output[i]=std::vector<size_t>();
         output[i].reserve(num_eligible_terms);
     }    
 
-    //Distributing
     size_t core{0};
     size_t count{0};
-    for (size_t i = 0; i < term_indexes.size(); ++i) //for each term
+    for (size_t i = 0; i < term_indexes.size(); ++i)
     {
         output[core].push_back(i);
         ++count;
@@ -739,8 +713,7 @@ std::vector<std::vector<size_t>> distribute_terms_indexes_to_cores(std::vector<s
         }
     }
 
-    //Freeing memory
-    for (size_t i = 0; i < available_cores; ++i) //for each available core
+    for (size_t i = 0; i < available_cores; ++i)
     {
         output[i].shrink_to_fit();
     }

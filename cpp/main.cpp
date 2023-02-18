@@ -26,10 +26,10 @@ int main()
     model.max_eligible_terms=5;
 
     //Data    
-    MatrixXd X_train{load_csv<MatrixXd>("X_train.csv")};
-    MatrixXd X_test{load_csv<MatrixXd>("X_test.csv")}; 
-    VectorXd y_train{load_csv<MatrixXd>("y_train.csv")};    
-    VectorXd y_test{load_csv<MatrixXd>("y_test.csv")}; 
+    MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("X_train.csv")};
+    MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("X_test.csv")}; 
+    VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("y_train.csv")};    
+    VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("y_test.csv")}; 
 
     VectorXd sample_weight{VectorXd::Constant(y_train.size(),1.0)};
     //VectorXd sample_weight{VectorXd::Random(y_train.size()).cwiseAbs()};
@@ -44,7 +44,7 @@ int main()
     VectorXd predictions{model.predict(X_test)};
 
     //Saving results
-    save_data("output.csv",predictions);
+    save_as_csv_file("output.csv",predictions);
     std::cout<<"min validation_error "<<model.validation_error_steps.minCoeff()<<"\n\n";
     std::cout<<is_approximately_equal(model.validation_error_steps.minCoeff(),6.32895,0.00001)<<"\n";
 

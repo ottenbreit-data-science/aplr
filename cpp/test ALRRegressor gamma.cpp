@@ -31,10 +31,10 @@ int main()
     model.group_size_for_validation_group_mse=30;
 
     //Data    
-    MatrixXd X_train{load_csv<MatrixXd>("data/X_train.csv")};
-    MatrixXd X_test{load_csv<MatrixXd>("data/X_test.csv")}; 
-    VectorXd y_train{load_csv<MatrixXd>("data/y_train.csv")};    
-    VectorXd y_test{load_csv<MatrixXd>("data/y_test.csv")}; 
+    MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+    MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")}; 
+    VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};    
+    VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")}; 
 
     VectorXd sample_weight{VectorXd::Constant(y_train.size(),1.0)};
 
@@ -50,7 +50,7 @@ int main()
     MatrixXd li{model.calculate_local_feature_importance(X_test)};
 
     //Saving results
-    save_data("data/output.csv",predictions);
+    save_as_csv_file("data/output.csv",predictions);
 
     std::cout<<predictions.mean()<<"\n\n";
     tests.push_back(is_approximately_equal(predictions.mean(),23.6503,0.00001));
