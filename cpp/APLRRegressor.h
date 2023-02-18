@@ -810,33 +810,7 @@ void APLRRegressor::add_necessary_given_terms_to_interaction(Term &interaction, 
                     break;
             }
 
-            bool stricter_given_term_exists{false};
-            for (size_t col2 = 0; col2 < existing_model_term.given_terms.size(); ++col2)
-            {
-                bool is_other_given_term{col2!=col};
-                if(is_other_given_term)
-                {
-                    bool same_base_term{existing_model_term.given_terms[col].base_term == existing_model_term.given_terms[col2].base_term};
-                    bool same_direction{existing_model_term.given_terms[col].direction_right == existing_model_term.given_terms[col2].direction_right};
-                    bool finite_split_point{std::isfinite(existing_model_term.given_terms[col].split_point) && std::isfinite(existing_model_term.given_terms[col2].split_point)};
-                    if(same_base_term && same_direction && finite_split_point)
-                    {
-                        bool direction_right{existing_model_term.given_terms[col].direction_right};
-                        if(direction_right)
-                        {
-                            stricter_given_term_exists = std::isless(existing_model_term.given_terms[col].split_point, existing_model_term.given_terms[col2].split_point);
-                        }
-                        else
-                        {
-                            stricter_given_term_exists = std::isgreater(existing_model_term.given_terms[col].split_point, existing_model_term.given_terms[col2].split_point);
-                        }
-                        if(stricter_given_term_exists)
-                            break;
-                    }
-                }
-            }
-
-            if(given_term_provides_an_unique_zero && !stricter_given_term_exists)
+            if(given_term_provides_an_unique_zero)
                 interaction.given_terms.push_back(existing_model_term.given_terms[col]);
         }
     }
