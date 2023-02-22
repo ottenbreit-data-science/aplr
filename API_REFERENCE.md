@@ -56,7 +56,7 @@ Species the variance power for the "tweedie" ***family***.
 APLR calculates a tuning metric, mean squared error for groups of observations in the validation set. This metric is provided by the method ***get_validation_group_mse()***. The metric may be useful for tuning ***tweedie_power*** and to some extent ***family*** or ***link_function***. The reasoning behind this is that mean squared error (MSE) is often appropriate for evaluating goodness of fit on approximately normally distributed data. The mean of a group of observations is approximately normally distributed according to the Central Limit Theorem (CLT) if there are enough observations in the group, regardless of how individual observations are distributed. Ideally, ***group_size_for_validation_group_mse*** should be large enough so that the Central Limit Theorem holds (at least 30, but the default of 100 is a safer choice). Also, the number of observations in the validation set should be substantially higher than ***group_size_for_validation_group_mse***.
 
 
-## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[])
+## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[])
 
 ***This method fits the model to data.***
 
@@ -79,6 +79,9 @@ An optional list of integers specifying the indexes of observations to be used f
 
 #### prioritized_predictors_indexes
 An optional list of integers specifying the indexes of predictors (columns) in ***X*** that should be prioritized. Terms of the prioritized predictors will enter the model as long as they reduce the training error and do not contain too few effective observations. They will also be updated more often.
+
+#### monotonic_constraints
+An optional list of integers specifying monotonic constraints on model terms. For example, if there are three predictors in ***X***, then monotonic_constraints = [1,0,-1] means that 1) the first predictor in ***X*** cannot be used in interaction terms and all terms using the first predictor in ***X*** as a main effect must have positive regression coefficients, 2) there are no monotonic constraints on terms using the second predictor in ***X***, and 3) the third predictor in ***X*** cannot be used in interaction terms and all terms using the third predictor in ***X*** as a main effect must have negative regression coefficients.
 
 
 ## Method: predict(X:npt.ArrayLike, cap_predictions_to_minmax_in_training:bool=True)

@@ -39,6 +39,7 @@ private:
     VectorXd errors_initial;
     double error_initial;
     std::vector<size_t> observations_in_bins;
+    int monotonic_constraint;
 
     void calculate_error_where_given_terms_are_zero(const VectorXd &negative_gradient, const VectorXd &sample_weight);
     void initialize_parameters_in_estimate_split_point(size_t bins,double v,size_t min_observations_in_split);
@@ -55,6 +56,7 @@ private:
     void cleanup_when_this_term_was_added_as_a_given_term();
     void make_term_ineligible();
     void determine_if_can_be_used_as_a_given_term(const VectorXd &x);
+    bool coefficient_adheres_to_monotonic_constraint();
 
 public:
     std::string name;
@@ -86,6 +88,8 @@ public:
     VectorXd calculate_without_interactions(const VectorXd &x);
     void calculate_rows_to_zero_out_and_not_due_to_given_terms(const MatrixXd &X);
     bool get_can_be_used_as_a_given_term();
+    void set_monotonic_constraint(int constraint);
+    int get_monotonic_constraint();
 
     friend bool operator== (const Term &p1, const Term &p2);
     friend class APLRRegressor;
@@ -93,14 +97,15 @@ public:
 
 Term::Term(size_t base_term,const std::vector<Term> &given_terms,double split_point,bool direction_right,double coefficient):
 name{""},base_term{base_term},given_terms{given_terms},split_point{split_point},direction_right{direction_right},coefficient{coefficient},
-split_point_search_errors_sum{std::numeric_limits<double>::infinity()},ineligible_boosting_steps{0},can_be_used_as_a_given_term{false}
+split_point_search_errors_sum{std::numeric_limits<double>::infinity()},ineligible_boosting_steps{0},can_be_used_as_a_given_term{false},
+monotonic_constraint{0}
 {
 }
 
 Term::Term(const Term &other):
 name{other.name},base_term{other.base_term},given_terms{other.given_terms},split_point{other.split_point},direction_right{other.direction_right},
 coefficient{other.coefficient},coefficient_steps{other.coefficient_steps},split_point_search_errors_sum{other.split_point_search_errors_sum},
-ineligible_boosting_steps{0},can_be_used_as_a_given_term{other.can_be_used_as_a_given_term}
+ineligible_boosting_steps{0},can_be_used_as_a_given_term{other.can_be_used_as_a_given_term},monotonic_constraint{other.monotonic_constraint}
 {
 }
 
@@ -575,23 +580,43 @@ void Term::calculate_coefficient_and_error_on_discretized_data(bool direction_ri
     {
         double error_reduction{0};
         coefficient=xwy/xwx*v;
-        double predicted;
-        double sample_weight_one_obs{NAN_DOUBLE};
-        for (size_t i = index_start; i <= index_end; ++i)
+        if(coefficient_adheres_to_monotonic_constraint())
         {
-            predicted=values_sorted[i]*coefficient;
-            if(sample_weight_discretized.size()>0)
-                sample_weight_one_obs=sample_weight_discretized[i];
+            double predicted;
+            double sample_weight_one_obs{NAN_DOUBLE};
+            for (size_t i = index_start; i <= index_end; ++i)
+            {
+                predicted=values_sorted[i]*coefficient;
+                if(sample_weight_discretized.size()>0)
+                    sample_weight_one_obs=sample_weight_discretized[i];
 
-            error_reduction+=errors_initial[i]-calculate_error_one_observation(negative_gradient_discretized[i],predicted,sample_weight_one_obs);
+                error_reduction+=errors_initial[i]-calculate_error_one_observation(negative_gradient_discretized[i],predicted,sample_weight_one_obs);
+            }
+            split_point_search_errors_sum=error_initial-error_reduction;
         }
-        split_point_search_errors_sum=error_initial-error_reduction;
+        else
+        {
+            coefficient=0;
+            split_point_search_errors_sum=error_initial;
+        }
     }
     else
     {
         coefficient=0;
         split_point_search_errors_sum=error_initial;
     }
+}
+
+bool Term::coefficient_adheres_to_monotonic_constraint()
+{
+    bool coefficient_does_not_adhere_to_increasing_monotonic_constraint{monotonic_constraint>0 && std::isless(coefficient,0.0)};
+    bool coefficient_does_not_adhere_to_decreasing_monotonic_constraint{monotonic_constraint<0 && std::isgreater(coefficient,0.0)};
+
+    bool coefficient_adheres{true};
+    if(coefficient_does_not_adhere_to_increasing_monotonic_constraint || coefficient_does_not_adhere_to_decreasing_monotonic_constraint)
+        coefficient_adheres=false;
+
+    return coefficient_adheres;
 }
 
 void Term::estimate_coefficient_and_error_on_all_data()
@@ -612,8 +637,16 @@ void Term::estimate_coefficient_and_error_on_all_data()
     if(xwx!=0)
     {
         coefficient=xwy/xwx*v;
-        VectorXd predictions{sorted_vectors.values_sorted*coefficient};
-        split_point_search_errors_sum=calculate_sum_error(calculate_errors(sorted_vectors.negative_gradient_sorted,predictions,sorted_vectors.sample_weight_sorted))+error_where_given_terms_are_zero;
+        if(coefficient_adheres_to_monotonic_constraint())
+        {
+            VectorXd predictions{sorted_vectors.values_sorted*coefficient};
+            split_point_search_errors_sum=calculate_sum_error(calculate_errors(sorted_vectors.negative_gradient_sorted,predictions,sorted_vectors.sample_weight_sorted))+error_where_given_terms_are_zero;
+        }
+        else
+        {
+            coefficient=0;
+            split_point_search_errors_sum=std::numeric_limits<double>::infinity();
+        }
     }
     else
     {
@@ -680,6 +713,17 @@ bool Term::get_can_be_used_as_a_given_term()
 {
     return can_be_used_as_a_given_term;
 }
+
+void Term::set_monotonic_constraint(int constraint)
+{
+    monotonic_constraint = constraint;
+}
+
+int Term::get_monotonic_constraint()
+{
+    return monotonic_constraint;
+}
+
 
 std::vector<std::vector<size_t>> distribute_terms_indexes_to_cores(std::vector<size_t> &term_indexes,size_t n_jobs)
 {
