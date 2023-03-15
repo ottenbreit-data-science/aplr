@@ -189,4 +189,4 @@ The index of the term selected. So ***0*** is the first term, ***1*** is the sec
 
 ## Method: get_validation_indexes()
 
-***Returns a numpy vector containing the indexes of the training data observations used for validation and not training.***
+***Returns a list of integers containing the indexes of the training data observations used for validation and not training.***

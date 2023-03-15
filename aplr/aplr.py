@@ -94,7 +94,7 @@ class APLRRegressor():
     def get_validation_group_mse(self)->float:
         return self.APLRRegressor.get_validation_group_mse()
     
-    def get_validation_indexes(self)->npt.ArrayLike:
+    def get_validation_indexes(self)->List[int]:
         return self.APLRRegressor.get_validation_indexes()
 
     #For sklearn
