@@ -36,6 +36,7 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def("get_intercept_steps", &APLRRegressor::get_intercept_steps)
         .def("get_m", &APLRRegressor::get_m)
         .def("get_validation_group_mse", &APLRRegressor::get_validation_group_mse)
+        .def("get_validation_indexes", &APLRRegressor::get_validation_indexes)
         .def_readwrite("intercept", &APLRRegressor::intercept)
         .def_readwrite("intercept_steps", &APLRRegressor::intercept_steps)
         .def_readwrite("m", &APLRRegressor::m)
@@ -64,6 +65,7 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def_readwrite("max_training_prediction_or_response",&APLRRegressor::max_training_prediction_or_response)
         .def_readwrite("validation_group_mse",&APLRRegressor::validation_group_mse)
         .def_readwrite("group_size_for_validation_group_mse",&APLRRegressor::group_size_for_validation_group_mse)
+        .def_readwrite("validation_indexes",&APLRRegressor::validation_indexes)
         .def(py::pickle(
             [](const APLRRegressor &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
@@ -71,10 +73,10 @@ PYBIND11_MODULE(aplr_cpp, m) {
                     a.max_interaction_level,a.max_interactions,a.validation_error_steps,a.term_names,a.term_coefficients,a.terms,a.intercept_steps,
                     a.interactions_eligible,a.min_observations_in_split,a.ineligible_boosting_steps_added,a.max_eligible_terms,
                     a.number_of_base_terms,a.feature_importance,a.link_function,a.tweedie_power,a.min_training_prediction_or_response,a.max_training_prediction_or_response,
-                    a.validation_group_mse,a.group_size_for_validation_group_mse);
+                    a.validation_group_mse,a.group_size_for_validation_group_mse,a.validation_indexes);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 28)
+                if (t.size() != 29)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
@@ -97,6 +99,7 @@ PYBIND11_MODULE(aplr_cpp, m) {
                 a.max_training_prediction_or_response=t[25].cast<double>();
                 a.validation_group_mse=t[26].cast<double>();
                 a.group_size_for_validation_group_mse=t[27].cast<size_t>();
+                a.validation_indexes=t[28].cast<std::vector<size_t>>();
 
                 return a;
             }

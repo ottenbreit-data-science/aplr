@@ -136,6 +136,7 @@ public:
     double max_training_prediction_or_response;
     double validation_group_mse;
     size_t group_size_for_validation_group_mse;
+    std::vector<size_t> validation_indexes;
 
     //Methods
     APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string family="gaussian",
@@ -161,6 +162,7 @@ public:
     VectorXd get_intercept_steps();
     size_t get_m();
     double get_validation_group_mse();
+    std::vector<size_t> get_validation_indexes();
 };
 
 //Regular constructor
@@ -174,7 +176,8 @@ APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::s
         intercept_steps{VectorXd(0)},max_interactions{max_interactions},interactions_eligible{0},validation_error_steps{VectorXd(0)},
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
         max_eligible_terms{max_eligible_terms},number_of_base_terms{0},tweedie_power{tweedie_power},min_training_prediction_or_response{NAN_DOUBLE},
-        max_training_prediction_or_response{NAN_DOUBLE},validation_group_mse{NAN_DOUBLE},group_size_for_validation_group_mse{group_size_for_validation_group_mse}
+        max_training_prediction_or_response{NAN_DOUBLE},validation_group_mse{NAN_DOUBLE},group_size_for_validation_group_mse{group_size_for_validation_group_mse},
+        validation_indexes{std::vector<size_t>(0)}
 {
 }
 
@@ -190,7 +193,7 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other):
     max_eligible_terms{other.max_eligible_terms},number_of_base_terms{other.number_of_base_terms},
     feature_importance{other.feature_importance},tweedie_power{other.tweedie_power},min_training_prediction_or_response{other.min_training_prediction_or_response},
     max_training_prediction_or_response{other.max_training_prediction_or_response},validation_group_mse{other.validation_group_mse},
-    group_size_for_validation_group_mse{other.group_size_for_validation_group_mse}
+    group_size_for_validation_group_mse{other.group_size_for_validation_group_mse},validation_indexes{other.validation_indexes}
 {
 }
 
@@ -363,7 +366,6 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X,const 
 {
     size_t y_size{static_cast<size_t>(y.size())};
     std::vector<size_t> train_indexes;
-    std::vector<size_t> validation_indexes;
     bool use_validation_set_indexes{validation_set_indexes.size()>0};
     if(use_validation_set_indexes)
     {
@@ -371,12 +373,13 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X,const 
         std::iota(std::begin(all_indexes),std::end(all_indexes),0);
         validation_indexes=validation_set_indexes;
         train_indexes.reserve(y_size-validation_indexes.size()); 
-        std::remove_copy_if(all_indexes.begin(),all_indexes.end(),std::back_inserter(train_indexes),[&validation_indexes](const size_t &arg)
+        std::remove_copy_if(all_indexes.begin(),all_indexes.end(),std::back_inserter(train_indexes),[this](const size_t &arg)
             { return (std::find(validation_indexes.begin(),validation_indexes.end(),arg) != validation_indexes.end());});
     }
     else
     {
         train_indexes.reserve(y_size);
+        validation_indexes = std::vector<size_t>(0);
         validation_indexes.reserve(y_size);
         std::mt19937 mersenne{random_state};
         std::uniform_real_distribution<double> distribution(0.0,1.0);
@@ -1354,4 +1357,9 @@ size_t APLRRegressor::get_m()
 double APLRRegressor::get_validation_group_mse()
 {
     return validation_group_mse;
+}
+
+std::vector<size_t> APLRRegressor::get_validation_indexes()
+{
+    return validation_indexes;
 }

@@ -42,7 +42,9 @@ int main()
     //model.fit(X_train,y_train);
     //model.fit(X_train,y_train,sample_weight);
     //model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
-    model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)},{1,8});
+    std::vector<size_t> validation_indexes{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)};
+    std::vector<size_t> prioritized_predictor_indexes{1,8};
+    model.fit(X_train,y_train,sample_weight,{},validation_indexes,prioritized_predictor_indexes);
     std::cout<<"feature importance\n"<<model.feature_importance<<"\n\n";
 
     VectorXd predictions{model.predict(X_test)};
@@ -54,7 +56,9 @@ int main()
     std::cout<<predictions.mean()<<"\n\n";
     tests.push_back(is_approximately_equal(predictions.mean(),23.5049,0.00001));
 
-    //std::cout<<model.validation_error_steps<<"\n\n";
+    std::vector<size_t> validation_indexes_from_model{model.get_validation_indexes()};
+    bool validation_indexes_from_model_are_correct{validation_indexes_from_model == validation_indexes};
+    tests.push_back(validation_indexes_from_model_are_correct);
 
     //Test summary
     std::cout<<"\n\nTest summary\n"<<"Passed "<<std::accumulate(tests.begin(),tests.end(),0)<<" out of "<<tests.size()<<" tests.";

@@ -185,3 +185,8 @@ The index of the term selected. So ***0*** is the first term, ***1*** is the sec
 ## Method: get_validation_group_mse()
 
 ***Returns mean squared error on grouped data in the validation set.*** See ***group_size_for_validation_group_mse*** for more information.
+
+
+## Method: get_validation_indexes()
+
+***Returns a numpy vector containing the indexes of the training data observations used for validation and not training.***
