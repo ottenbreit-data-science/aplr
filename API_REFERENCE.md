@@ -1,6 +1,6 @@
 # APLRRegressor
 
-## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5, group_size_for_validation_group_mse:int=100)
+## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5, validation_tuning_metric:str="default")
 
 ### Constructor parameters
 
@@ -50,11 +50,10 @@ Limits 1) the number of terms already in the model that can be considered as int
 ***0*** does not print progress reports during fitting. ***1*** prints a summary after running the ***fit*** method. ***2*** prints a summary after each boosting step.
 
 #### tweedie_power (default = 1.5)
-Species the variance power for the "tweedie" ***family***.
+Specifies the variance power for the "tweedie" ***family***.
 
-#### group_size_for_validation_group_mse (default = 100)
-APLR calculates a tuning metric, mean squared error for groups of observations in the validation set. This metric is provided by the method ***get_validation_group_mse()***. The metric may be useful for tuning ***tweedie_power*** and to some extent ***family*** or ***link_function***. The reasoning behind this is that mean squared error (MSE) is often appropriate for evaluating goodness of fit on approximately normally distributed data. The mean of a group of observations is approximately normally distributed according to the Central Limit Theorem (CLT) if there are enough observations in the group, regardless of how individual observations are distributed. Ideally, ***group_size_for_validation_group_mse*** should be large enough so that the Central Limit Theorem holds (at least 30, but the default of 100 is a safer choice). Also, the number of observations in the validation set should be substantially higher than ***group_size_for_validation_group_mse***.
-
+#### validation_tuning_metric (default = "default")
+Specifies which tuning metric to use for validating the model. Available options are "default" (using the same methodology as when calculating the training error), "mse", "mae" and "rankability". The default is often a choice that fits well with respect to the ***family*** chosen. However, if you want to use ***family*** as a tuning parameter then the default is not suitable. "rankability" uses a methodology similar to the one described in https://towardsdatascience.com/how-to-calculate-roc-auc-score-for-regression-models-c0be4fdf76bb
 
 ## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[])
 
@@ -182,10 +181,9 @@ The index of the term selected. So ***0*** is the first term, ***1*** is the sec
 ***Returns the number of boosting steps in the model (the value that minimized validation error).***
 
 
-## Method: get_validation_group_mse()
+## Method: get_validation_tuning_metric()
 
-***Returns mean squared error on grouped data in the validation set.*** See ***group_size_for_validation_group_mse*** for more information.
-
+***Returns the validation_tuning_metric used.*** 
 
 ## Method: get_validation_indexes()
 

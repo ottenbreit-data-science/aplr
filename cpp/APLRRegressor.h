@@ -86,7 +86,6 @@ private:
     void name_terms(const MatrixXd &X, const std::vector<std::string> &X_names);
     void calculate_feature_importance_on_validation_set();
     void find_min_and_max_training_predictions_or_responses();
-    void calculate_validation_group_mse();
     void cleanup_after_fit();
     void validate_that_model_can_be_used(const MatrixXd &X);
     void throw_error_if_family_does_not_exist();
@@ -134,16 +133,15 @@ public:
     double tweedie_power;
     double min_training_prediction_or_response;
     double max_training_prediction_or_response;
-    double validation_group_mse;
-    size_t group_size_for_validation_group_mse;
     std::vector<size_t> validation_indexes;
+    std::string validation_tuning_metric;
 
     //Methods
     APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string family="gaussian",
         std::string link_function="identity", size_t n_jobs=0, double validation_ratio=0.2,double intercept=NAN_DOUBLE,
         size_t reserved_terms_times_num_x=100, size_t bins=300,size_t verbosity=0,size_t max_interaction_level=1,size_t max_interactions=100000,
         size_t min_observations_in_split=20, size_t ineligible_boosting_steps_added=10, size_t max_eligible_terms=5,double tweedie_power=1.5,
-        size_t group_size_for_validation_group_mse=100);
+        std::string validation_tuning_metric="default");
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},const std::vector<size_t> &validation_set_indexes={},
@@ -161,7 +159,7 @@ public:
     double get_intercept();
     VectorXd get_intercept_steps();
     size_t get_m();
-    double get_validation_group_mse();
+    std::string get_validation_tuning_metric();
     std::vector<size_t> get_validation_indexes();
 };
 
@@ -169,14 +167,14 @@ public:
 APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::string family,std::string link_function,size_t n_jobs,
     double validation_ratio,double intercept,size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,
     size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double tweedie_power,
-    size_t group_size_for_validation_group_mse):
+    std::string validation_tuning_metric):
         reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{intercept},m{m},v{v},
         family{family},link_function{link_function},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},
         intercept_steps{VectorXd(0)},max_interactions{max_interactions},interactions_eligible{0},validation_error_steps{VectorXd(0)},
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
         max_eligible_terms{max_eligible_terms},number_of_base_terms{0},tweedie_power{tweedie_power},min_training_prediction_or_response{NAN_DOUBLE},
-        max_training_prediction_or_response{NAN_DOUBLE},validation_group_mse{NAN_DOUBLE},group_size_for_validation_group_mse{group_size_for_validation_group_mse},
+        max_training_prediction_or_response{NAN_DOUBLE}, validation_tuning_metric{validation_tuning_metric},
         validation_indexes{std::vector<size_t>(0)}
 {
 }
@@ -192,8 +190,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other):
     min_observations_in_split{other.min_observations_in_split},ineligible_boosting_steps_added{other.ineligible_boosting_steps_added},
     max_eligible_terms{other.max_eligible_terms},number_of_base_terms{other.number_of_base_terms},
     feature_importance{other.feature_importance},tweedie_power{other.tweedie_power},min_training_prediction_or_response{other.min_training_prediction_or_response},
-    max_training_prediction_or_response{other.max_training_prediction_or_response},validation_group_mse{other.validation_group_mse},
-    group_size_for_validation_group_mse{other.group_size_for_validation_group_mse},validation_indexes{other.validation_indexes}
+    max_training_prediction_or_response{other.max_training_prediction_or_response},validation_tuning_metric{other.validation_tuning_metric},
+    validation_indexes{other.validation_indexes}
 {
 }
 
@@ -225,7 +223,6 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
     name_terms(X, X_names);
     calculate_feature_importance_on_validation_set();
     find_min_and_max_training_predictions_or_responses();
-    calculate_validation_group_mse();
     cleanup_after_fit();
 }
 
@@ -447,7 +444,6 @@ void APLRRegressor::scale_training_observations_if_using_log_link_function()
         {
             scaling_factor_for_log_link_function=1/inverse_scaling_factor;
             y_train*=scaling_factor_for_log_link_function;
-            y_validation*=scaling_factor_for_log_link_function;
         }
         else
             scaling_factor_for_log_link_function=1.0;
@@ -966,7 +962,50 @@ void APLRRegressor::add_new_term(size_t boosting_step)
 
 void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step)
 {
-    validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation,family,tweedie_power),sample_weight_validation);
+    VectorXd rescaled_predictions_current_validation(0);
+    bool link_function_is_log{link_function=="log"};
+    if(link_function_is_log)
+    {
+        rescaled_predictions_current_validation = predictions_current_validation / scaling_factor_for_log_link_function;
+    }
+    
+    bool using_default{validation_tuning_metric=="default"};
+    bool using_mse{validation_tuning_metric=="mse"};
+    bool using_mae{validation_tuning_metric=="mae"};
+    bool using_rankability{validation_tuning_metric=="rankability"};
+    if(using_default)
+    {
+        if(link_function_is_log)
+            validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,rescaled_predictions_current_validation,sample_weight_validation,family,tweedie_power),sample_weight_validation);
+        else
+            validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation,family,tweedie_power),sample_weight_validation);
+    }
+    else if(using_mse)
+    {
+        if(link_function_is_log)
+            validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,rescaled_predictions_current_validation,sample_weight_validation),sample_weight_validation);
+        else
+            validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation),sample_weight_validation);
+    }
+    else if(using_mae)
+    {
+        if(link_function_is_log)
+            validation_error_steps[boosting_step]=calculate_mean_error(calculate_absolute_errors(y_validation,rescaled_predictions_current_validation,sample_weight_validation),sample_weight_validation);
+        else
+            validation_error_steps[boosting_step]=calculate_mean_error(calculate_absolute_errors(y_validation,predictions_current_validation,sample_weight_validation),sample_weight_validation);
+    }
+    else if(using_rankability)
+    {
+        if(link_function_is_log)
+            validation_error_steps[boosting_step]=-calculate_rankability(y_validation,rescaled_predictions_current_validation,sample_weight_validation,random_state);
+        else
+            validation_error_steps[boosting_step]=-calculate_rankability(y_validation,predictions_current_validation,sample_weight_validation,random_state);
+    }
+    else
+    {
+        throw std::runtime_error(validation_tuning_metric + " is an invalid validation_tuning_metric.");
+    }
+
     bool validation_error_is_invalid{std::isinf(validation_error_steps[boosting_step])};
     if(validation_error_is_invalid)
     {
@@ -1080,7 +1119,6 @@ void APLRRegressor::revert_scaling_if_using_log_link_function()
     if(link_function=="log")
     {
         y_train/=scaling_factor_for_log_link_function;
-        y_validation/=scaling_factor_for_log_link_function;
         intercept+=std::log(1/scaling_factor_for_log_link_function);
         for (size_t i = 0; i < static_cast<size_t>(intercept_steps.size()); ++i)
         {
@@ -1194,17 +1232,6 @@ void APLRRegressor::find_min_and_max_training_predictions_or_responses()
     VectorXd training_predictions{predict(X_train,false)};
     min_training_prediction_or_response=std::max(training_predictions.minCoeff(), y_train.minCoeff());
     max_training_prediction_or_response=std::min(training_predictions.maxCoeff(), y_train.maxCoeff());
-}
-
-void APLRRegressor::calculate_validation_group_mse()
-{
-    VectorXd validation_predictions{predict(X_validation,false)};
-    VectorXi validation_predictions_sorted_index{sort_indexes_ascending(validation_predictions)};
-    VectorXd y_validation_centered{calculate_rolling_centered_mean(y_validation,validation_predictions_sorted_index,group_size_for_validation_group_mse,sample_weight_validation)};
-    VectorXd validation_predictions_centered{calculate_rolling_centered_mean(validation_predictions,validation_predictions_sorted_index,group_size_for_validation_group_mse,sample_weight_validation)};
-
-    VectorXd squared_residuals{(y_validation_centered-validation_predictions_centered).array().pow(2)};
-    validation_group_mse =  squared_residuals.mean();
 }
 
 void APLRRegressor::validate_that_model_can_be_used(const MatrixXd &X)
@@ -1354,9 +1381,9 @@ size_t APLRRegressor::get_m()
     return m;
 }
 
-double APLRRegressor::get_validation_group_mse()
+std::string APLRRegressor::get_validation_tuning_metric()
 {
-    return validation_group_mse;
+    return validation_tuning_metric;
 }
 
 std::vector<size_t> APLRRegressor::get_validation_indexes()

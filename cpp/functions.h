@@ -8,6 +8,7 @@
 #include <iostream>
 #include <thread>
 #include <future>
+#include <random>
 #include "constants.h"
 
 using namespace Eigen;
@@ -93,6 +94,16 @@ VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const Vect
     if(sample_weight.size()>0)
         errors=errors.array()*sample_weight.array();
     
+    return errors;
+}
+
+VectorXd calculate_absolute_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0))
+{
+    VectorXd errors{(y-predicted).cwiseAbs()};
+
+    if(sample_weight.size()>0)
+        errors=errors.array()*sample_weight.array();
+
     return errors;
 }
 
@@ -256,67 +267,6 @@ void throw_error_if_matrix_has_nan_or_infinite_elements(const T &x, const std::s
     }
 }
 
-VectorXd calculate_rolling_centered_mean(const VectorXd &vector, const VectorXi &sorted_index, size_t rolling_window, const VectorXd &sample_weight=VectorXd(0))
-{
-    bool sample_weight_is_provided{sample_weight.rows()==vector.rows()};
-    bool rolling_window_contains_one_observation{rolling_window<=1};
-    bool rolling_window_encompasses_all_observations_in_validation_set{rolling_window >= static_cast<size_t>(vector.rows())};
-    size_t half_rolling_window{(rolling_window-1)/2};
-    
-    VectorXd rolling_centered_mean;
-    if(rolling_window_contains_one_observation)
-        rolling_centered_mean = vector;
-    else if(rolling_window_encompasses_all_observations_in_validation_set)
-    {
-        if(sample_weight_is_provided)
-        {
-            double weighted_centered_mean{(vector.array() * sample_weight.array()).sum() / sample_weight.sum()};
-            rolling_centered_mean = VectorXd::Constant(vector.rows(),weighted_centered_mean);
-        }
-        else
-            rolling_centered_mean = VectorXd::Constant(vector.rows(),vector.mean());
-    }
-    else
-    {
-        rolling_centered_mean = VectorXd::Constant(vector.rows(),0);
-
-        size_t vector_size{static_cast<size_t>(sorted_index.rows())};
-        for (size_t i = 0; i < vector_size; ++i)
-        {
-            size_t min_index;
-            if(i<half_rolling_window)
-                min_index=0;
-            else
-                min_index=i-half_rolling_window;
-            
-            size_t max_index{std::min(vector_size-1, i+half_rolling_window)};
-
-            double rolling_centered_weighted_sum{0};
-            if(sample_weight_is_provided)
-            {
-                double rolling_centered_sample_weight_sum{0};
-                for (size_t j = min_index; j <= max_index; ++j)
-                {
-                    rolling_centered_weighted_sum += vector[sorted_index[j]] * sample_weight[sorted_index[j]];
-                    rolling_centered_sample_weight_sum += sample_weight[sorted_index[j]];
-                }
-                rolling_centered_mean[sorted_index[i]] = rolling_centered_weighted_sum / rolling_centered_sample_weight_sum;
-            }
-            else
-            {
-                size_t observations{max_index-min_index+1};
-                for (size_t j = min_index; j <= max_index; ++j)
-                {
-                    rolling_centered_mean[sorted_index[i]] += vector[sorted_index[j]];
-                }
-                rolling_centered_mean[sorted_index[i]] /= observations;
-            }
-        }
-    }
-    
-    return rolling_centered_mean;
-}
-
 VectorXi calculate_indicator(const VectorXd &v)
 {
     VectorXi indicator{VectorXi::Constant(v.rows(),1)};
@@ -337,4 +287,72 @@ VectorXi calculate_indicator(const VectorXi &v)
             indicator[i]=0;
     }
     return indicator;
+}
+
+std::vector<size_t> sample_indexes_of_vector(int rows_in_underyling_vector, std::mt19937 &mersenne, size_t rows_to_sample)
+{
+    std::uniform_int_distribution<> distribution{0,rows_in_underyling_vector-1};
+    std::vector<size_t> output(rows_to_sample);
+    for (size_t row = 0; row < rows_to_sample; ++row) 
+    {
+        output[row] = distribution(mersenne);
+    }
+    return output;
+}
+
+double calculate_rankability(const VectorXd &y_true, const VectorXd &y_pred, const VectorXd &weights=VectorXd(0), 
+                            uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(), size_t bootstraps = 10000)
+{
+    bool weights_are_provided{weights.size()==y_true.size()};
+    std::mt19937 mersenne{random_state};
+    std::vector<size_t> first_index_in_pair{sample_indexes_of_vector(y_true.size(), mersenne, bootstraps)};
+    std::vector<size_t> second_index_in_pair{sample_indexes_of_vector(y_true.size(), mersenne, bootstraps)};
+    double num_pairs{0.0};
+    double num_ranked_correctly{0.0};
+    if(weights_are_provided)
+    {
+        for (size_t i = 0; i < first_index_in_pair.size(); ++i)
+        {
+            bool first_item_in_pair_has_higher_response_than_second_item{std::isgreater(y_true[first_index_in_pair[i]],y_true[second_index_in_pair[i]])};
+            if(first_item_in_pair_has_higher_response_than_second_item)
+            {
+                double weight = (weights[first_index_in_pair[i]] + weights[second_index_in_pair[i]])/2;
+                num_pairs += weight;
+                bool prediction_is_also_higher{std::isgreater(y_pred[first_index_in_pair[i]],y_pred[second_index_in_pair[i]])};
+                bool predictions_are_equal(is_approximately_equal(y_pred[first_index_in_pair[i]],y_pred[second_index_in_pair[i]]));
+                if(prediction_is_also_higher)
+                {
+                    num_ranked_correctly += weight;
+                }
+                else if(predictions_are_equal)
+                {
+                    num_ranked_correctly += weight * 0.5;
+                }
+            }
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < first_index_in_pair.size(); ++i)
+        {
+            bool first_item_in_pair_has_higher_response_than_second_item{std::isgreater(y_true[first_index_in_pair[i]],y_true[second_index_in_pair[i]])};
+            if(first_item_in_pair_has_higher_response_than_second_item)
+            {
+                num_pairs += 1;
+                bool prediction_is_also_higher{std::isgreater(y_pred[first_index_in_pair[i]],y_pred[second_index_in_pair[i]])};
+                bool predictions_are_equal(is_approximately_equal(y_pred[first_index_in_pair[i]],y_pred[second_index_in_pair[i]]));
+                if(prediction_is_also_higher)
+                {
+                    num_ranked_correctly += 1;
+                }
+                else if(predictions_are_equal)
+                {
+                    num_ranked_correctly += 0.5;
+                }
+            }
+        }
+    }
+    double rankability{num_ranked_correctly/num_pairs};
+
+    return rankability;
 }

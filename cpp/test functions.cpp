@@ -44,58 +44,6 @@ int main()
     std::cout<<"error_mse_sw: "<<error_mse_sw<<"\n\n";   
     tests.push_back((is_approximately_equal(error_mse_sw,0.4433,0.0001)?true:false));
 
-    //calculate_rolling_centered_mean
-    VectorXi sorted_index{sort_indexes_ascending(y)};
-    VectorXd y_sorted(5);
-    VectorXd sample_weight_sorted(5);
-    for (size_t i = 0; i < y_sorted.size(); ++i)
-    {
-        y_sorted[i]=y[sorted_index[i]];
-        sample_weight_sorted[i]=sample_weight[sorted_index[i]];
-    }
-
-    VectorXd c1{calculate_rolling_centered_mean(y,sorted_index,1)};
-    std::cout<<"rolling_centered_mean_1: "<<c1.mean()<<"\n\n";
-    bool test_passed{c1.isApprox(y)};
-    tests.push_back(test_passed);
-
-    VectorXd c2{calculate_rolling_centered_mean(y,sorted_index,1,sample_weight)};
-    std::cout<<"rolling_centered_mean_2: "<<c2.mean()<<"\n\n";
-    test_passed=c2.isApprox(y);
-    tests.push_back(test_passed);
-
-    VectorXd c3{calculate_rolling_centered_mean(y,sorted_index,100)};
-    std::cout<<"rolling_centered_mean_3: "<<c3.mean()<<"\n\n";
-    test_passed=is_approximately_equal(c3.mean(),y.mean());
-    tests.push_back(test_passed);
-
-    VectorXd c4{calculate_rolling_centered_mean(y,sorted_index,100,sample_weight)};
-    std::cout<<"rolling_centered_mean_4: "<<c4.mean()<<"\n\n";
-    double correct_weighted_average{(y.array()*sample_weight.array()).sum() / sample_weight.sum()};
-    test_passed=is_approximately_equal(c4.mean(),correct_weighted_average);
-    tests.push_back(test_passed);
-
-    VectorXd c5{calculate_rolling_centered_mean(y,sorted_index,4)};
-    std::cout<<"rolling_centered_mean_5: "<<c5.mean()<<"\n\n";
-    VectorXd correct_weighted_average_vector(5);
-    correct_weighted_average_vector[0]=(y_sorted[0]+y_sorted[1]+y_sorted[2])/3;
-    correct_weighted_average_vector[1]=(y_sorted[2]+y_sorted[3]+y_sorted[4])/3;
-    correct_weighted_average_vector[2]=(y_sorted[1]+y_sorted[2]+y_sorted[3])/3;
-    correct_weighted_average_vector[3]=(y_sorted[3]+y_sorted[4])/2;
-    correct_weighted_average_vector[4]=(y_sorted[0]+y_sorted[1])/2;
-    test_passed=c5.isApprox(correct_weighted_average_vector);
-    tests.push_back(test_passed);
-
-    VectorXd c6{calculate_rolling_centered_mean(y,sorted_index,4,sample_weight)};
-    std::cout<<"rolling_centered_mean_6: "<<c6.mean()<<"\n\n";
-    correct_weighted_average_vector[0]=(y_sorted[0]*sample_weight_sorted[0] + y_sorted[1]*sample_weight_sorted[1] + y_sorted[2]*sample_weight_sorted[2]) / (sample_weight_sorted[0]+sample_weight_sorted[1]+sample_weight_sorted[2]);
-    correct_weighted_average_vector[1]=(y_sorted[2]*sample_weight_sorted[2] + y_sorted[3]*sample_weight_sorted[3] + y_sorted[4]*sample_weight_sorted[4]) / (sample_weight_sorted[2]+sample_weight_sorted[3]+sample_weight_sorted[4]);
-    correct_weighted_average_vector[2]=(y_sorted[1]*sample_weight_sorted[1] + y_sorted[2]*sample_weight_sorted[2] + y_sorted[3]*sample_weight_sorted[3]) / (sample_weight_sorted[1]+sample_weight_sorted[2]+sample_weight_sorted[3]);
-    correct_weighted_average_vector[3]=(y_sorted[3]*sample_weight_sorted[3] + y_sorted[4]*sample_weight_sorted[4] )/ (sample_weight_sorted[3]+sample_weight_sorted[4]);
-    correct_weighted_average_vector[4]=(y_sorted[0]*sample_weight_sorted[0] + y_sorted[1]*sample_weight_sorted[1]) / (sample_weight_sorted[0]+sample_weight_sorted[1]);
-    test_passed=c6.isApprox(correct_weighted_average_vector);
-    tests.push_back(test_passed);
-
     //testing for nan and infinity
     //matrix without nan or inf
     bool matrix_has_nan_or_inf_elements{matrix_has_nan_or_infinite_elements(y)};    
@@ -110,7 +58,31 @@ int main()
     nan<<1.0, 0.2, NAN_DOUBLE, 0.0, 0.5;
     matrix_has_nan_or_inf_elements = matrix_has_nan_or_infinite_elements(nan);
     tests.push_back(matrix_has_nan_or_inf_elements?true:false);
- 
+
+    VectorXd y_true(3);
+    VectorXd weights_equal(3);
+    VectorXd weights_different(3);
+    VectorXd y_pred_good(3);
+    VectorXd y_pred_bad(3);
+    VectorXd y_pred_equal(3);
+    y_true<<1.0, 2.0, 3.0;
+    weights_equal<<1, 1, 1;
+    weights_different<<0, 0.5, 0.75;
+    y_pred_good<<-1.0, 2.0, 4.0;
+    y_pred_bad<<4.0, 3.0, -1.0;
+    double rankability_good_ew{calculate_rankability(y_true,y_pred_good,weights_equal)};
+    double rankability_bad_ew{calculate_rankability(y_true,y_pred_bad,weights_equal)};
+    double rankability_equal_ew{calculate_rankability(y_true,y_pred_equal,weights_equal)};
+    double rankability_good_dw{calculate_rankability(y_true,y_pred_good,weights_different)};
+    double rankability_bad_dw{calculate_rankability(y_true,y_pred_bad,weights_different)};
+    double rankability_equal_dw{calculate_rankability(y_true,y_pred_equal,weights_different)};
+    tests.push_back(is_approximately_equal(rankability_good_ew,1.0));
+    tests.push_back(is_approximately_equal(rankability_bad_ew,0.0));
+    tests.push_back(is_approximately_equal(rankability_equal_ew,0.5));
+    tests.push_back(is_approximately_equal(rankability_good_dw,1.0));
+    tests.push_back(is_approximately_equal(rankability_bad_dw,0.0));
+    tests.push_back(is_approximately_equal(rankability_equal_dw,0.5));
+
     //Test summary
     std::cout<<"Test summary\n\n"<<"Passed "<<std::accumulate(tests.begin(),tests.end(),0)<<" out of "<<tests.size()<<" tests.";
 }

@@ -20,16 +20,15 @@ int main()
     model.v=0.1;
     model.bins=300;
     model.n_jobs=0;
-    model.family="tweedie";
+    model.family="gamma";
     model.link_function="log";
-    model.tweedie_power=3.0;
     model.verbosity=3;
     model.max_interaction_level=0;
     model.max_interactions=1000;
     model.min_observations_in_split=20;
     model.ineligible_boosting_steps_added=10;
     model.max_eligible_terms=5;
-    model.validation_tuning_metric="mae";
+    model.validation_tuning_metric="rankability";
 
     //Data    
     MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -42,8 +41,8 @@ int main()
     std::cout<<X_train;
 
     //Fitting
-    model.fit(X_train,y_train);
-    //model.fit(X_train,y_train,sample_weight);
+    //model.fit(X_train,y_train);
+    model.fit(X_train,y_train,sample_weight);
     //model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
     std::cout<<"feature importance\n"<<model.feature_importance<<"\n\n";
 
@@ -54,7 +53,7 @@ int main()
     save_as_csv_file("data/output.csv",predictions);
 
     std::cout<<predictions.mean()<<"\n\n";
-    tests.push_back(is_approximately_equal(predictions.mean(),23.4221,0.00001));
+    tests.push_back(is_approximately_equal(predictions.mean(),23.6581,0.00001));
 
     //Test summary
     std::cout<<"\n\nTest summary\n"<<"Passed "<<std::accumulate(tests.begin(),tests.end(),0)<<" out of "<<tests.size()<<" tests.";
