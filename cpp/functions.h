@@ -353,6 +353,9 @@ double calculate_rankability(const VectorXd &y_true, const VectorXd &y_pred, con
         }
     }
     double rankability{num_ranked_correctly/num_pairs};
+    bool rankability_is_invalid{!std::isfinite(rankability)};
+    if(rankability_is_invalid)
+        rankability=0.5;
 
     return rankability;
 }

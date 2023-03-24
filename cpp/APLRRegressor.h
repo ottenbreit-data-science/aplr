@@ -46,7 +46,7 @@ private:
     double scaling_factor_for_log_link_function;
     std::vector<size_t> predictor_indexes;
     std::vector<size_t> prioritized_predictors_indexes;
-    std::vector<int> monotonic_constraints; //Make this VectorXi and validate for nan/inf input
+    std::vector<int> monotonic_constraints;
 
     //Methods
     void validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, 
@@ -78,6 +78,7 @@ private:
     void update_gradient_and_errors();
     void add_new_term(size_t boosting_step);
     void calculate_and_validate_validation_error(size_t boosting_step);
+    void calculate_validation_error(size_t boosting_step, const VectorXd &predictions);
     void update_term_eligibility();
     void print_summary_after_boosting_step(size_t boosting_step);
     void update_coefficients_for_all_steps();
@@ -962,50 +963,14 @@ void APLRRegressor::add_new_term(size_t boosting_step)
 
 void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step)
 {
-    VectorXd rescaled_predictions_current_validation(0);
-    bool link_function_is_log{link_function=="log"};
-    if(link_function_is_log)
+    if(link_function=="log")
     {
-        rescaled_predictions_current_validation = predictions_current_validation / scaling_factor_for_log_link_function;
-    }
-    
-    bool using_default{validation_tuning_metric=="default"};
-    bool using_mse{validation_tuning_metric=="mse"};
-    bool using_mae{validation_tuning_metric=="mae"};
-    bool using_rankability{validation_tuning_metric=="rankability"};
-    if(using_default)
-    {
-        if(link_function_is_log)
-            validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,rescaled_predictions_current_validation,sample_weight_validation,family,tweedie_power),sample_weight_validation);
-        else
-            validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation,family,tweedie_power),sample_weight_validation);
-    }
-    else if(using_mse)
-    {
-        if(link_function_is_log)
-            validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,rescaled_predictions_current_validation,sample_weight_validation),sample_weight_validation);
-        else
-            validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions_current_validation,sample_weight_validation),sample_weight_validation);
-    }
-    else if(using_mae)
-    {
-        if(link_function_is_log)
-            validation_error_steps[boosting_step]=calculate_mean_error(calculate_absolute_errors(y_validation,rescaled_predictions_current_validation,sample_weight_validation),sample_weight_validation);
-        else
-            validation_error_steps[boosting_step]=calculate_mean_error(calculate_absolute_errors(y_validation,predictions_current_validation,sample_weight_validation),sample_weight_validation);
-    }
-    else if(using_rankability)
-    {
-        if(link_function_is_log)
-            validation_error_steps[boosting_step]=-calculate_rankability(y_validation,rescaled_predictions_current_validation,sample_weight_validation,random_state);
-        else
-            validation_error_steps[boosting_step]=-calculate_rankability(y_validation,predictions_current_validation,sample_weight_validation,random_state);
+        VectorXd rescaled_predictions_current_validation{predictions_current_validation / scaling_factor_for_log_link_function};
+        calculate_validation_error(boosting_step, rescaled_predictions_current_validation);
     }
     else
-    {
-        throw std::runtime_error(validation_tuning_metric + " is an invalid validation_tuning_metric.");
-    }
-
+        calculate_validation_error(boosting_step, predictions_current_validation);
+    
     bool validation_error_is_invalid{std::isinf(validation_error_steps[boosting_step])};
     if(validation_error_is_invalid)
     {
@@ -1013,6 +978,20 @@ void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step
         std::string warning_message{"Warning: Encountered numerical problems when calculating prediction errors in the previous boosting step. Not continuing with further boosting steps. One potential reason is if the combination of family and link_function is invalid."};
         std::cout<<warning_message<<"\n";
     }
+}
+
+void APLRRegressor::calculate_validation_error(size_t boosting_step, const VectorXd &predictions)
+{
+    if(validation_tuning_metric=="default")
+        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,family,tweedie_power),sample_weight_validation);
+    else if(validation_tuning_metric=="mse")
+        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation),sample_weight_validation);
+    else if(validation_tuning_metric=="mae")
+        validation_error_steps[boosting_step]=calculate_mean_error(calculate_absolute_errors(y_validation,predictions,sample_weight_validation),sample_weight_validation);
+    else if(validation_tuning_metric=="rankability")
+        validation_error_steps[boosting_step]=-calculate_rankability(y_validation,predictions,sample_weight_validation,random_state);
+    else
+        throw std::runtime_error(validation_tuning_metric + " is an invalid validation_tuning_metric.");
 }
 
 void APLRRegressor::update_term_eligibility()
