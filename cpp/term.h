@@ -505,7 +505,8 @@ void Term::discretize_data_by_bin()
 
 void Term::estimate_split_point_on_discretized_data()
 {
-    errors_initial=calculate_errors(negative_gradient_discretized,VectorXd::Constant(negative_gradient_discretized.size(),0.0),sample_weight_discretized);
+    errors_initial=calculate_errors(negative_gradient_discretized,VectorXd::Constant(negative_gradient_discretized.size(),0.0),
+        sample_weight_discretized,FAMILY_GAUSSIAN);
     error_initial=calculate_sum_error(errors_initial);
 
     double split_point_temp;
@@ -640,7 +641,8 @@ void Term::estimate_coefficient_and_error_on_all_data()
         if(coefficient_adheres_to_monotonic_constraint())
         {
             VectorXd predictions{sorted_vectors.values_sorted*coefficient};
-            split_point_search_errors_sum=calculate_sum_error(calculate_errors(sorted_vectors.negative_gradient_sorted,predictions,sorted_vectors.sample_weight_sorted))+error_where_given_terms_are_zero;
+            split_point_search_errors_sum=calculate_sum_error(calculate_errors(sorted_vectors.negative_gradient_sorted,predictions,
+                sorted_vectors.sample_weight_sorted,FAMILY_GAUSSIAN))+error_where_given_terms_are_zero;
         }
         else
         {

@@ -31,7 +31,6 @@ private:
     VectorXd predictions_current;
     VectorXd predictions_current_validation;
     VectorXd neg_gradient_current;
-    VectorXd neg_gradient_nullmodel_errors;
     double neg_gradient_nullmodel_errors_sum;
     size_t best_term_index;
     VectorXd linear_predictor_update;
@@ -630,8 +629,7 @@ void APLRRegressor::update_linear_predictor_and_predictions()
 void APLRRegressor::update_gradient_and_errors()
 {
     neg_gradient_current=calculate_neg_gradient_current();
-    neg_gradient_nullmodel_errors=calculate_errors(neg_gradient_current,linear_predictor_null_model,sample_weight_train);
-    neg_gradient_nullmodel_errors_sum=calculate_sum_error(neg_gradient_nullmodel_errors);
+    neg_gradient_nullmodel_errors_sum=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_null_model,sample_weight_train,FAMILY_GAUSSIAN));
 }
 
 std::vector<size_t> APLRRegressor::find_terms_eligible_current_indexes_for_a_base_term(size_t base_term)
@@ -908,7 +906,7 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step,
 
     linear_predictor_update=terms_eligible_current[best_term_index].calculate_contribution_to_linear_predictor(X_train);
     linear_predictor_update_validation=terms_eligible_current[best_term_index].calculate_contribution_to_linear_predictor(X_validation);
-    double error_after_updating_term=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train));
+    double error_after_updating_term=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train,FAMILY_GAUSSIAN));
     bool no_improvement{std::isgreaterequal(error_after_updating_term,neg_gradient_nullmodel_errors_sum)};
     if(no_improvement)
     {
@@ -985,7 +983,7 @@ void APLRRegressor::calculate_validation_error(size_t boosting_step, const Vecto
     if(validation_tuning_metric=="default")
         validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,family,tweedie_power),sample_weight_validation);
     else if(validation_tuning_metric=="mse")
-        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation),sample_weight_validation);
+        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,FAMILY_GAUSSIAN),sample_weight_validation);
     else if(validation_tuning_metric=="mae")
         validation_error_steps[boosting_step]=calculate_mean_error(calculate_absolute_errors(y_validation,predictions,sample_weight_validation),sample_weight_validation);
     else if(validation_tuning_metric=="rankability")
@@ -1236,7 +1234,6 @@ void APLRRegressor::cleanup_after_fit()
     predictions_current.resize(0);
     predictions_current_validation.resize(0);
     neg_gradient_current.resize(0);
-    neg_gradient_nullmodel_errors.resize(0);
     linear_predictor_update.resize(0);
     linear_predictor_update_validation.resize(0);
     distributed_terms.clear();
