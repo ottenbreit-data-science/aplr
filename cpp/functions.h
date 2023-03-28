@@ -359,3 +359,56 @@ double calculate_rankability(const VectorXd &y_true, const VectorXd &y_pred, con
 
     return rankability;
 }
+
+double trapezoidal_integration(const VectorXd &y, const VectorXd &x)
+{
+    bool y_is_large_enough{y.rows()>1};
+    bool x_and_y_have_the_same_size{x.rows()==y.rows()};
+
+    double output{NAN_DOUBLE};
+    if(y_is_large_enough && x_and_y_have_the_same_size)
+    {
+        output=0;
+        for (size_t i = 1; i < static_cast<size_t>(y.size()); ++i)
+        {
+            double delta_y{(y[i]+y[i-1])/2};
+            double delta_x{x[i]-x[i-1]};
+            output += delta_y*delta_x;
+        }
+    }
+
+    return output;
+}
+
+VectorXd calculate_weights_if_they_are_not_provided(const VectorXd &y_true, const VectorXd &weights=VectorXd(0))
+{
+    bool weights_are_not_provided{weights.size()==0};
+    if(weights_are_not_provided)
+    {
+        return VectorXd::Constant(y_true.size(),1.0);
+    }
+    else
+        return weights;
+}
+
+double calculate_gini(const VectorXd &y_true, const VectorXd &y_pred, const VectorXd &weights=VectorXd(0))
+{
+    VectorXd weights_used{calculate_weights_if_they_are_not_provided(y_true,weights)};
+
+    VectorXi y_pred_sorted_index{sort_indexes_ascending(y_pred)};
+
+    Eigen::Index normalized_cumsum_vector_rows{y_true.size()+1};
+    VectorXd normalized_cumsum_y_true{VectorXd::Constant(normalized_cumsum_vector_rows, 0.0)};
+    VectorXd normalized_cumsum_weights{VectorXd::Constant(normalized_cumsum_vector_rows, 0.0)};
+    for (Eigen::Index i = 1; i < normalized_cumsum_vector_rows; ++i)
+    {
+        normalized_cumsum_y_true[i] += normalized_cumsum_y_true[i-1] + y_true[y_pred_sorted_index[i-1]];
+        normalized_cumsum_weights[i] += normalized_cumsum_weights[i-1] + weights_used[y_pred_sorted_index[i-1]];
+    }
+    normalized_cumsum_y_true /= y_true.sum();
+    normalized_cumsum_weights /= weights_used.sum();
+    
+    double gini{1.0 - 2 * trapezoidal_integration(normalized_cumsum_y_true, normalized_cumsum_weights)};
+
+    return gini;
+}

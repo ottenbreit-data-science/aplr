@@ -53,7 +53,7 @@ Limits 1) the number of terms already in the model that can be considered as int
 Specifies the variance power for the "tweedie" ***family***.
 
 #### validation_tuning_metric (default = "default")
-Specifies which metric to use for validating the model and tuning ***m***. Available options are "default" (using the same methodology as when calculating the training error), "mse", "mae" and "rankability". The default is often a choice that fits well with respect to the ***family*** chosen. However, if you want to use ***family*** or ***tweedie_power*** as tuning parameters then the default is not suitable. "rankability" uses a methodology similar to the one described in https://towardsdatascience.com/how-to-calculate-roc-auc-score-for-regression-models-c0be4fdf76bb
+Specifies which metric to use for validating the model and tuning ***m***. Available options are "default" (using the same methodology as when calculating the training error), "mse", "mae", "negative_gini" and "rankability". The default is often a choice that fits well with respect to the ***family*** chosen. However, if you want to use ***family*** or ***tweedie_power*** as tuning parameters then the default is not suitable. "rankability" uses a methodology similar to the one described in https://towardsdatascience.com/how-to-calculate-roc-auc-score-for-regression-models-c0be4fdf76bb except that the metric is inverted and can be weighted by sample weights.
 
 ## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[])
 

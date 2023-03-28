@@ -83,6 +83,26 @@ int main()
     tests.push_back(is_approximately_equal(rankability_bad_dw,0.0));
     tests.push_back(is_approximately_equal(rankability_equal_dw,0.5));
 
+    VectorXd y_integration(3);
+    VectorXd x_integration(3);
+    y_integration<<1,2,3;
+    x_integration<<4,6,8;
+    double integration{trapezoidal_integration(y_integration,x_integration)};
+    tests.push_back(is_approximately_equal(integration,8.0));
+
+    VectorXd weights_none{VectorXd(0)};
+    VectorXd calculated_weights_if_not_provided{calculate_weights_if_they_are_not_provided(y_true)};
+    VectorXd calculated_weights_if_provided{calculate_weights_if_they_are_not_provided(y_true,weights_different)};
+    tests.push_back(calculated_weights_if_not_provided==weights_equal);
+    tests.push_back(calculated_weights_if_provided==weights_different);
+
+    VectorXd y_pred(3);
+    VectorXd weights_gini(3);
+    y_pred<<1.0,3.0,2.0;
+    weights_gini<<0.2,0.5,0.3;
+    double gini{calculate_gini(y_true,y_pred,weights_gini)};
+    tests.push_back(is_approximately_equal(gini,-0.1166667,0.0000001));
+
     //Test summary
     std::cout<<"Test summary\n\n"<<"Passed "<<std::accumulate(tests.begin(),tests.end(),0)<<" out of "<<tests.size()<<" tests.";
 }

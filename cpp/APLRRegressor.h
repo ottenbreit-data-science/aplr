@@ -93,8 +93,9 @@ private:
     VectorXd calculate_linear_predictor(const MatrixXd &X);
     void update_linear_predictor_and_predictions();
     void throw_error_if_response_contains_invalid_values(const VectorXd &y);
+    void throw_error_if_sample_weight_contains_invalid_values(const VectorXd &y, const VectorXd &sample_weight);
     void throw_error_if_response_is_not_between_0_and_1(const VectorXd &y,const std::string &error_message);
-    void throw_error_if_response_is_negative(const VectorXd &y, const std::string &error_message);
+    void throw_error_if_vector_contains_negative_values(const VectorXd &y, const std::string &error_message);
     void throw_error_if_response_is_not_greater_than_zero(const VectorXd &y, const std::string &error_message);
     void throw_error_if_tweedie_power_is_invalid();
     VectorXd differentiate_predictions();
@@ -271,7 +272,6 @@ void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,co
 {
     if(X.rows()!=y.size()) throw std::runtime_error("X and y must have the same number of rows.");
     if(X.rows()<2) throw std::runtime_error("X and y cannot have less than two rows.");
-    if(sample_weight.size()>0 && sample_weight.size()!=y.size()) throw std::runtime_error("sample_weight must have 0 or as many rows as X and y.");
     if(X_names.size()>0 && X_names.size()!=static_cast<size_t>(X.cols())) throw std::runtime_error("X_names must have as many columns as X.");
     throw_error_if_matrix_has_nan_or_infinite_elements(X, "X");
     throw_error_if_matrix_has_nan_or_infinite_elements(y, "y");
@@ -280,6 +280,7 @@ void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,co
     throw_error_if_prioritized_predictors_indexes_has_invalid_indexes(X, prioritized_predictors_indexes);
     throw_error_if_monotonic_constraints_has_invalid_indexes(X, monotonic_constraints);
     throw_error_if_response_contains_invalid_values(y);
+    throw_error_if_sample_weight_contains_invalid_values(y, sample_weight);
 }
 
 void APLRRegressor::throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes)
@@ -332,7 +333,15 @@ void APLRRegressor::throw_error_if_response_contains_invalid_values(const Vector
     else if(link_function=="log" || family=="poisson" || (family=="tweedie" && std::isless(tweedie_power,2) && std::isgreater(tweedie_power,1)))
     {
         std::string error_message{"Response values for the log link function or poisson family or tweedie family when tweedie_power<2 cannot be less than zero."};
-        throw_error_if_response_is_negative(y,error_message);
+        throw_error_if_vector_contains_negative_values(y,error_message);
+    }
+    else if(validation_tuning_metric=="negative_gini")
+    {
+        std::string error_message{"Response values cannot be negative when using the negative_gini validation_tuning_metric."};
+        throw_error_if_vector_contains_negative_values(y, error_message);
+        bool sum_is_zero{y.sum()==0};
+        if(sum_is_zero)
+            throw std::runtime_error("Response values cannot sum to zero when using the negative_gini validation_tuning_metric.");
     }
 }
 
@@ -344,10 +353,10 @@ void APLRRegressor::throw_error_if_response_is_not_between_0_and_1(const VectorX
         throw std::runtime_error(error_message);   
 }
 
-void APLRRegressor::throw_error_if_response_is_negative(const VectorXd &y, const std::string &error_message)
+void APLRRegressor::throw_error_if_vector_contains_negative_values(const VectorXd &y, const std::string &error_message)
 {
-    bool response_is_less_than_zero{(y.array()<0.0).any()};
-    if(response_is_less_than_zero)
+    bool vector_is_less_than_zero{(y.array()<0.0).any()};
+    if(vector_is_less_than_zero)
         throw std::runtime_error(error_message);   
 }
 
@@ -357,6 +366,19 @@ void APLRRegressor::throw_error_if_response_is_not_greater_than_zero(const Vecto
     if(response_is_not_greater_than_zero)
         throw std::runtime_error(error_message);   
 
+}
+
+void APLRRegressor::throw_error_if_sample_weight_contains_invalid_values(const VectorXd &y, const VectorXd &sample_weight)
+{
+    bool sample_weight_are_provided{sample_weight.size()>0};
+    if(sample_weight_are_provided)
+    {
+        if(sample_weight.size()!=y.size()) throw std::runtime_error("sample_weight must have 0 or as many rows as X and y.");
+        throw_error_if_vector_contains_negative_values(sample_weight,"sample_weight cannot contain negative values.");
+        bool sum_is_zero{sample_weight.sum()==0};
+        if(sum_is_zero)
+            throw std::runtime_error("sample_weight cannot sum to zero.");
+    }
 }
 
 void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight, const std::vector<size_t> &validation_set_indexes)
@@ -969,11 +991,11 @@ void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step
     else
         calculate_validation_error(boosting_step, predictions_current_validation);
     
-    bool validation_error_is_invalid{std::isinf(validation_error_steps[boosting_step])};
+    bool validation_error_is_invalid{!std::isfinite(validation_error_steps[boosting_step])};
     if(validation_error_is_invalid)
     {
         abort_boosting=true;
-        std::string warning_message{"Warning: Encountered numerical problems when calculating prediction errors in the previous boosting step. Not continuing with further boosting steps. One potential reason is if the combination of family and link_function is invalid."};
+        std::string warning_message{"Warning: Encountered numerical problems when calculating validation error in the previous boosting step. Not continuing with further boosting steps. One potential reason is if the combination of family and link_function is invalid."};
         std::cout<<warning_message<<"\n";
     }
 }
@@ -986,6 +1008,8 @@ void APLRRegressor::calculate_validation_error(size_t boosting_step, const Vecto
         validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,FAMILY_GAUSSIAN),sample_weight_validation);
     else if(validation_tuning_metric=="mae")
         validation_error_steps[boosting_step]=calculate_mean_error(calculate_absolute_errors(y_validation,predictions,sample_weight_validation),sample_weight_validation);
+    else if(validation_tuning_metric=="negative_gini")
+        validation_error_steps[boosting_step]=-calculate_gini(y_validation,predictions,sample_weight_validation);
     else if(validation_tuning_metric=="rankability")
         validation_error_steps[boosting_step]=-calculate_rankability(y_validation,predictions,sample_weight_validation,random_state);
     else
