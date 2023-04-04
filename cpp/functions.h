@@ -150,7 +150,7 @@ VectorXd calculate_exp_of_linear_predictor_adjusted_for_numerical_problems(const
     VectorXd exp_of_linear_predictor{linear_predictor.array().exp()};
     double min_exp_of_linear_predictor{std::exp(min_exponent)};
     double max_exp_of_linear_predictor{std::exp(max_exponent)};
-    for (size_t i = 0; i < static_cast<size_t>(linear_predictor.rows()); ++i)
+    for (Eigen::Index i = 0; i < linear_predictor.rows(); ++i)
     {            
         bool linear_predictor_is_too_small{std::isless(linear_predictor[i], min_exponent)};
         if(linear_predictor_is_too_small)
@@ -270,7 +270,7 @@ void throw_error_if_matrix_has_nan_or_infinite_elements(const T &x, const std::s
 VectorXi calculate_indicator(const VectorXd &v)
 {
     VectorXi indicator{VectorXi::Constant(v.rows(),1)};
-    for (size_t i = 0; i < static_cast<size_t>(v.size()); ++i)
+    for (Eigen::Index i = 0; i < v.size(); ++i)
     {
         if(is_approximately_zero(v[i]))
             indicator[i]=0;
@@ -281,7 +281,7 @@ VectorXi calculate_indicator(const VectorXd &v)
 VectorXi calculate_indicator(const VectorXi &v)
 {
     VectorXi indicator{VectorXi::Constant(v.rows(),1)};
-    for (size_t i = 0; i < static_cast<size_t>(v.size()); ++i)
+    for (Eigen::Index i = 0; i < v.size(); ++i)
     {
         if(v[i]==0)
             indicator[i]=0;
@@ -369,7 +369,7 @@ double trapezoidal_integration(const VectorXd &y, const VectorXd &x)
     if(y_is_large_enough && x_and_y_have_the_same_size)
     {
         output=0;
-        for (size_t i = 1; i < static_cast<size_t>(y.size()); ++i)
+        for (Eigen::Index i = 1; i < y.size(); ++i)
         {
             double delta_y{(y[i]+y[i-1])/2};
             double delta_x{x[i]-x[i-1]};

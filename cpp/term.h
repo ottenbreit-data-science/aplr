@@ -36,8 +36,6 @@ private:
     double error_where_given_terms_are_zero;
     SortedData sorted_vectors;
     VectorXd negative_gradient_discretized;
-    VectorXd errors_initial;
-    double error_initial;
     std::vector<size_t> observations_in_bins;
     int monotonic_constraint;
 
@@ -49,8 +47,8 @@ private:
     void setup_bins();
     void discretize_data_by_bin();
     void estimate_split_point_on_discretized_data();
-    void calculate_coefficient_and_error_on_discretized_data(bool direction_right, double split_point);
-    void estimate_coefficient_and_error_on_all_data();
+    void estimate_coefficient_and_error(const VectorXd &x, const VectorXd &y, const VectorXd &sample_weight,double error_added=0.0);
+    double estimate_coefficient(const VectorXd &x, const VectorXd &y, const VectorXd &sample_weight=VectorXd(0));
     void cleanup_after_estimate_split_point();
     void cleanup_after_fit();
     void cleanup_when_this_term_was_added_as_a_given_term();
@@ -174,7 +172,8 @@ void Term::estimate_split_point(const MatrixXd &X,const VectorXd &negative_gradi
     }
     discretize_data_by_bin();
     estimate_split_point_on_discretized_data();
-    estimate_coefficient_and_error_on_all_data();
+    estimate_coefficient_and_error(calculate_without_interactions(sorted_vectors.values_sorted),sorted_vectors.negative_gradient_sorted,
+        sorted_vectors.sample_weight_sorted,error_where_given_terms_are_zero);
     cleanup_after_estimate_split_point();
     determine_if_can_be_used_as_a_given_term(X.col(base_term));
 }
@@ -188,7 +187,7 @@ void Term::calculate_rows_to_zero_out_and_not_due_to_given_terms(const MatrixXd 
         for (auto &given_term:given_terms)
         {
             VectorXd values_given_term{given_term.calculate(X)};
-            for (size_t i = 0; i < static_cast<size_t>(X.rows()); ++i)
+            for (Eigen::Index i = 0; i < X.rows(); ++i)
             {
                 if(is_approximately_zero(values_given_term[i]))
                 {
@@ -200,7 +199,7 @@ void Term::calculate_rows_to_zero_out_and_not_due_to_given_terms(const MatrixXd 
         rows_to_zero_out_and_not_due_to_given_terms.zeroed.resize(X.rows()-rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.rows());
         size_t count_zeroed{0};
         size_t count_not_zeroed{0};
-        for (size_t i = 0; i < static_cast<size_t>(X.rows()); ++i)
+        for (Eigen::Index i = 0; i < X.rows(); ++i)
         {
             bool value_is_non_zero{non_zero_values[i]==1};
             if(value_is_non_zero)
@@ -233,7 +232,7 @@ VectorXd Term::calculate(const MatrixXd &X)
         for(auto &given_term:given_terms)
         {
             VectorXd values_given_term{given_term.calculate(X)};
-            for (size_t i = 0; i < static_cast<size_t>(values.size()); ++i)
+            for (Eigen::Index i = 0; i < values.size(); ++i)
             {
                 if(is_approximately_zero(values_given_term[i]))
                     values[i]=0;
@@ -276,14 +275,14 @@ void Term::calculate_error_where_given_terms_are_zero(const VectorXd &negative_g
     {
         if(sample_weight.size()==0)
         {
-            for (size_t i = 0; i < static_cast<size_t>(rows_to_zero_out_and_not_due_to_given_terms.zeroed.size()); ++i)
+            for (Eigen::Index i = 0; i < rows_to_zero_out_and_not_due_to_given_terms.zeroed.size(); ++i)
             {
                 error_where_given_terms_are_zero+=calculate_error_one_observation(negative_gradient[rows_to_zero_out_and_not_due_to_given_terms.zeroed[i]],0.0,NAN_DOUBLE);
             }
         }
         else
         {
-            for (size_t i = 0; i < static_cast<size_t>(rows_to_zero_out_and_not_due_to_given_terms.zeroed.size()); ++i)
+            for (Eigen::Index i = 0; i < rows_to_zero_out_and_not_due_to_given_terms.zeroed.size(); ++i)
             {
                 error_where_given_terms_are_zero+=calculate_error_one_observation(negative_gradient[rows_to_zero_out_and_not_due_to_given_terms.zeroed[i]],0.0,sample_weight[rows_to_zero_out_and_not_due_to_given_terms.zeroed[i]]);
             }
@@ -504,25 +503,18 @@ void Term::discretize_data_by_bin()
 }
 
 void Term::estimate_split_point_on_discretized_data()
-{
-    errors_initial=calculate_errors(negative_gradient_discretized,VectorXd::Constant(negative_gradient_discretized.size(),0.0),
-        sample_weight_discretized,FAMILY_GAUSSIAN);
-    error_initial=calculate_sum_error(errors_initial);
+{    
+    split_point=NAN_DOUBLE;
+    estimate_coefficient_and_error(calculate_without_interactions(values_discretized),negative_gradient_discretized,sample_weight_discretized);
+    double error_split_point_nan{split_point_search_errors_sum};
 
-    double split_point_temp;
-    
-    bool SPLIT_POINT_NAN{false};
-    calculate_coefficient_and_error_on_discretized_data(SPLIT_POINT_NAN, NAN_DOUBLE);
-    double error_cp_nan{split_point_search_errors_sum};
-
-    bool DIRECTION_LEFT{false};
     double split_point_left{NAN_DOUBLE};
-    double error_min_left{error_cp_nan};
-    for (size_t i = 0; i < bins_split_points_left.size(); ++i)
+    double error_min_left{error_split_point_nan};
+    for(auto &bin:bins_split_points_left)
     {
-        split_point_temp=bins_split_points_left[i];
-     
-        calculate_coefficient_and_error_on_discretized_data(DIRECTION_LEFT, split_point_temp);
+        split_point=bin;
+        direction_right=false;
+        estimate_coefficient_and_error(calculate_without_interactions(values_discretized),negative_gradient_discretized,sample_weight_discretized);
         if(std::islessequal(split_point_search_errors_sum,error_min_left))
         {
             error_min_left=split_point_search_errors_sum;
@@ -530,14 +522,13 @@ void Term::estimate_split_point_on_discretized_data()
         }
     }
 
-    bool DIRECTION_RIGHT{true};
     double split_point_right{NAN_DOUBLE};
-    double error_min_right{error_cp_nan};
-    for (size_t i = 0; i < bins_split_points_right.size(); ++i)
+    double error_min_right{error_split_point_nan};
+    for(auto &bin:bins_split_points_right)
     {
-        split_point_temp=bins_split_points_right[i];
-     
-        calculate_coefficient_and_error_on_discretized_data(DIRECTION_RIGHT, split_point_temp);
+        split_point=bin;
+        direction_right=true;
+        estimate_coefficient_and_error(calculate_without_interactions(values_discretized),negative_gradient_discretized,sample_weight_discretized);
         if(std::islessequal(split_point_search_errors_sum,error_min_right))
         {
             error_min_right=split_point_search_errors_sum;
@@ -560,52 +551,52 @@ void Term::estimate_split_point_on_discretized_data()
     }
 }
 
-void Term::calculate_coefficient_and_error_on_discretized_data(bool direction_right, double split_point)
+void Term::estimate_coefficient_and_error(const VectorXd &x, const VectorXd &y, const VectorXd &sample_weight, double error_added)
 {
-    this->direction_right=direction_right;
-    this->split_point=split_point;
-    
-    VectorXd values_sorted{calculate_without_interactions(values_discretized)};
-
-    size_t index_start{0};
-    size_t index_end{max_index_discretized};
-
-    double xwx{0};
-    double xwy{0};
-    for (size_t i = index_start; i <= index_end; ++i)
+    coefficient = estimate_coefficient(x,y,sample_weight);
+    if(std::isfinite(coefficient))
     {
-        xwx+=values_sorted[i]*values_sorted[i]*sample_weight_discretized[i];
-        xwy+=values_sorted[i]*negative_gradient_discretized[i]*sample_weight_discretized[i];
-    }
-    if(xwx!=0)
-    {
-        double error_reduction{0};
-        coefficient=xwy/xwx*v;
+        coefficient*=v;
         if(coefficient_adheres_to_monotonic_constraint())
         {
-            double predicted;
-            double sample_weight_one_obs{NAN_DOUBLE};
-            for (size_t i = index_start; i <= index_end; ++i)
-            {
-                predicted=values_sorted[i]*coefficient;
-                if(sample_weight_discretized.size()>0)
-                    sample_weight_one_obs=sample_weight_discretized[i];
-
-                error_reduction+=errors_initial[i]-calculate_error_one_observation(negative_gradient_discretized[i],predicted,sample_weight_one_obs);
-            }
-            split_point_search_errors_sum=error_initial-error_reduction;
+            VectorXd predictions{x*coefficient};
+            split_point_search_errors_sum=calculate_sum_error(calculate_errors(y,predictions,sample_weight,FAMILY_GAUSSIAN))+error_added;
         }
         else
         {
             coefficient=0;
-            split_point_search_errors_sum=error_initial;
+            split_point_search_errors_sum=std::numeric_limits<double>::infinity();
         }
     }
     else
     {
         coefficient=0;
-        split_point_search_errors_sum=error_initial;
+        split_point_search_errors_sum=std::numeric_limits<double>::infinity();
+    }    
+}
+
+double Term::estimate_coefficient(const VectorXd &x, const VectorXd &y, const VectorXd &sample_weight)
+{
+    double numerator{0};
+    double denominator{0};
+    bool sample_weight_is_provided{sample_weight.size()>0};
+    if(sample_weight_is_provided)
+    {
+        for (Eigen::Index i = 0; i < y.size(); ++i)
+        {
+            numerator+=x[i]*y[i]*sample_weight[i];
+            denominator+=x[i]*x[i]*sample_weight[i];
+        }
     }
+    else
+    {
+        for (Eigen::Index i = 0; i < y.size(); ++i)
+        {
+            numerator+=x[i]*y[i];
+            denominator+=x[i]*x[i];
+        }
+    }
+    return numerator/denominator;
 }
 
 bool Term::coefficient_adheres_to_monotonic_constraint()
@@ -620,43 +611,6 @@ bool Term::coefficient_adheres_to_monotonic_constraint()
     return coefficient_adheres;
 }
 
-void Term::estimate_coefficient_and_error_on_all_data()
-{
-    sorted_vectors.values_sorted=calculate_without_interactions(sorted_vectors.values_sorted);
-    double xwx{0};
-    double xwy{0};
-    if(sorted_vectors.sample_weight_sorted.size()>0)
-    {
-        xwx=(sorted_vectors.values_sorted.array()*sorted_vectors.values_sorted.array()*sorted_vectors.sample_weight_sorted.array()).sum();
-        xwy=(sorted_vectors.values_sorted.array()*sorted_vectors.negative_gradient_sorted.array()*sorted_vectors.sample_weight_sorted.array()).sum();
-    }
-    else
-    {
-        xwx=(sorted_vectors.values_sorted.array()*sorted_vectors.values_sorted.array()).sum();
-        xwy=(sorted_vectors.values_sorted.array()*sorted_vectors.negative_gradient_sorted.array()).sum();
-    }
-    if(xwx!=0)
-    {
-        coefficient=xwy/xwx*v;
-        if(coefficient_adheres_to_monotonic_constraint())
-        {
-            VectorXd predictions{sorted_vectors.values_sorted*coefficient};
-            split_point_search_errors_sum=calculate_sum_error(calculate_errors(sorted_vectors.negative_gradient_sorted,predictions,
-                sorted_vectors.sample_weight_sorted,FAMILY_GAUSSIAN))+error_where_given_terms_are_zero;
-        }
-        else
-        {
-            coefficient=0;
-            split_point_search_errors_sum=std::numeric_limits<double>::infinity();
-        }
-    }
-    else
-    {
-        coefficient=0;
-        split_point_search_errors_sum=std::numeric_limits<double>::infinity();
-    }
-}
-
 void Term::cleanup_after_estimate_split_point()
 {
     rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.resize(0);
@@ -665,7 +619,6 @@ void Term::cleanup_after_estimate_split_point()
     sorted_vectors.negative_gradient_sorted.resize(0);
     sorted_vectors.sample_weight_sorted.resize(0);
     negative_gradient_discretized.resize(0);
-    errors_initial.resize(0);
 }
 
 void Term::determine_if_can_be_used_as_a_given_term(const VectorXd &x)

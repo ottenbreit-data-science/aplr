@@ -483,7 +483,8 @@ void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors
     intercept_steps=VectorXd::Constant(m,0);
 
     terms_eligible_current.reserve(X_train.cols()*reserved_terms_times_num_x);
-    for (size_t i = 0; i < static_cast<size_t>(X_train.cols()); ++i)
+    size_t X_train_cols{static_cast<size_t>(X_train.cols())};
+    for (size_t i = 0; i < X_train_cols; ++i)
     {
         bool term_has_one_unique_value{check_if_base_term_has_only_one_unique_value(i)};
         Term copy_of_base_term{Term(i)};
@@ -495,7 +496,7 @@ void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors
     }
 
     predictor_indexes.resize(X_train.cols());
-    for (size_t i = 0; i < static_cast<size_t>(X_train.cols()); ++i)
+    for (size_t i = 0; i < X_train_cols; ++i)
     {
         predictor_indexes[i]=i;
     }
@@ -857,7 +858,7 @@ void APLRRegressor::add_necessary_given_terms_to_interaction(Term &interaction, 
             }
             
             bool given_term_provides_an_unique_zero{false};
-            for (size_t row = 0; row < static_cast<size_t>(X_train.rows()); ++row)
+            for (Eigen::Index row = 0; row < X_train.rows(); ++row)
             {
                 given_term_provides_an_unique_zero = combined_value_indicator_for_the_other_given_terms[row]>0 && value_indicator_for_each_given_term.col(col)[row]==0;
                 if(given_term_provides_an_unique_zero)
@@ -892,7 +893,7 @@ void APLRRegressor::add_promising_interactions_and_select_the_best_one()
     size_t best_term_before_interactions{best_term_index};
     bool best_term_before_interactions_was_not_selected{best_term_before_interactions==std::numeric_limits<size_t>::max()};
     bool error_is_less_than_for_best_term_before_interactions;
-    for (size_t j = 0; j < static_cast<size_t>(sorted_indexes_of_errors_for_interactions_to_consider.size()); ++j) //for each interaction to consider starting from lowest to highest error
+    for (Eigen::Index j = 0; j < sorted_indexes_of_errors_for_interactions_to_consider.size(); ++j) //for each interaction to consider starting from lowest to highest error
     {
         bool allowed_to_add_one_interaction{interactions_eligible<max_interactions};
         if(allowed_to_add_one_interaction)
@@ -1121,7 +1122,7 @@ void APLRRegressor::revert_scaling_if_using_log_link_function()
     {
         y_train/=scaling_factor_for_log_link_function;
         intercept+=std::log(1/scaling_factor_for_log_link_function);
-        for (size_t i = 0; i < static_cast<size_t>(intercept_steps.size()); ++i)
+        for (Eigen::Index i = 0; i < intercept_steps.size(); ++i)
         {
             intercept_steps[i]+=std::log(1/scaling_factor_for_log_link_function);
         }
@@ -1134,7 +1135,8 @@ void APLRRegressor::name_terms(const MatrixXd &X, const std::vector<std::string>
     if(x_names_not_provided)
     {
         std::vector<std::string> temp(X.cols());
-        for (size_t i = 0; i < static_cast<size_t>(X.cols()); ++i)
+        size_t X_cols{static_cast<size_t>(X.cols())};
+        for (size_t i = 0; i < X_cols; ++i)
         {
             temp[i]="X"+std::to_string(i+1);
         }
@@ -1207,7 +1209,7 @@ void APLRRegressor::calculate_feature_importance_on_validation_set()
 {
     feature_importance=VectorXd::Constant(number_of_base_terms,0);
     MatrixXd li{calculate_local_feature_importance(X_validation)};
-    for (size_t i = 0; i < static_cast<size_t>(li.cols()); ++i) //for each column calculate mean abs values
+    for (Eigen::Index i = 0; i < li.cols(); ++i) //for each column calculate mean abs values
     {
         feature_importance[i]=li.col(i).cwiseAbs().mean();
     }
@@ -1302,7 +1304,7 @@ VectorXd APLRRegressor::calculate_linear_predictor(const MatrixXd &X)
 
 void APLRRegressor::cap_predictions_to_minmax_in_training(VectorXd &predictions)
 {
-    for (size_t i = 0; i < static_cast<size_t>(predictions.rows()); ++i)
+    for (Eigen::Index i = 0; i < predictions.rows(); ++i)
     {
         if(std::isgreater(predictions[i],max_training_prediction_or_response))
             predictions[i]=max_training_prediction_or_response;
