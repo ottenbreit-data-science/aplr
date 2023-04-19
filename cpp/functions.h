@@ -1,6 +1,5 @@
 #pragma once
 #include <limits>
-#include "../dependencies/eigen-master/Eigen/Dense"
 #include <numeric> //std::iota
 #include <algorithm> //std::sort, std::stable_sort
 #include <vector>
@@ -9,6 +8,9 @@
 #include <thread>
 #include <future>
 #include <random>
+#include <set>
+#include <map>
+#include "../dependencies/eigen-master/Eigen/Dense"
 #include "constants.h"
 
 using namespace Eigen;
@@ -35,6 +37,12 @@ static bool is_approximately_zero(TReal a, TReal tolerance = std::numeric_limits
     if (std::fabs(a) <= tolerance)
         return true;
     return false;
+}
+
+std::set<int> get_unique_integers(const VectorXi &int_vector)
+{
+    std::set<int> unique_integers{int_vector.begin(),int_vector.end()};
+    return unique_integers;
 }
 
 double set_error_to_infinity_if_invalid(double error)
@@ -77,7 +85,49 @@ VectorXd calculate_tweedie_errors(const VectorXd &y,const VectorXd &predicted,do
     return errors;
 }
 
-VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0),const std::string &family="gaussian",double tweedie_power=1.5)
+struct GroupData
+{
+    std::map<int,double> error;
+    std::map<int,size_t> count;
+};
+
+GroupData calculate_group_errors_and_count(const VectorXd &y,const VectorXd &predicted,const VectorXi &group, const std::set<int> &unique_groups)
+{
+    GroupData group_data;
+    for(int unique_group_value:unique_groups)
+    {
+        group_data.error[unique_group_value]=0.0;
+        group_data.count[unique_group_value]=0;
+    }
+    for (Eigen::Index i = 0; i < group.size(); ++i)
+    {
+        group_data.error[group[i]] += y[i] - predicted[i];
+        group_data.count[group[i]] += 1;
+    } 
+    return group_data;
+}
+
+VectorXd calculate_group_gaussian_errors(const VectorXd &y,const VectorXd &predicted,const VectorXi &group, const std::set<int> &unique_groups)
+{
+    GroupData group_residuals_and_count{calculate_group_errors_and_count(y,predicted,group,unique_groups)};
+
+    for(int unique_group_value:unique_groups)
+    {
+        group_residuals_and_count.error[unique_group_value] *= group_residuals_and_count.error[unique_group_value];
+        group_residuals_and_count.error[unique_group_value] /= group_residuals_and_count.count[unique_group_value];
+    }
+
+    VectorXd errors(y.rows());
+    for (Eigen::Index i = 0; i < y.size(); ++i)
+    {
+        errors[i] = group_residuals_and_count.error[group[i]];
+    }
+    
+    return errors;
+}
+
+
+VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0),const std::string &family="gaussian",double tweedie_power=1.5, const VectorXi &group=VectorXi(0), const std::set<int> &unique_groups={})
 {   
     VectorXd errors;
     if(family=="gaussian")
@@ -90,7 +140,9 @@ VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const Vect
         errors=calculate_gamma_errors(y,predicted);
     else if(family=="tweedie")
         errors=calculate_tweedie_errors(y,predicted,tweedie_power);
-    
+    else if(family=="group_gaussian")
+        errors=calculate_group_gaussian_errors(y,predicted,group,unique_groups);
+
     if(sample_weight.size()>0)
         errors=errors.array()*sample_weight.array();
     

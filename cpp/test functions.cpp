@@ -103,6 +103,12 @@ int main()
     double gini{calculate_gini(y_true,y_pred,weights_gini)};
     tests.push_back(is_approximately_equal(gini,-0.1166667,0.0000001));
 
+    VectorXi int_vector(3);
+    int_vector<<1,1,2;
+    std::set<int> unique_integers{get_unique_integers(int_vector)};
+    bool size_is_correct{unique_integers.size()==2};
+    tests.push_back(size_is_correct);
+
     //Test summary
     std::cout<<"Test summary\n\n"<<"Passed "<<std::accumulate(tests.begin(),tests.end(),0)<<" out of "<<tests.size()<<" tests.";
 }

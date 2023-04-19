@@ -14,7 +14,7 @@ The learning rate. Must be greater than zero and not more than one. The higher t
 Used to randomly split training observations into training and validation if ***validation_set_indexes*** is not specified when fitting.
 
 #### family (default = "gaussian")
-Determines the loss function used. Allowed values are "gaussian", "binomial", "poisson", "gamma" and "tweedie". This is used together with ***link_function***. 
+Determines the loss function used. Allowed values are "gaussian", "binomial", "poisson", "gamma", "tweedie" and "group_gaussian". This is used together with ***link_function***. When ***family*** is "group_gaussian" then the "group" argument in the ***fit*** method must be provided. In the latter case APLR will try to minimize group MSE when training the model.
 
 #### link_function (default = "identity")
 Determines how the linear predictor is transformed to predictions. Allowed values are "identity", "logit" and "log". For an ordinary regression model use ***family*** "gaussian" and ***link_function*** "identity". For logistic regression use ***family*** "binomial" and ***link_function*** "logit". For a multiplicative model use the "log" ***link_function***. The "log" ***link_function*** often works best with a "poisson", "gamma" or "tweedie" ***family***, depending on the data. The ***family*** "poisson", "gamma" or "tweedie" should only be used with the "log" ***link_function***. Inappropriate combinations of ***family*** and ***link_function*** may result in a warning message when fitting the model and/or a poor model fit. Please note that values other than "identity" typically require a significantly higher ***m*** (or ***v***) in order to converge.
@@ -55,7 +55,7 @@ Specifies the variance power for the "tweedie" ***family***.
 #### validation_tuning_metric (default = "default")
 Specifies which metric to use for validating the model and tuning ***m***. Available options are "default" (using the same methodology as when calculating the training error), "mse", "mae", "negative_gini" and "rankability". The default is often a choice that fits well with respect to the ***family*** chosen. However, if you want to use ***family*** or ***tweedie_power*** as tuning parameters then the default is not suitable. "rankability" uses a methodology similar to the one described in https://towardsdatascience.com/how-to-calculate-roc-auc-score-for-regression-models-c0be4fdf76bb except that the metric is inverted and can be weighted by sample weights.
 
-## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[])
+## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], group:npt.ArrayLike = np.empty(0))
 
 ***This method fits the model to data.***
 
@@ -81,6 +81,9 @@ An optional list of integers specifying the indexes of predictors (columns) in *
 
 #### monotonic_constraints
 An optional list of integers specifying monotonic constraints on model terms. For example, if there are three predictors in ***X***, then monotonic_constraints = [1,0,-1] means that 1) the first predictor in ***X*** cannot be used in interaction terms and all terms using the first predictor in ***X*** as a main effect must have positive regression coefficients, 2) there are no monotonic constraints on terms using the second predictor in ***X***, and 3) the third predictor in ***X*** cannot be used in interaction terms and all terms using the third predictor in ***X*** as a main effect must have negative regression coefficients.
+
+#### group
+A numpy vector of integers that is used when ***family*** is "group_gaussian". For example, ***group*** may represent year (could be useful in a time series model).
 
 
 ## Method: predict(X:npt.ArrayLike, cap_predictions_to_minmax_in_training:bool=True)

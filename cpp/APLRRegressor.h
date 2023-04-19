@@ -46,15 +46,20 @@ private:
     std::vector<size_t> predictor_indexes;
     std::vector<size_t> prioritized_predictors_indexes;
     std::vector<int> monotonic_constraints;
+    VectorXi group_train;
+    VectorXi group_validation;
+    std::set<int> unique_groups_train;
+    std::set<int> unique_groups_validation;
 
     //Methods
     void validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, 
         const std::vector<size_t> &validation_set_indexes, const std::vector<size_t> &prioritized_predictors_indexes,
-        const std::vector<int> &monotonic_constraints);
+        const std::vector<int> &monotonic_constraints, const VectorXi &group);
     void throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes);
     void throw_error_if_prioritized_predictors_indexes_has_invalid_indexes(const MatrixXd &X, const std::vector<size_t> &prioritized_predictors_indexes);
     void throw_error_if_monotonic_constraints_has_invalid_indexes(const MatrixXd &X, const std::vector<int> &monotonic_constraints);
-    void define_training_and_validation_sets(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight, const std::vector<size_t> &validation_set_indexes);
+    void define_training_and_validation_sets(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight, 
+        const std::vector<size_t> &validation_set_indexes, const VectorXi &group);
     void initialize(const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints);
     bool check_if_base_term_has_only_one_unique_value(size_t base_term);
     void add_term_to_terms_eligible_current(Term &term);
@@ -146,7 +151,8 @@ public:
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},const std::vector<size_t> &validation_set_indexes={},
-        const std::vector<size_t> &prioritized_predictors_indexes={}, const std::vector<int> &monotonic_constraints={});
+        const std::vector<size_t> &prioritized_predictors_indexes={}, const std::vector<int> &monotonic_constraints={},
+        const VectorXi &group=VectorXi(0));
     VectorXd predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training=true);
     void set_term_names(const std::vector<std::string> &X_names);
     MatrixXd calculate_local_feature_importance(const MatrixXd &X);
@@ -207,13 +213,13 @@ APLRRegressor::~APLRRegressor()
 //invalidating validation_ratio. The rest of indexes are used to train. 
 void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names,
     const std::vector<size_t> &validation_set_indexes,const std::vector<size_t> &prioritized_predictors_indexes, 
-    const std::vector<int> &monotonic_constraints)
+    const std::vector<int> &monotonic_constraints, const VectorXi &group)
 {
     throw_error_if_family_does_not_exist();
     throw_error_if_link_function_does_not_exist();
     throw_error_if_tweedie_power_is_invalid();
-    validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes,prioritized_predictors_indexes,monotonic_constraints);
-    define_training_and_validation_sets(X,y,sample_weight,validation_set_indexes);
+    validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes,prioritized_predictors_indexes,monotonic_constraints,group);
+    define_training_and_validation_sets(X,y,sample_weight,validation_set_indexes,group);
     scale_training_observations_if_using_log_link_function();
     initialize(prioritized_predictors_indexes, monotonic_constraints);
     execute_boosting_steps();
@@ -239,7 +245,9 @@ void APLRRegressor::throw_error_if_family_does_not_exist()
     else if(family=="gamma")
         family_exists=true;
     else if(family=="tweedie")
-        family_exists=true;        
+        family_exists=true;
+    else if(family=="group_gaussian")
+        family_exists=true;
     if(!family_exists)
         throw std::runtime_error("Family "+family+" is not available in APLR.");   
 }
@@ -268,7 +276,7 @@ void APLRRegressor::throw_error_if_tweedie_power_is_invalid()
 
 void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,
     const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes, 
-    const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints)
+    const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints, const VectorXi &group)
 {
     if(X.rows()!=y.size()) throw std::runtime_error("X and y must have the same number of rows.");
     if(X.rows()<2) throw std::runtime_error("X and y cannot have less than two rows.");
@@ -281,6 +289,8 @@ void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,co
     throw_error_if_monotonic_constraints_has_invalid_indexes(X, monotonic_constraints);
     throw_error_if_response_contains_invalid_values(y);
     throw_error_if_sample_weight_contains_invalid_values(y, sample_weight);
+    bool group_is_of_incorrect_size{family=="group_gaussian" && group.rows()!=y.rows()};
+    if(group_is_of_incorrect_size) throw std::runtime_error("When family is group_gaussian then y and group must have the same number of rows.");
 }
 
 void APLRRegressor::throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes)
@@ -381,7 +391,8 @@ void APLRRegressor::throw_error_if_sample_weight_contains_invalid_values(const V
     }
 }
 
-void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight, const std::vector<size_t> &validation_set_indexes)
+void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight, 
+    const std::vector<size_t> &validation_set_indexes, const VectorXi &group)
 {
     size_t y_size{static_cast<size_t>(y.size())};
     std::vector<size_t> train_indexes;
@@ -440,6 +451,16 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X,const 
             sample_weight_train[i]=sample_weight[train_indexes[i]];
         }
     }
+    bool groups_are_provided{group.size()>0};
+    if(groups_are_provided)
+    {
+        group_train.resize(train_indexes.size());
+        for (size_t i = 0; i < train_indexes.size(); ++i)
+        {
+            group_train[i]=group[train_indexes[i]];
+        }
+        unique_groups_train = get_unique_integers(group_train);
+    }
     //Populating test matrices
     for (size_t i = 0; i < validation_indexes.size(); ++i)
     {
@@ -453,6 +474,15 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X,const 
         {
             sample_weight_validation[i]=sample_weight[validation_indexes[i]];
         }
+    }
+    if(groups_are_provided)
+    {
+        group_validation.resize(validation_indexes.size());
+        for (size_t i = 0; i < validation_indexes.size(); ++i)
+        {
+            group_validation[i]=group[validation_indexes[i]];
+        }
+        unique_groups_validation = get_unique_integers(group_validation);
     }
 }
 
@@ -561,6 +591,21 @@ VectorXd APLRRegressor::calculate_neg_gradient_current()
         output=(y_train.array() - predictions_current.array()) / predictions_current.array() / predictions_current.array();
     else if(family=="tweedie")
         output=(y_train.array()-predictions_current.array()).array() * predictions_current.array().pow(-tweedie_power);
+    else if(family=="group_gaussian")
+    {
+        GroupData group_residuals_and_count{calculate_group_errors_and_count(y_train,predictions_current,group_train,unique_groups_train)};
+
+        for(int unique_group_value:unique_groups_train)
+        {
+            group_residuals_and_count.error[unique_group_value] /= group_residuals_and_count.count[unique_group_value];
+        }
+
+        output = VectorXd(y_train.rows());
+        for (Eigen::Index i = 0; i < y_train.size(); ++i)
+        {
+            output[i] = group_residuals_and_count.error[group_train[i]];
+        }
+    }
     
     if(link_function!="identity")
         output=output.array()*differentiate_predictions().array();
@@ -1004,7 +1049,7 @@ void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step
 void APLRRegressor::calculate_validation_error(size_t boosting_step, const VectorXd &predictions)
 {
     if(validation_tuning_metric=="default")
-        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,family,tweedie_power),sample_weight_validation);
+        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,family,tweedie_power,group_validation,unique_groups_validation),sample_weight_validation);
     else if(validation_tuning_metric=="mse")
         validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,FAMILY_GAUSSIAN),sample_weight_validation);
     else if(validation_tuning_metric=="mae")
@@ -1274,6 +1319,10 @@ void APLRRegressor::cleanup_after_fit()
     predictor_indexes.clear();
     prioritized_predictors_indexes.clear();
     monotonic_constraints.clear();
+    group_train.resize(0);
+    group_validation.resize(0);
+    unique_groups_train.clear();
+    unique_groups_validation.clear();
 }
 
 VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)
