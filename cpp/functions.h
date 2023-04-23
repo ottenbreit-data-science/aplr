@@ -126,7 +126,7 @@ VectorXd calculate_group_gaussian_errors(const VectorXd &y,const VectorXd &predi
     return errors;
 }
 
-VectorXd calculate_absolute_error(const VectorXd &y,const VectorXd &predicted)
+VectorXd calculate_absolute_errors(const VectorXd &y,const VectorXd &predicted)
 {
     VectorXd errors{(y-predicted).cwiseAbs()};
 
@@ -149,7 +149,7 @@ VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const Vect
     else if(family=="group_gaussian")
         errors=calculate_group_gaussian_errors(y,predicted,group,unique_groups);
     else if(family=="mae")
-        errors=calculate_absolute_error(y,predicted);
+        errors=calculate_absolute_errors(y,predicted);
 
     if(sample_weight.size()>0)
         errors=errors.array()*sample_weight.array();
