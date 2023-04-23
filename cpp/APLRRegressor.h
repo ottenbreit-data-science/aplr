@@ -63,7 +63,7 @@ private:
     void initialize(const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints);
     bool check_if_base_term_has_only_one_unique_value(size_t base_term);
     void add_term_to_terms_eligible_current(Term &term);
-    VectorXd calculate_neg_gradient_current();
+    VectorXd calculate_neg_gradient_current(const VectorXd &sample_weight_train);
     void execute_boosting_steps();
     void execute_boosting_step(size_t boosting_step);
     std::vector<size_t> find_terms_eligible_current_indexes_for_a_base_term(size_t base_term);
@@ -580,7 +580,7 @@ void APLRRegressor::add_term_to_terms_eligible_current(Term &term)
     terms_eligible_current.push_back(term);
 }
 
-VectorXd APLRRegressor::calculate_neg_gradient_current()
+VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &sample_weight_train)
 {
     VectorXd output;
     if(family=="gaussian")
@@ -609,7 +609,10 @@ VectorXd APLRRegressor::calculate_neg_gradient_current()
         }
     }
     else if(family=="mae")
-        output=(y_train.array() - predictions_current.array()).sign();
+    {
+        double mae{calculate_errors(y_train,predictions_current,sample_weight_train,"mae").mean()};
+        output=(y_train.array() - predictions_current.array()).sign()*mae;
+    }
     
     if(link_function!="identity")
         output=output.array()*differentiate_predictions().array();
@@ -700,7 +703,7 @@ void APLRRegressor::update_linear_predictor_and_predictions()
 
 void APLRRegressor::update_gradient_and_errors()
 {
-    neg_gradient_current=calculate_neg_gradient_current();
+    neg_gradient_current=calculate_neg_gradient_current(sample_weight_train);
     neg_gradient_nullmodel_errors_sum=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_null_model,sample_weight_train,FAMILY_GAUSSIAN));
 }
 
