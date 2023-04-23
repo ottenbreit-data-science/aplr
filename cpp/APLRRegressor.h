@@ -248,6 +248,8 @@ void APLRRegressor::throw_error_if_family_does_not_exist()
         family_exists=true;
     else if(family=="group_gaussian")
         family_exists=true;
+    else if(family=="mae")
+        family_exists=true;
     if(!family_exists)
         throw std::runtime_error("Family "+family+" is not available in APLR.");   
 }
@@ -606,6 +608,8 @@ VectorXd APLRRegressor::calculate_neg_gradient_current()
             output[i] = group_residuals_and_count.error[group_train[i]];
         }
     }
+    else if(family=="mae")
+        output=(y_train.array() - predictions_current.array()).sign();
     
     if(link_function!="identity")
         output=output.array()*differentiate_predictions().array();
@@ -1053,7 +1057,7 @@ void APLRRegressor::calculate_validation_error(size_t boosting_step, const Vecto
     else if(validation_tuning_metric=="mse")
         validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,FAMILY_GAUSSIAN),sample_weight_validation);
     else if(validation_tuning_metric=="mae")
-        validation_error_steps[boosting_step]=calculate_mean_error(calculate_absolute_errors(y_validation,predictions,sample_weight_validation),sample_weight_validation);
+        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,"mae"),sample_weight_validation);
     else if(validation_tuning_metric=="negative_gini")
         validation_error_steps[boosting_step]=-calculate_gini(y_validation,predictions,sample_weight_validation);
     else if(validation_tuning_metric=="rankability")

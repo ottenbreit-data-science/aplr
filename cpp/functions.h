@@ -126,6 +126,12 @@ VectorXd calculate_group_gaussian_errors(const VectorXd &y,const VectorXd &predi
     return errors;
 }
 
+VectorXd calculate_absolute_error(const VectorXd &y,const VectorXd &predicted)
+{
+    VectorXd errors{(y-predicted).cwiseAbs()};
+
+    return errors;
+}
 
 VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0),const std::string &family="gaussian",double tweedie_power=1.5, const VectorXi &group=VectorXi(0), const std::set<int> &unique_groups={})
 {   
@@ -142,20 +148,12 @@ VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const Vect
         errors=calculate_tweedie_errors(y,predicted,tweedie_power);
     else if(family=="group_gaussian")
         errors=calculate_group_gaussian_errors(y,predicted,group,unique_groups);
+    else if(family=="mae")
+        errors=calculate_absolute_error(y,predicted);
 
     if(sample_weight.size()>0)
         errors=errors.array()*sample_weight.array();
     
-    return errors;
-}
-
-VectorXd calculate_absolute_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0))
-{
-    VectorXd errors{(y-predicted).cwiseAbs()};
-
-    if(sample_weight.size()>0)
-        errors=errors.array()*sample_weight.array();
-
     return errors;
 }
 

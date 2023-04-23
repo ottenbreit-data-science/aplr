@@ -31,7 +31,7 @@ predicted="predicted"
 
 #Training model
 param_grid = {"max_interaction_level":[0,1,2,3,100],"min_observations_in_split":[1, 20, 50, 100, 200]}
-family="gaussian" #other available families are binomial, poisson, gamma, tweedie and group_gaussian.
+family="gaussian" #other available families are binomial, poisson, gamma, tweedie, group_gaussian and mae.
 link_function="identity" #other available link functions are logit and log.
 grid_search_cv = GridSearchCV(APLRRegressor(random_state=random_state,verbosity=1,m=1000,v=0.1,family=family,link_function=link_function),param_grid,cv=5,n_jobs=4,scoring="neg_mean_squared_error")
 grid_search_cv.fit(data_train[predictors].values,data_train[response].values)

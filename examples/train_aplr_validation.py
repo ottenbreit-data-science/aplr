@@ -35,7 +35,7 @@ validation_results=pd.DataFrame()
 best_validation_result=np.inf
 param_grid=ParameterGrid({"max_interaction_level":[0,1,2,3,100],"min_observations_in_split":[1, 20, 50, 100, 200]})
 best_model=None
-family="gaussian" #other available families are binomial, poisson, gamma, tweedie and group_gaussian.
+family="gaussian" #other available families are binomial, poisson, gamma, tweedie, group_gaussian and mae.
 link_function="identity" #other available link functions are logit and log.
 for params in param_grid:
     model = APLRRegressor(random_state=random_state,verbosity=3,m=1000,v=0.1,family=family,link_function=link_function,**params) 
