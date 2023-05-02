@@ -133,7 +133,22 @@ VectorXd calculate_absolute_errors(const VectorXd &y,const VectorXd &predicted)
     return errors;
 }
 
-VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0),const std::string &family="gaussian",double tweedie_power=1.5, const VectorXi &group=VectorXi(0), const std::set<int> &unique_groups={})
+VectorXd calculate_quantile_errors(const VectorXd &y,const VectorXd &predicted, double quantile)
+{
+    VectorXd errors{calculate_absolute_errors(y,predicted)};
+    for (Eigen::Index i = 0; i < y.size(); ++i)
+    {
+        if(y[i]<predicted[i])
+            errors[i] *= 1-quantile;
+        else
+            errors[i] *= quantile;
+    }
+    
+    return errors;
+}
+
+VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0),const std::string &family="gaussian",
+    double tweedie_power=1.5, const VectorXi &group=VectorXi(0), const std::set<int> &unique_groups={}, double quantile=0.5)
 {   
     VectorXd errors;
     if(family=="gaussian")
@@ -150,6 +165,8 @@ VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const Vect
         errors=calculate_group_gaussian_errors(y,predicted,group,unique_groups);
     else if(family=="mae")
         errors=calculate_absolute_errors(y,predicted);
+    else if(family=="quantile")
+        errors=calculate_quantile_errors(y,predicted,quantile);
 
     if(sample_weight.size()>0)
         errors=errors.array()*sample_weight.array();

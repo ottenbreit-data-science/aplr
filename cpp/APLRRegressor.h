@@ -141,13 +141,14 @@ public:
     double max_training_prediction_or_response;
     std::vector<size_t> validation_indexes;
     std::string validation_tuning_metric;
+    double quantile;
 
     //Methods
     APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string family="gaussian",
         std::string link_function="identity", size_t n_jobs=0, double validation_ratio=0.2,double intercept=NAN_DOUBLE,
         size_t reserved_terms_times_num_x=100, size_t bins=300,size_t verbosity=0,size_t max_interaction_level=1,size_t max_interactions=100000,
         size_t min_observations_in_split=20, size_t ineligible_boosting_steps_added=10, size_t max_eligible_terms=5,double tweedie_power=1.5,
-        std::string validation_tuning_metric="default");
+        std::string validation_tuning_metric="default", double quantile=0.5);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},const std::vector<size_t> &validation_set_indexes={},
@@ -174,7 +175,7 @@ public:
 APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::string family,std::string link_function,size_t n_jobs,
     double validation_ratio,double intercept,size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,
     size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double tweedie_power,
-    std::string validation_tuning_metric):
+    std::string validation_tuning_metric, double quantile):
         reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{intercept},m{m},v{v},
         family{family},link_function{link_function},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},
@@ -182,7 +183,7 @@ APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::s
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
         max_eligible_terms{max_eligible_terms},number_of_base_terms{0},tweedie_power{tweedie_power},min_training_prediction_or_response{NAN_DOUBLE},
         max_training_prediction_or_response{NAN_DOUBLE}, validation_tuning_metric{validation_tuning_metric},
-        validation_indexes{std::vector<size_t>(0)}
+        validation_indexes{std::vector<size_t>(0)}, quantile{quantile}
 {
 }
 
@@ -198,7 +199,7 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other):
     max_eligible_terms{other.max_eligible_terms},number_of_base_terms{other.number_of_base_terms},
     feature_importance{other.feature_importance},tweedie_power{other.tweedie_power},min_training_prediction_or_response{other.min_training_prediction_or_response},
     max_training_prediction_or_response{other.max_training_prediction_or_response},validation_tuning_metric{other.validation_tuning_metric},
-    validation_indexes{other.validation_indexes}
+    validation_indexes{other.validation_indexes}, quantile{other.quantile}
 {
 }
 
@@ -249,6 +250,8 @@ void APLRRegressor::throw_error_if_family_does_not_exist()
     else if(family=="group_gaussian")
         family_exists=true;
     else if(family=="mae")
+        family_exists=true;
+    else if(family=="quantile")
         family_exists=true;
     if(!family_exists)
         throw std::runtime_error("Family "+family+" is not available in APLR.");   
@@ -613,6 +616,18 @@ VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &sample_we
         double mae{calculate_errors(y_train,predictions_current,sample_weight_train,"mae").mean()};
         output=(y_train.array() - predictions_current.array()).sign()*mae;
     }
+    else if(family=="quantile")
+    {
+        double mae{calculate_errors(y_train,predictions_current,sample_weight_train,"mae").mean()};
+        output=(y_train.array() - predictions_current.array()).sign()*mae;
+        for (Eigen::Index i = 0; i < y_train.size(); ++i)
+        {
+            if(y_train[i]<predictions_current[i])
+                output[i] *= 1-quantile;
+            else
+                output[i] *= quantile;
+        }
+    }    
     
     if(link_function!="identity")
         output=output.array()*differentiate_predictions().array();
@@ -1056,7 +1071,7 @@ void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step
 void APLRRegressor::calculate_validation_error(size_t boosting_step, const VectorXd &predictions)
 {
     if(validation_tuning_metric=="default")
-        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,family,tweedie_power,group_validation,unique_groups_validation),sample_weight_validation);
+        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,family,tweedie_power,group_validation,unique_groups_validation,quantile),sample_weight_validation);
     else if(validation_tuning_metric=="mse")
         validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,FAMILY_GAUSSIAN),sample_weight_validation);
     else if(validation_tuning_metric=="mae")

@@ -5,7 +5,7 @@ import aplr_cpp
 
 
 class APLRRegressor():
-    def __init__(self, m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5, validation_tuning_metric:str="default"):
+    def __init__(self, m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5):
         self.m=m
         self.v=v
         self.random_state=random_state
@@ -23,6 +23,7 @@ class APLRRegressor():
         self.verbosity=verbosity
         self.tweedie_power=tweedie_power
         self.validation_tuning_metric=validation_tuning_metric
+        self.quantile=quantile
 
         #Creating aplr_cpp and setting parameters
         self.APLRRegressor=aplr_cpp.APLRRegressor()
@@ -47,6 +48,7 @@ class APLRRegressor():
         self.APLRRegressor.verbosity=self.verbosity
         self.APLRRegressor.tweedie_power=self.tweedie_power
         self.APLRRegressor.validation_tuning_metric=self.validation_tuning_metric
+        self.APLRRegressor.quantile=self.quantile
 
     def fit(self, X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[],group:npt.ArrayLike = np.empty(0)):
         self.__set_params_cpp()
@@ -116,7 +118,8 @@ class APLRRegressor():
             "ineligible_boosting_steps_added":self.ineligible_boosting_steps_added,
             "max_eligible_terms":self.max_eligible_terms,
             "tweedie_power":self.tweedie_power,
-            "validation_tuning_metric":self.validation_tuning_metric
+            "validation_tuning_metric":self.validation_tuning_metric,
+            "quantile":self.quantile
         }
 
     #For sklearn

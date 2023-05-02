@@ -11,14 +11,16 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(aplr_cpp, m) {
     py::class_<APLRRegressor>(m, "APLRRegressor",py::module_local())
-        .def(py::init<int&, double&, int&, std::string&,std::string&,int&,double&,double&,int&,int&,int&,int&,int&,int&,int&,int&,double&,std::string&>(),
+        .def(py::init<int&, double&, int&, std::string&,std::string&,int&,double&,double&,int&,int&,int&,int&,int&,int&,int&,int&,double&,std::string&,
+            double&>(),
             py::arg("m")=1000,py::arg("v")=0.1,py::arg("random_state")=0,py::arg("family")="gaussian",py::arg("link_function")="identity",
             py::arg("n_jobs")=0,py::arg("validation_ratio")=0.2,py::arg("intercept")=NAN_DOUBLE,
             py::arg("reserved_terms_times_num_x")=100,py::arg("bins")=300,py::arg("verbosity")=0,
             py::arg("max_interaction_level")=1,py::arg("max_interactions")=100000,py::arg("min_observations_in_split")=20,
             py::arg("ineligible_boosting_steps_added")=10,py::arg("max_eligible_terms")=5,
             py::arg("tweedie_power")=1.5,
-            py::arg("validation_tuning_metric")="default"
+            py::arg("validation_tuning_metric")="default",
+            py::arg("quantile")=0.5
             )
         .def("fit", &APLRRegressor::fit,py::arg("X"),py::arg("y"),py::arg("sample_weight")=VectorXd(0),py::arg("X_names")=std::vector<std::string>(),
             py::arg("validation_set_indexes")=std::vector<size_t>(),py::arg("prioritized_predictors_indexes")=std::vector<size_t>(),
@@ -67,6 +69,7 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def_readwrite("max_training_prediction_or_response",&APLRRegressor::max_training_prediction_or_response)
         .def_readwrite("validation_tuning_metric",&APLRRegressor::validation_tuning_metric)
         .def_readwrite("validation_indexes",&APLRRegressor::validation_indexes)
+        .def_readwrite("quantile",&APLRRegressor::quantile)
         .def(py::pickle(
             [](const APLRRegressor &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
@@ -74,17 +77,17 @@ PYBIND11_MODULE(aplr_cpp, m) {
                     a.max_interaction_level,a.max_interactions,a.validation_error_steps,a.term_names,a.term_coefficients,a.terms,a.intercept_steps,
                     a.interactions_eligible,a.min_observations_in_split,a.ineligible_boosting_steps_added,a.max_eligible_terms,
                     a.number_of_base_terms,a.feature_importance,a.link_function,a.tweedie_power,a.min_training_prediction_or_response,a.max_training_prediction_or_response,
-                    a.validation_tuning_metric,a.validation_indexes);
+                    a.validation_tuning_metric,a.validation_indexes,a.quantile);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 28)
+                if (t.size() != 29)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
                 APLRRegressor a(t[0].cast<size_t>(),t[1].cast<double>(),t[2].cast<uint_fast32_t>(),t[3].cast<std::string>(),
                     t[22].cast<std::string>(),t[4].cast<size_t>(),t[5].cast<double>(),
                     t[6].cast<double>(),100,t[7].cast<size_t>(),t[8].cast<size_t>(),t[9].cast<size_t>(),t[10].cast<double>(),t[17].cast<size_t>(),
-                    t[23].cast<double>());
+                    t[23].cast<double>(),t[28].cast<double>());
 
                 a.validation_error_steps=t[11].cast<VectorXd>();
                 a.term_names=t[12].cast<std::vector<std::string>>();

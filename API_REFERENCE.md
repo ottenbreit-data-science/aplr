@@ -1,6 +1,6 @@
 # APLRRegressor
 
-## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5, validation_tuning_metric:str="default")
+## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5)
 
 ### Constructor parameters
 
@@ -14,7 +14,7 @@ The learning rate. Must be greater than zero and not more than one. The higher t
 Used to randomly split training observations into training and validation if ***validation_set_indexes*** is not specified when fitting.
 
 #### family (default = "gaussian")
-Determines the loss function used. Allowed values are "gaussian", "binomial", "poisson", "gamma", "tweedie", "group_gaussian" and "mae". This is used together with ***link_function***. When ***family*** is "group_gaussian" then the "group" argument in the ***fit*** method must be provided. In the latter case APLR will try to minimize group MSE when training the model.
+Determines the loss function used. Allowed values are "gaussian", "binomial", "poisson", "gamma", "tweedie", "group_gaussian", "mae" and "quantile". This is used together with ***link_function***. When ***family*** is "group_gaussian" then the "group" argument in the ***fit*** method must be provided. In the latter case APLR will try to minimize group MSE when training the model. The ***family*** "quantile" is used together with the ***quantile*** constructor parameter.
 
 #### link_function (default = "identity")
 Determines how the linear predictor is transformed to predictions. Allowed values are "identity", "logit" and "log". For an ordinary regression model use ***family*** "gaussian" and ***link_function*** "identity". For logistic regression use ***family*** "binomial" and ***link_function*** "logit". For a multiplicative model use the "log" ***link_function***. The "log" ***link_function*** often works best with a "poisson", "gamma" or "tweedie" ***family***, depending on the data. The ***family*** "poisson", "gamma" or "tweedie" should only be used with the "log" ***link_function***. Inappropriate combinations of ***family*** and ***link_function*** may result in a warning message when fitting the model and/or a poor model fit. Please note that values other than "identity" typically require a significantly higher ***m*** (or ***v***) in order to converge.
@@ -54,6 +54,10 @@ Specifies the variance power for the "tweedie" ***family***.
 
 #### validation_tuning_metric (default = "default")
 Specifies which metric to use for validating the model and tuning ***m***. Available options are "default" (using the same methodology as when calculating the training error), "mse", "mae", "negative_gini" and "rankability". The default is often a choice that fits well with respect to the ***family*** chosen. However, if you want to use ***family*** or ***tweedie_power*** as tuning parameters then the default is not suitable. "rankability" uses a methodology similar to the one described in https://towardsdatascience.com/how-to-calculate-roc-auc-score-for-regression-models-c0be4fdf76bb except that the metric is inverted and can be weighted by sample weights.
+
+#### quantile (default = 0.5)
+Specifies the quantile to use when ***family*** is "quantile".
+
 
 ## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], group:npt.ArrayLike = np.empty(0))
 
