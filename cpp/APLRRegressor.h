@@ -50,17 +50,20 @@ private:
     VectorXi group_validation;
     std::set<int> unique_groups_train;
     std::set<int> unique_groups_validation;
+    std::vector<int> interaction_constraints;
 
     //Methods
     void validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, 
         const std::vector<size_t> &validation_set_indexes, const std::vector<size_t> &prioritized_predictors_indexes,
-        const std::vector<int> &monotonic_constraints, const VectorXi &group);
+        const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<int> &interaction_constraints);
     void throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes);
     void throw_error_if_prioritized_predictors_indexes_has_invalid_indexes(const MatrixXd &X, const std::vector<size_t> &prioritized_predictors_indexes);
     void throw_error_if_monotonic_constraints_has_invalid_indexes(const MatrixXd &X, const std::vector<int> &monotonic_constraints);
+    void throw_error_if_interaction_constraints_has_invalid_indexes(const MatrixXd &X, const std::vector<int> &interaction_constraints);
     void define_training_and_validation_sets(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight, 
         const std::vector<size_t> &validation_set_indexes, const VectorXi &group);
-    void initialize(const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints);
+    void initialize(const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints,
+                    const std::vector<int> &interaction_constraints);
     bool check_if_base_term_has_only_one_unique_value(size_t base_term);
     void add_term_to_terms_eligible_current(Term &term);
     VectorXd calculate_neg_gradient_current(const VectorXd &sample_weight_train);
@@ -153,7 +156,7 @@ public:
     ~APLRRegressor();
     void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},const std::vector<size_t> &validation_set_indexes={},
         const std::vector<size_t> &prioritized_predictors_indexes={}, const std::vector<int> &monotonic_constraints={},
-        const VectorXi &group=VectorXi(0));
+        const VectorXi &group=VectorXi(0), const std::vector<int> &interaction_constraints={});
     VectorXd predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training=true);
     void set_term_names(const std::vector<std::string> &X_names);
     MatrixXd calculate_local_feature_importance(const MatrixXd &X);
@@ -214,15 +217,16 @@ APLRRegressor::~APLRRegressor()
 //invalidating validation_ratio. The rest of indexes are used to train. 
 void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names,
     const std::vector<size_t> &validation_set_indexes,const std::vector<size_t> &prioritized_predictors_indexes, 
-    const std::vector<int> &monotonic_constraints, const VectorXi &group)
+    const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<int> &interaction_constraints)
 {
     throw_error_if_family_does_not_exist();
     throw_error_if_link_function_does_not_exist();
     throw_error_if_tweedie_power_is_invalid();
-    validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes,prioritized_predictors_indexes,monotonic_constraints,group);
+    validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes,prioritized_predictors_indexes,monotonic_constraints,group,
+                        interaction_constraints);
     define_training_and_validation_sets(X,y,sample_weight,validation_set_indexes,group);
     scale_training_observations_if_using_log_link_function();
-    initialize(prioritized_predictors_indexes, monotonic_constraints);
+    initialize(prioritized_predictors_indexes, monotonic_constraints, interaction_constraints);
     execute_boosting_steps();
     update_coefficients_for_all_steps();
     print_final_summary();
@@ -281,7 +285,8 @@ void APLRRegressor::throw_error_if_tweedie_power_is_invalid()
 
 void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,
     const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes, 
-    const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints, const VectorXi &group)
+    const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints, const VectorXi &group,
+    const std::vector<int> &interaction_constraints)
 {
     if(X.rows()!=y.size()) throw std::runtime_error("X and y must have the same number of rows.");
     if(X.rows()<2) throw std::runtime_error("X and y cannot have less than two rows.");
@@ -292,6 +297,7 @@ void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,co
     throw_error_if_validation_set_indexes_has_invalid_indexes(y, validation_set_indexes);
     throw_error_if_prioritized_predictors_indexes_has_invalid_indexes(X, prioritized_predictors_indexes);
     throw_error_if_monotonic_constraints_has_invalid_indexes(X, monotonic_constraints);
+    throw_error_if_interaction_constraints_has_invalid_indexes(X, interaction_constraints);
     throw_error_if_response_contains_invalid_values(y);
     throw_error_if_sample_weight_contains_invalid_values(y, sample_weight);
     bool group_is_of_incorrect_size{family=="group_gaussian" && group.rows()!=y.rows()};
@@ -327,6 +333,24 @@ void APLRRegressor::throw_error_if_monotonic_constraints_has_invalid_indexes(con
     bool error{monotonic_constraints.size()>0 && monotonic_constraints.size() != X.cols()};
     if(error)
         throw std::runtime_error("monotonic_constraints must either be empty or a vector with one integer for each column in X.");
+}
+
+void APLRRegressor::throw_error_if_interaction_constraints_has_invalid_indexes(const MatrixXd &X, const std::vector<int> &interaction_constraints)
+{
+    bool dimension_error{interaction_constraints.size()>0 && interaction_constraints.size() != X.cols()};
+    if(dimension_error)
+        throw std::runtime_error("interaction_constraints must either be empty or a vector with one integer for each column in X.");
+    bool value_error{false};
+    for(auto &constraint:interaction_constraints)    
+    {
+        if(constraint<0 || constraint>2)
+        {
+            value_error=true;
+            break;
+        }
+    }
+    if(value_error)
+        throw std::runtime_error("The value of each element in interaction_constraints must be 0 (no constraint), 1 (the predictor can only appear as a main effect in an interaction), or 2 (the predictor cannot appear in any interaction).");
 }
 
 void APLRRegressor::throw_error_if_response_contains_invalid_values(const VectorXd &y)
@@ -507,7 +531,8 @@ void APLRRegressor::scale_training_observations_if_using_log_link_function()
     }
 }
 
-void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints)
+void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints,
+                                const std::vector<int> &interaction_constraints)
 {
     number_of_base_terms=static_cast<size_t>(X_train.cols());
 
@@ -544,6 +569,16 @@ void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors
         for(auto &term_eligible_current:terms_eligible_current)
         {
             term_eligible_current.set_monotonic_constraint(monotonic_constraints[term_eligible_current.base_term]);
+        }
+    }
+
+    this->interaction_constraints=interaction_constraints;
+    bool interaction_constraints_provided{interaction_constraints.size()>0};
+    if(interaction_constraints_provided)
+    {
+        for(auto &term_eligible_current:terms_eligible_current)
+        {
+            term_eligible_current.set_interaction_constraint(interaction_constraints[term_eligible_current.base_term]);
         }
     }
 
@@ -811,6 +846,7 @@ void APLRRegressor::determine_interactions_to_consider(const std::vector<size_t>
     interactions_to_consider=std::vector<Term>();
     interactions_to_consider.reserve(static_cast<size_t>(X_train.cols())*terms.size());
     bool monotonic_constraints_provided{monotonic_constraints.size()>0};
+    bool interaction_constraints_provided{interaction_constraints.size()>0};
 
     VectorXi indexes_for_terms_to_consider_as_interaction_partners{find_indexes_for_terms_to_consider_as_interaction_partners()};
     for (auto &model_term_index:indexes_for_terms_to_consider_as_interaction_partners)
@@ -823,11 +859,19 @@ void APLRRegressor::determine_interactions_to_consider(const std::vector<size_t>
                 Term interaction{Term(new_term_index)};
                 if(monotonic_constraints_provided)
                     interaction.set_monotonic_constraint(monotonic_constraints[new_term_index]);
+                if(interaction_constraints_provided)
+                {
+                    interaction.set_interaction_constraint(interaction_constraints[new_term_index]);
+                    bool new_term_cannot_be_an_interaction{interaction.get_interaction_constraint()==2};
+                    if(new_term_cannot_be_an_interaction) 
+                        continue;
+                }                    
                 Term model_term_without_given_terms{terms[model_term_index]};
                 model_term_without_given_terms.given_terms.clear();
                 model_term_without_given_terms.cleanup_when_this_term_was_added_as_a_given_term();
                 Term model_term_with_added_given_term{terms[model_term_index]};
-                bool model_term_without_given_terms_can_be_a_given_term{model_term_without_given_terms.get_monotonic_constraint()==0};
+                bool model_term_without_given_terms_can_be_a_given_term{model_term_without_given_terms.get_monotonic_constraint()==0
+                    && model_term_without_given_terms.get_interaction_constraint()==0};
                 if(model_term_without_given_terms_can_be_a_given_term)
                     model_term_with_added_given_term.given_terms.push_back(model_term_without_given_terms);
                 add_necessary_given_terms_to_interaction(interaction, model_term_with_added_given_term);
@@ -1345,6 +1389,7 @@ void APLRRegressor::cleanup_after_fit()
     group_validation.resize(0);
     unique_groups_train.clear();
     unique_groups_validation.clear();
+    interaction_constraints.clear();
 }
 
 VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)

@@ -59,7 +59,7 @@ Specifies which metric to use for validating the model and tuning ***m***. Avail
 Specifies the quantile to use when ***family*** is "quantile".
 
 
-## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], group:npt.ArrayLike = np.empty(0))
+## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], group:npt.ArrayLike = np.empty(0), interaction_constraints:List[int]=[])
 
 ***This method fits the model to data.***
 
@@ -84,10 +84,13 @@ An optional list of integers specifying the indexes of observations to be used f
 An optional list of integers specifying the indexes of predictors (columns) in ***X*** that should be prioritized. Terms of the prioritized predictors will enter the model as long as they reduce the training error and do not contain too few effective observations. They will also be updated more often.
 
 #### monotonic_constraints
-An optional list of integers specifying monotonic constraints on model terms. For example, if there are three predictors in ***X***, then monotonic_constraints = [1,0,-1] means that 1) the first predictor in ***X*** cannot be used in interaction terms and all terms using the first predictor in ***X*** as a main effect must have positive regression coefficients, 2) there are no monotonic constraints on terms using the second predictor in ***X***, and 3) the third predictor in ***X*** cannot be used in interaction terms and all terms using the third predictor in ***X*** as a main effect must have negative regression coefficients.
+An optional list of integers specifying monotonic constraints on model terms. For example, if there are three predictors in ***X***, then monotonic_constraints = [1,0,-1] means that 1) the first predictor in ***X*** cannot be used in interaction terms as a secondary effect and all terms using the first predictor in ***X*** as a main effect must have positive regression coefficients, 2) there are no monotonic constraints on terms using the second predictor in ***X***, and 3) the third predictor in ***X*** cannot be used in interaction terms as a secondary effect and all terms using the third predictor in ***X*** as a main effect must have negative regression coefficients.
 
 #### group
 A numpy vector of integers that is used when ***family*** is "group_gaussian". For example, ***group*** may represent year (could be useful in a time series model).
+
+#### interaction_constraints
+An optional list of integers specifying interaction constraints on model terms. For example, if there are three predictors in ***X***, then interaction_constraints = [1,0,2] means that 1) the first predictor in ***X*** cannot be used in interaction terms as a secondary effect, 2) there are no interaction constraints on terms using the second predictor in ***X***, and 3) the third predictor in ***X*** cannot be used in any interaction terms.
 
 
 ## Method: predict(X:npt.ArrayLike, cap_predictions_to_minmax_in_training:bool=True)

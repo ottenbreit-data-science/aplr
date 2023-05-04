@@ -38,6 +38,7 @@ private:
     VectorXd negative_gradient_discretized;
     std::vector<size_t> observations_in_bins;
     int monotonic_constraint;
+    int interaction_constraint;
 
     void calculate_error_where_given_terms_are_zero(const VectorXd &negative_gradient, const VectorXd &sample_weight);
     void initialize_parameters_in_estimate_split_point(size_t bins,double v,size_t min_observations_in_split);
@@ -88,6 +89,8 @@ public:
     bool get_can_be_used_as_a_given_term();
     void set_monotonic_constraint(int constraint);
     int get_monotonic_constraint();
+    void set_interaction_constraint(int constraint);
+    int get_interaction_constraint();
 
     friend bool operator== (const Term &p1, const Term &p2);
     friend class APLRRegressor;
@@ -96,14 +99,15 @@ public:
 Term::Term(size_t base_term,const std::vector<Term> &given_terms,double split_point,bool direction_right,double coefficient):
 name{""},base_term{base_term},given_terms{given_terms},split_point{split_point},direction_right{direction_right},coefficient{coefficient},
 split_point_search_errors_sum{std::numeric_limits<double>::infinity()},ineligible_boosting_steps{0},can_be_used_as_a_given_term{false},
-monotonic_constraint{0}
+monotonic_constraint{0},interaction_constraint{0}
 {
 }
 
 Term::Term(const Term &other):
 name{other.name},base_term{other.base_term},given_terms{other.given_terms},split_point{other.split_point},direction_right{other.direction_right},
 coefficient{other.coefficient},coefficient_steps{other.coefficient_steps},split_point_search_errors_sum{other.split_point_search_errors_sum},
-ineligible_boosting_steps{0},can_be_used_as_a_given_term{other.can_be_used_as_a_given_term},monotonic_constraint{other.monotonic_constraint}
+ineligible_boosting_steps{0},can_be_used_as_a_given_term{other.can_be_used_as_a_given_term},monotonic_constraint{other.monotonic_constraint},
+interaction_constraint{other.interaction_constraint}
 {
 }
 
@@ -677,6 +681,16 @@ void Term::set_monotonic_constraint(int constraint)
 int Term::get_monotonic_constraint()
 {
     return monotonic_constraint;
+}
+
+void Term::set_interaction_constraint(int constraint)
+{
+    interaction_constraint = constraint;
+}
+
+int Term::get_interaction_constraint()
+{
+    return interaction_constraint;
 }
 
 

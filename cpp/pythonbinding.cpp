@@ -24,7 +24,7 @@ PYBIND11_MODULE(aplr_cpp, m) {
             )
         .def("fit", &APLRRegressor::fit,py::arg("X"),py::arg("y"),py::arg("sample_weight")=VectorXd(0),py::arg("X_names")=std::vector<std::string>(),
             py::arg("validation_set_indexes")=std::vector<size_t>(),py::arg("prioritized_predictors_indexes")=std::vector<size_t>(),
-            py::arg("monotonic_constraints")=std::vector<int>(),py::arg("group")=VectorXi(0),
+            py::arg("monotonic_constraints")=std::vector<int>(),py::arg("group")=VectorXi(0), py::arg("interaction_constraints")=std::vector<int>(),
             py::call_guard<py::scoped_ostream_redirect,py::scoped_estream_redirect>())
         .def("predict", &APLRRegressor::predict,py::arg("X"),py::arg("bool cap_predictions_to_minmax_in_training")=true)
         .def("set_term_names", &APLRRegressor::set_term_names,py::arg("X_names"))
