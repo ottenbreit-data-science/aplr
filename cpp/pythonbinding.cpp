@@ -13,12 +13,12 @@ PYBIND11_MODULE(aplr_cpp, m) {
     py::class_<APLRRegressor>(m, "APLRRegressor",py::module_local())
         .def(py::init<int&, double&, int&, std::string&,std::string&,int&,double&,double&,int&,int&,int&,int&,int&,int&,int&,int&,double&,std::string&,
             double&>(),
-            py::arg("m")=1000,py::arg("v")=0.1,py::arg("random_state")=0,py::arg("family")="gaussian",py::arg("link_function")="identity",
+            py::arg("m")=1000,py::arg("v")=0.1,py::arg("random_state")=0,py::arg("loss_function")="mse",py::arg("link_function")="identity",
             py::arg("n_jobs")=0,py::arg("validation_ratio")=0.2,py::arg("intercept")=NAN_DOUBLE,
             py::arg("reserved_terms_times_num_x")=100,py::arg("bins")=300,py::arg("verbosity")=0,
             py::arg("max_interaction_level")=1,py::arg("max_interactions")=100000,py::arg("min_observations_in_split")=20,
             py::arg("ineligible_boosting_steps_added")=10,py::arg("max_eligible_terms")=5,
-            py::arg("tweedie_power")=1.5,
+            py::arg("dispersion_parameter")=1.5,
             py::arg("validation_tuning_metric")="default",
             py::arg("quantile")=0.5
             )
@@ -49,7 +49,7 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def_readwrite("max_interactions", &APLRRegressor::max_interactions)
         .def_readwrite("min_observations_in_split", &APLRRegressor::min_observations_in_split)
         .def_readwrite("interactions_eligible", &APLRRegressor::interactions_eligible)
-        .def_readwrite("family", &APLRRegressor::family)
+        .def_readwrite("loss_function", &APLRRegressor::loss_function)
         .def_readwrite("link_function", &APLRRegressor::link_function)
         .def_readwrite("validation_ratio", &APLRRegressor::validation_ratio)
         .def_readwrite("validation_error_steps", &APLRRegressor::validation_error_steps)
@@ -64,7 +64,7 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def_readwrite("max_eligible_terms", &APLRRegressor::max_eligible_terms)
         .def_readwrite("number_of_base_terms",&APLRRegressor::number_of_base_terms)
         .def_readwrite("feature_importance",&APLRRegressor::feature_importance)
-        .def_readwrite("tweedie_power",&APLRRegressor::tweedie_power)
+        .def_readwrite("dispersion_parameter",&APLRRegressor::dispersion_parameter)
         .def_readwrite("min_training_prediction_or_response",&APLRRegressor::min_training_prediction_or_response)
         .def_readwrite("max_training_prediction_or_response",&APLRRegressor::max_training_prediction_or_response)
         .def_readwrite("validation_tuning_metric",&APLRRegressor::validation_tuning_metric)
@@ -73,10 +73,10 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def(py::pickle(
             [](const APLRRegressor &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
-                return py::make_tuple(a.m,a.v,a.random_state,a.family,a.n_jobs,a.validation_ratio,a.intercept,a.bins,a.verbosity,
+                return py::make_tuple(a.m,a.v,a.random_state,a.loss_function,a.n_jobs,a.validation_ratio,a.intercept,a.bins,a.verbosity,
                     a.max_interaction_level,a.max_interactions,a.validation_error_steps,a.term_names,a.term_coefficients,a.terms,a.intercept_steps,
                     a.interactions_eligible,a.min_observations_in_split,a.ineligible_boosting_steps_added,a.max_eligible_terms,
-                    a.number_of_base_terms,a.feature_importance,a.link_function,a.tweedie_power,a.min_training_prediction_or_response,a.max_training_prediction_or_response,
+                    a.number_of_base_terms,a.feature_importance,a.link_function,a.dispersion_parameter,a.min_training_prediction_or_response,a.max_training_prediction_or_response,
                     a.validation_tuning_metric,a.validation_indexes,a.quantile);
             },
             [](py::tuple t) { // __setstate__

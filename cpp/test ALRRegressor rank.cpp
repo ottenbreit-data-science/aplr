@@ -20,7 +20,7 @@ int main()
     model.v=1.0;
     model.bins=10;
     model.n_jobs=1;
-    model.family="gaussian";
+    model.loss_function="mse";
     model.verbosity=3;
     model.max_interaction_level=100;
     model.max_interactions=30;

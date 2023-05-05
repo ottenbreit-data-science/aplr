@@ -564,7 +564,7 @@ void Term::estimate_coefficient_and_error(const VectorXd &x, const VectorXd &y, 
         if(coefficient_adheres_to_monotonic_constraint())
         {
             VectorXd predictions{x*coefficient};
-            split_point_search_errors_sum=calculate_sum_error(calculate_errors(y,predictions,sample_weight,FAMILY_GAUSSIAN))+error_added;
+            split_point_search_errors_sum=calculate_sum_error(calculate_errors(y,predictions,sample_weight,MSE_LOSS_FUNCTION))+error_added;
         }
         else
         {

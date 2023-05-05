@@ -5,11 +5,11 @@ import aplr_cpp
 
 
 class APLRRegressor():
-    def __init__(self, m:int=1000, v:float=0.1, random_state:int=0, family:str="gaussian", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, tweedie_power:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5):
+    def __init__(self, m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5):
         self.m=m
         self.v=v
         self.random_state=random_state
-        self.family=family
+        self.loss_function=loss_function
         self.link_function=link_function
         self.n_jobs=n_jobs
         self.validation_ratio=validation_ratio
@@ -21,7 +21,7 @@ class APLRRegressor():
         self.ineligible_boosting_steps_added=ineligible_boosting_steps_added
         self.max_eligible_terms=max_eligible_terms
         self.verbosity=verbosity
-        self.tweedie_power=tweedie_power
+        self.dispersion_parameter=dispersion_parameter
         self.validation_tuning_metric=validation_tuning_metric
         self.quantile=quantile
 
@@ -34,7 +34,7 @@ class APLRRegressor():
         self.APLRRegressor.m=self.m
         self.APLRRegressor.v=self.v
         self.APLRRegressor.random_state=self.random_state
-        self.APLRRegressor.family=self.family
+        self.APLRRegressor.loss_function=self.loss_function
         self.APLRRegressor.link_function=self.link_function
         self.APLRRegressor.n_jobs=self.n_jobs
         self.APLRRegressor.validation_ratio=self.validation_ratio
@@ -46,7 +46,7 @@ class APLRRegressor():
         self.APLRRegressor.ineligible_boosting_steps_added=self.ineligible_boosting_steps_added
         self.APLRRegressor.max_eligible_terms=self.max_eligible_terms
         self.APLRRegressor.verbosity=self.verbosity
-        self.APLRRegressor.tweedie_power=self.tweedie_power
+        self.APLRRegressor.dispersion_parameter=self.dispersion_parameter
         self.APLRRegressor.validation_tuning_metric=self.validation_tuning_metric
         self.APLRRegressor.quantile=self.quantile
 
@@ -105,7 +105,7 @@ class APLRRegressor():
             "m": self.m,
             "v": self.v,
             "random_state":self.random_state,
-            "family":self.family,
+            "loss_function":self.loss_function,
             "link_function":self.link_function,
             "n_jobs":self.n_jobs,
             "validation_ratio":self.validation_ratio,
@@ -117,7 +117,7 @@ class APLRRegressor():
             "min_observations_in_split":self.min_observations_in_split,
             "ineligible_boosting_steps_added":self.ineligible_boosting_steps_added,
             "max_eligible_terms":self.max_eligible_terms,
-            "tweedie_power":self.tweedie_power,
+            "dispersion_parameter":self.dispersion_parameter,
             "validation_tuning_metric":self.validation_tuning_metric,
             "quantile":self.quantile
         }

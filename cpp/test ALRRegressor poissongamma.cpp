@@ -20,9 +20,9 @@ int main()
     model.v=0.1;
     model.bins=300;
     model.n_jobs=0;
-    model.family="tweedie";
+    model.loss_function="tweedie";
     model.link_function="log";
-    model.tweedie_power=1.5;
+    model.dispersion_parameter=1.5;
     model.verbosity=3;
     model.max_interaction_level=0;
     model.max_interactions=1000;

@@ -96,7 +96,7 @@ private:
     void find_min_and_max_training_predictions_or_responses();
     void cleanup_after_fit();
     void validate_that_model_can_be_used(const MatrixXd &X);
-    void throw_error_if_family_does_not_exist();
+    void throw_error_if_loss_function_does_not_exist();
     void throw_error_if_link_function_does_not_exist();
     VectorXd calculate_linear_predictor(const MatrixXd &X);
     void update_linear_predictor_and_predictions();
@@ -105,7 +105,7 @@ private:
     void throw_error_if_response_is_not_between_0_and_1(const VectorXd &y,const std::string &error_message);
     void throw_error_if_vector_contains_negative_values(const VectorXd &y, const std::string &error_message);
     void throw_error_if_response_is_not_greater_than_zero(const VectorXd &y, const std::string &error_message);
-    void throw_error_if_tweedie_power_is_invalid();
+    void throw_error_if_dispersion_parameter_is_invalid();
     VectorXd differentiate_predictions();
     void scale_training_observations_if_using_log_link_function();
     void revert_scaling_if_using_log_link_function();
@@ -118,7 +118,7 @@ public:
     std::vector<Term> terms;
     size_t m; //Boosting steps to run. Can shrink to auto tuned value after running fit().
     double v; //Learning rate.
-    std::string family;
+    std::string loss_function;
     std::string link_function;
     double validation_ratio;
     size_t n_jobs; //0:using all available cores. 1:no multithreading. >1: Using a specified number of cores but not more than is available.
@@ -139,7 +139,7 @@ public:
                                     //terms with ineligible_boosting_steps>0). Not used if 0.
     size_t number_of_base_terms; 
     VectorXd feature_importance; //Populated in fit() using validation set. Rows are in the same order as in X.
-    double tweedie_power;
+    double dispersion_parameter;
     double min_training_prediction_or_response;
     double max_training_prediction_or_response;
     std::vector<size_t> validation_indexes;
@@ -147,10 +147,10 @@ public:
     double quantile;
 
     //Methods
-    APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string family="gaussian",
+    APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string loss_function="mse",
         std::string link_function="identity", size_t n_jobs=0, double validation_ratio=0.2,double intercept=NAN_DOUBLE,
         size_t reserved_terms_times_num_x=100, size_t bins=300,size_t verbosity=0,size_t max_interaction_level=1,size_t max_interactions=100000,
-        size_t min_observations_in_split=20, size_t ineligible_boosting_steps_added=10, size_t max_eligible_terms=5,double tweedie_power=1.5,
+        size_t min_observations_in_split=20, size_t ineligible_boosting_steps_added=10, size_t max_eligible_terms=5,double dispersion_parameter=1.5,
         std::string validation_tuning_metric="default", double quantile=0.5);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
@@ -175,16 +175,16 @@ public:
 };
 
 //Regular constructor
-APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::string family,std::string link_function,size_t n_jobs,
+APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::string loss_function,std::string link_function,size_t n_jobs,
     double validation_ratio,double intercept,size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,
-    size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double tweedie_power,
+    size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double dispersion_parameter,
     std::string validation_tuning_metric, double quantile):
         reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{intercept},m{m},v{v},
-        family{family},link_function{link_function},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
+        loss_function{loss_function},link_function{link_function},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},
         intercept_steps{VectorXd(0)},max_interactions{max_interactions},interactions_eligible{0},validation_error_steps{VectorXd(0)},
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
-        max_eligible_terms{max_eligible_terms},number_of_base_terms{0},tweedie_power{tweedie_power},min_training_prediction_or_response{NAN_DOUBLE},
+        max_eligible_terms{max_eligible_terms},number_of_base_terms{0},dispersion_parameter{dispersion_parameter},min_training_prediction_or_response{NAN_DOUBLE},
         max_training_prediction_or_response{NAN_DOUBLE}, validation_tuning_metric{validation_tuning_metric},
         validation_indexes{std::vector<size_t>(0)}, quantile{quantile}
 {
@@ -193,14 +193,14 @@ APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::s
 //Copy constructor
 APLRRegressor::APLRRegressor(const APLRRegressor &other):
     reserved_terms_times_num_x{other.reserved_terms_times_num_x},intercept{other.intercept},terms{other.terms},m{other.m},v{other.v},
-    family{other.family},link_function{other.link_function},validation_ratio{other.validation_ratio},
+    loss_function{other.loss_function},link_function{other.link_function},validation_ratio{other.validation_ratio},
     n_jobs{other.n_jobs},random_state{other.random_state},bins{other.bins},
     verbosity{other.verbosity},term_names{other.term_names},term_coefficients{other.term_coefficients},
     max_interaction_level{other.max_interaction_level},intercept_steps{other.intercept_steps},
     max_interactions{other.max_interactions},interactions_eligible{other.interactions_eligible},validation_error_steps{other.validation_error_steps},
     min_observations_in_split{other.min_observations_in_split},ineligible_boosting_steps_added{other.ineligible_boosting_steps_added},
     max_eligible_terms{other.max_eligible_terms},number_of_base_terms{other.number_of_base_terms},
-    feature_importance{other.feature_importance},tweedie_power{other.tweedie_power},min_training_prediction_or_response{other.min_training_prediction_or_response},
+    feature_importance{other.feature_importance},dispersion_parameter{other.dispersion_parameter},min_training_prediction_or_response{other.min_training_prediction_or_response},
     max_training_prediction_or_response{other.max_training_prediction_or_response},validation_tuning_metric{other.validation_tuning_metric},
     validation_indexes{other.validation_indexes}, quantile{other.quantile}
 {
@@ -219,9 +219,9 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
     const std::vector<size_t> &validation_set_indexes,const std::vector<size_t> &prioritized_predictors_indexes, 
     const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<int> &interaction_constraints)
 {
-    throw_error_if_family_does_not_exist();
+    throw_error_if_loss_function_does_not_exist();
     throw_error_if_link_function_does_not_exist();
-    throw_error_if_tweedie_power_is_invalid();
+    throw_error_if_dispersion_parameter_is_invalid();
     validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes,prioritized_predictors_indexes,monotonic_constraints,group,
                         interaction_constraints);
     define_training_and_validation_sets(X,y,sample_weight,validation_set_indexes,group);
@@ -238,27 +238,31 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
     cleanup_after_fit();
 }
 
-void APLRRegressor::throw_error_if_family_does_not_exist()
+void APLRRegressor::throw_error_if_loss_function_does_not_exist()
 {
-    bool family_exists{false};
-    if(family=="gaussian")
-        family_exists=true;
-    else if(family=="binomial")
-        family_exists=true;
-    else if(family=="poisson")
-        family_exists=true;
-    else if(family=="gamma")
-        family_exists=true;
-    else if(family=="tweedie")
-        family_exists=true;
-    else if(family=="group_gaussian")
-        family_exists=true;
-    else if(family=="mae")
-        family_exists=true;
-    else if(family=="quantile")
-        family_exists=true;
-    if(!family_exists)
-        throw std::runtime_error("Family "+family+" is not available in APLR.");   
+    bool loss_function_exists{false};
+    if(loss_function=="mse")
+        loss_function_exists=true;
+    else if(loss_function=="binomial")
+        loss_function_exists=true;
+    else if(loss_function=="poisson")
+        loss_function_exists=true;
+    else if(loss_function=="gamma")
+        loss_function_exists=true;
+    else if(loss_function=="tweedie")
+        loss_function_exists=true;
+    else if(loss_function=="group_mse")
+        loss_function_exists=true;
+    else if(loss_function=="mae")
+        loss_function_exists=true;
+    else if(loss_function=="quantile")
+        loss_function_exists=true;
+    else if(loss_function=="negative_binomial")
+        loss_function_exists=true;
+    else if(loss_function=="cauchy")
+        loss_function_exists=true;
+    if(!loss_function_exists)
+        throw std::runtime_error("Loss function "+loss_function+" is not available in APLR.");   
 }
 
 void APLRRegressor::throw_error_if_link_function_does_not_exist()
@@ -274,13 +278,22 @@ void APLRRegressor::throw_error_if_link_function_does_not_exist()
         throw std::runtime_error("Link function "+link_function+" is not available in APLR.");
 }
 
-void APLRRegressor::throw_error_if_tweedie_power_is_invalid()
+void APLRRegressor::throw_error_if_dispersion_parameter_is_invalid()
 {
-    bool tweedie_power_equals_invalid_poits{is_approximately_equal(tweedie_power,1.0) || is_approximately_equal(tweedie_power,2.0)};
-    bool tweedie_power_is_in_invalid_range{std::isless(tweedie_power,1.0)};
-    bool tweedie_power_is_invalid{tweedie_power_equals_invalid_poits || tweedie_power_is_in_invalid_range};
-    if(tweedie_power_is_invalid)
-        throw std::runtime_error("Tweedie power is invalid. It must not equal 1.0 or 2.0 and cannot be below 1.0.");
+    if(loss_function=="tweedie")
+    {
+        bool dispersion_parameter_equals_invalid_poits{is_approximately_equal(dispersion_parameter,1.0) || is_approximately_equal(dispersion_parameter,2.0)};
+        bool dispersion_parameter_is_in_invalid_range{std::isless(dispersion_parameter,1.0)};
+        bool dispersion_parameter_is_invalid{dispersion_parameter_equals_invalid_poits || dispersion_parameter_is_in_invalid_range};
+        if(dispersion_parameter_is_invalid)
+            throw std::runtime_error("Invalid dispersion_parameter (variance power). It must not equal 1.0 or 2.0 and cannot be below 1.0.");
+    }
+    else if(loss_function=="negative_binomial" || loss_function=="cauchy")
+    {
+        bool dispersion_parameter_is_in_invalid{std::islessequal(dispersion_parameter, 0.0)};
+        if(dispersion_parameter_is_in_invalid)
+            throw std::runtime_error("Invalid dispersion_parameter. It must be greater than zero.");
+    }
 }
 
 void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,
@@ -300,8 +313,8 @@ void APLRRegressor::validate_input_to_fit(const MatrixXd &X,const VectorXd &y,co
     throw_error_if_interaction_constraints_has_invalid_indexes(X, interaction_constraints);
     throw_error_if_response_contains_invalid_values(y);
     throw_error_if_sample_weight_contains_invalid_values(y, sample_weight);
-    bool group_is_of_incorrect_size{family=="group_gaussian" && group.rows()!=y.rows()};
-    if(group_is_of_incorrect_size) throw std::runtime_error("When family is group_gaussian then y and group must have the same number of rows.");
+    bool group_is_of_incorrect_size{loss_function=="group_mse" && group.rows()!=y.rows()};
+    if(group_is_of_incorrect_size) throw std::runtime_error("When loss_function is group_mse then y and group must have the same number of rows.");
 }
 
 void APLRRegressor::throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes)
@@ -355,23 +368,24 @@ void APLRRegressor::throw_error_if_interaction_constraints_has_invalid_indexes(c
 
 void APLRRegressor::throw_error_if_response_contains_invalid_values(const VectorXd &y)
 {
-    if(link_function=="logit" || family=="binomial")
+    if(link_function=="logit" || loss_function=="binomial")
     {
-        std::string error_message{"Response values for the logit link function or binomial family cannot be less than zero or greater than one."};
+        std::string error_message{"Response values for the logit link function or binomial loss_function cannot be less than zero or greater than one."};
         throw_error_if_response_is_not_between_0_and_1(y,error_message);
     }
-    else if(family=="gamma" || (family=="tweedie" && std::isgreater(tweedie_power,2)) )
+    else if(loss_function=="gamma" || (loss_function=="tweedie" && std::isgreater(dispersion_parameter,2)) )
     {
         std::string error_message;
-        if(family=="tweedie")
-            error_message="Response values for the "+family+" family when tweedie_power>2 must be greater than zero.";
+        if(loss_function=="tweedie")
+            error_message="Response values for the "+loss_function+" loss_function when dispersion_parameter>2 must be greater than zero.";
         else
-            error_message="Response values for the "+family+" family must be greater than zero.";
+            error_message="Response values for the "+loss_function+" loss_function must be greater than zero.";
         throw_error_if_response_is_not_greater_than_zero(y,error_message);
     }
-    else if(link_function=="log" || family=="poisson" || (family=="tweedie" && std::isless(tweedie_power,2) && std::isgreater(tweedie_power,1)))
+    else if(link_function=="log" || loss_function=="poisson" || loss_function=="negative_binomial" 
+        || (loss_function=="tweedie" && std::isless(dispersion_parameter,2) && std::isgreater(dispersion_parameter,1)))
     {
-        std::string error_message{"Response values for the log link function or poisson family or tweedie family when tweedie_power<2 cannot be less than zero."};
+        std::string error_message{"Response values for the log link function or poisson loss_function or negative binomial loss function or tweedie loss_function when dispersion_parameter<2 cannot be less than zero."};
         throw_error_if_vector_contains_negative_values(y,error_message);
     }
     else if(validation_tuning_metric=="negative_gini")
@@ -585,8 +599,8 @@ void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors
     linear_predictor_current=VectorXd::Constant(y_train.size(),intercept);
     linear_predictor_null_model=linear_predictor_current;
     linear_predictor_current_validation=VectorXd::Constant(y_validation.size(),intercept);
-    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function,tweedie_power);
-    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function,tweedie_power);
+    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function,dispersion_parameter);
+    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function,dispersion_parameter);
 
     validation_error_steps.resize(m);
     validation_error_steps.setConstant(std::numeric_limits<double>::infinity());
@@ -621,17 +635,17 @@ void APLRRegressor::add_term_to_terms_eligible_current(Term &term)
 VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &sample_weight_train)
 {
     VectorXd output;
-    if(family=="gaussian")
+    if(loss_function=="mse")
         output=y_train-predictions_current;
-    else if(family=="binomial")
+    else if(loss_function=="binomial")
         output=y_train.array() / predictions_current.array() - (y_train.array()-1.0) / (predictions_current.array()-1.0);
-    else if(family=="poisson")
+    else if(loss_function=="poisson")
         output=y_train.array() / predictions_current.array() - 1;
-    else if(family=="gamma")
+    else if(loss_function=="gamma")
         output=(y_train.array() - predictions_current.array()) / predictions_current.array() / predictions_current.array();
-    else if(family=="tweedie")
-        output=(y_train.array()-predictions_current.array()).array() * predictions_current.array().pow(-tweedie_power);
-    else if(family=="group_gaussian")
+    else if(loss_function=="tweedie")
+        output=(y_train.array()-predictions_current.array()).array() * predictions_current.array().pow(-dispersion_parameter);
+    else if(loss_function=="group_mse")
     {
         GroupData group_residuals_and_count{calculate_group_errors_and_count(y_train,predictions_current,group_train,unique_groups_train)};
 
@@ -646,12 +660,12 @@ VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &sample_we
             output[i] = group_residuals_and_count.error[group_train[i]];
         }
     }
-    else if(family=="mae")
+    else if(loss_function=="mae")
     {
         double mae{calculate_errors(y_train,predictions_current,sample_weight_train,"mae").mean()};
         output=(y_train.array() - predictions_current.array()).sign()*mae;
     }
-    else if(family=="quantile")
+    else if(loss_function=="quantile")
     {
         double mae{calculate_errors(y_train,predictions_current,sample_weight_train,"mae").mean()};
         output=(y_train.array() - predictions_current.array()).sign()*mae;
@@ -662,6 +676,15 @@ VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &sample_we
             else
                 output[i] *= quantile;
         }
+    }
+    else if(loss_function=="negative_binomial")
+    {
+        output=(y_train.array() - predictions_current.array()) / (predictions_current.array() * (dispersion_parameter*predictions_current.array()+1));
+    }
+    else if(loss_function=="cauchy")
+    {
+        ArrayXd residuals{y_train.array()-predictions_current.array()};
+        output=2*residuals / (dispersion_parameter*dispersion_parameter + residuals.pow(2));
     }    
     
     if(link_function!="identity")
@@ -747,14 +770,14 @@ void APLRRegressor::update_linear_predictor_and_predictions()
 {
     linear_predictor_current+=linear_predictor_update;
     linear_predictor_current_validation+=linear_predictor_update_validation;
-    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function,tweedie_power);
-    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function,tweedie_power);
+    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function,dispersion_parameter);
+    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function,dispersion_parameter);
 }
 
 void APLRRegressor::update_gradient_and_errors()
 {
     neg_gradient_current=calculate_neg_gradient_current(sample_weight_train);
-    neg_gradient_nullmodel_errors_sum=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_null_model,sample_weight_train,FAMILY_GAUSSIAN));
+    neg_gradient_nullmodel_errors_sum=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_null_model,sample_weight_train,MSE_LOSS_FUNCTION));
 }
 
 std::vector<size_t> APLRRegressor::find_terms_eligible_current_indexes_for_a_base_term(size_t base_term)
@@ -1040,7 +1063,7 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step,
 
     linear_predictor_update=terms_eligible_current[best_term_index].calculate_contribution_to_linear_predictor(X_train);
     linear_predictor_update_validation=terms_eligible_current[best_term_index].calculate_contribution_to_linear_predictor(X_validation);
-    double error_after_updating_term=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train,FAMILY_GAUSSIAN));
+    double error_after_updating_term=calculate_sum_error(calculate_errors(neg_gradient_current,linear_predictor_update,sample_weight_train,MSE_LOSS_FUNCTION));
     bool no_improvement{std::isgreaterequal(error_after_updating_term,neg_gradient_nullmodel_errors_sum)};
     if(no_improvement)
     {
@@ -1107,7 +1130,7 @@ void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step
     if(validation_error_is_invalid)
     {
         abort_boosting=true;
-        std::string warning_message{"Warning: Encountered numerical problems when calculating validation error in the previous boosting step. Not continuing with further boosting steps. One potential reason is if the combination of family and link_function is invalid."};
+        std::string warning_message{"Warning: Encountered numerical problems when calculating validation error in the previous boosting step. Not continuing with further boosting steps. One potential reason is if the combination of loss_function and link_function is invalid."};
         std::cout<<warning_message<<"\n";
     }
 }
@@ -1115,15 +1138,22 @@ void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step
 void APLRRegressor::calculate_validation_error(size_t boosting_step, const VectorXd &predictions)
 {
     if(validation_tuning_metric=="default")
-        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,family,tweedie_power,group_validation,unique_groups_validation,quantile),sample_weight_validation);
+        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,loss_function,dispersion_parameter,group_validation,unique_groups_validation,quantile),sample_weight_validation);
     else if(validation_tuning_metric=="mse")
-        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,FAMILY_GAUSSIAN),sample_weight_validation);
+        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,MSE_LOSS_FUNCTION),sample_weight_validation);
     else if(validation_tuning_metric=="mae")
         validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,"mae"),sample_weight_validation);
     else if(validation_tuning_metric=="negative_gini")
         validation_error_steps[boosting_step]=-calculate_gini(y_validation,predictions,sample_weight_validation);
     else if(validation_tuning_metric=="rankability")
         validation_error_steps[boosting_step]=-calculate_rankability(y_validation,predictions,sample_weight_validation,random_state);
+    else if(validation_tuning_metric=="group_mse")
+    {
+        bool group_is_not_provided{group_validation.rows()==0};
+        if(group_is_not_provided)
+            throw std::runtime_error("When validation_tuning_metric is group_mse then the group argument in fit() must be provided.");    
+        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,"group_mse",dispersion_parameter,group_validation,unique_groups_validation,quantile),sample_weight_validation);
+    }
     else
         throw std::runtime_error(validation_tuning_metric + " is an invalid validation_tuning_metric.");
 }
@@ -1397,7 +1427,7 @@ VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_predictions_to_minma
     validate_that_model_can_be_used(X);
 
     VectorXd linear_predictor{calculate_linear_predictor(X)};
-    VectorXd predictions{transform_linear_predictor_to_predictions(linear_predictor,link_function,tweedie_power)};
+    VectorXd predictions{transform_linear_predictor_to_predictions(linear_predictor,link_function,dispersion_parameter)};
 
     if(cap_predictions_to_minmax_in_training)
     {

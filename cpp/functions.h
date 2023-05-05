@@ -54,7 +54,7 @@ double set_error_to_infinity_if_invalid(double error)
     return error;    
 }
 
-VectorXd calculate_gaussian_errors(const VectorXd &y,const VectorXd &predicted)
+VectorXd calculate_mse_errors(const VectorXd &y,const VectorXd &predicted)
 {
     VectorXd errors{y-predicted};
     errors=errors.array()*errors.array();
@@ -79,9 +79,9 @@ VectorXd calculate_gamma_errors(const VectorXd &y,const VectorXd &predicted)
     return errors;
 }
 
-VectorXd calculate_tweedie_errors(const VectorXd &y,const VectorXd &predicted,double tweedie_power=1.5)
+VectorXd calculate_tweedie_errors(const VectorXd &y,const VectorXd &predicted,double dispersion_parameter=1.5)
 {
-    VectorXd errors{-y.array()*predicted.array().pow(1-tweedie_power) / (1-tweedie_power) + predicted.array().pow(2-tweedie_power) / (2-tweedie_power)};
+    VectorXd errors{-y.array()*predicted.array().pow(1-dispersion_parameter) / (1-dispersion_parameter) + predicted.array().pow(2-dispersion_parameter) / (2-dispersion_parameter)};
     return errors;
 }
 
@@ -107,7 +107,7 @@ GroupData calculate_group_errors_and_count(const VectorXd &y,const VectorXd &pre
     return group_data;
 }
 
-VectorXd calculate_group_gaussian_errors(const VectorXd &y,const VectorXd &predicted,const VectorXi &group, const std::set<int> &unique_groups)
+VectorXd calculate_group_mse_errors(const VectorXd &y,const VectorXd &predicted,const VectorXi &group, const std::set<int> &unique_groups)
 {
     GroupData group_residuals_and_count{calculate_group_errors_and_count(y,predicted,group,unique_groups)};
 
@@ -147,26 +147,45 @@ VectorXd calculate_quantile_errors(const VectorXd &y,const VectorXd &predicted, 
     return errors;
 }
 
-VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0),const std::string &family="gaussian",
-    double tweedie_power=1.5, const VectorXi &group=VectorXi(0), const std::set<int> &unique_groups={}, double quantile=0.5)
+VectorXd calculate_negative_binomial_errors(const VectorXd &y,const VectorXd &predicted,double dispersion_parameter)
+{
+    ArrayXd temp{dispersion_parameter * predicted.array()};
+    VectorXd errors{(1/dispersion_parameter) * (1 + temp).log() - y.array() * (temp / (1 + temp)).log()};
+
+    return errors;    
+}
+
+VectorXd calculate_cauchy_errors(const VectorXd &y,const VectorXd &predicted,double dispersion_parameter)
+{
+    VectorXd errors{ ( 1 + ((y.array()-predicted.array())/dispersion_parameter).pow(2) ).log() };
+
+    return errors;    
+}
+
+VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0),const std::string &loss_function="mse",
+    double dispersion_parameter=1.5, const VectorXi &group=VectorXi(0), const std::set<int> &unique_groups={}, double quantile=0.5)
 {   
     VectorXd errors;
-    if(family=="gaussian")
-        errors=calculate_gaussian_errors(y,predicted);
-    else if(family=="binomial")
+    if(loss_function=="mse")
+        errors=calculate_mse_errors(y,predicted);
+    else if(loss_function=="binomial")
         errors=calculate_binomial_errors(y,predicted);
-    else if(family=="poisson")
+    else if(loss_function=="poisson")
         errors=calculate_poisson_errors(y,predicted);
-    else if(family=="gamma")
+    else if(loss_function=="gamma")
         errors=calculate_gamma_errors(y,predicted);
-    else if(family=="tweedie")
-        errors=calculate_tweedie_errors(y,predicted,tweedie_power);
-    else if(family=="group_gaussian")
-        errors=calculate_group_gaussian_errors(y,predicted,group,unique_groups);
-    else if(family=="mae")
+    else if(loss_function=="tweedie")
+        errors=calculate_tweedie_errors(y,predicted,dispersion_parameter);
+    else if(loss_function=="group_mse")
+        errors=calculate_group_mse_errors(y,predicted,group,unique_groups);
+    else if(loss_function=="mae")
         errors=calculate_absolute_errors(y,predicted);
-    else if(family=="quantile")
+    else if(loss_function=="quantile")
         errors=calculate_quantile_errors(y,predicted,quantile);
+    else if(loss_function=="negative_binomial")
+        errors=calculate_negative_binomial_errors(y,predicted,dispersion_parameter);
+    else if(loss_function=="cauchy")
+        errors=calculate_cauchy_errors(y,predicted,dispersion_parameter);
 
     if(sample_weight.size()>0)
         errors=errors.array()*sample_weight.array();
@@ -174,7 +193,7 @@ VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const Vect
     return errors;
 }
 
-double calculate_gaussian_error_one_observation(double y,double predicted)
+double calculate_mse_error_one_observation(double y,double predicted)
 {
     double error{y-predicted};
     error=error*error;
@@ -183,7 +202,7 @@ double calculate_gaussian_error_one_observation(double y,double predicted)
 
 double calculate_error_one_observation(double y,double predicted,double sample_weight=NAN_DOUBLE)
 {   
-    double error{calculate_gaussian_error_one_observation(y,predicted)};    
+    double error{calculate_mse_error_one_observation(y,predicted)};    
     
     if(!std::isnan(sample_weight))
         error=error*sample_weight;
@@ -237,7 +256,7 @@ VectorXd calculate_exp_of_linear_predictor_adjusted_for_numerical_problems(const
     return exp_of_linear_predictor;
 }
 
-VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predictor, const std::string &link_function="identity", double tweedie_power=1.5)
+VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predictor, const std::string &link_function="identity", double dispersion_parameter=1.5)
 {
     if(link_function=="identity")
         return linear_predictor;

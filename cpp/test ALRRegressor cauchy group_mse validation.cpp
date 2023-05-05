@@ -17,18 +17,17 @@ int main()
     //Model
     APLRRegressor model{APLRRegressor()};
     model.m=100;
-    model.v=0.1;
-    model.bins=300;
-    model.n_jobs=0;
-    model.loss_function="gamma";
-    model.link_function="log";
+    model.v=1.0;
+    model.bins=10;
+    model.n_jobs=1;
+    model.loss_function="cauchy";
     model.verbosity=3;
-    model.max_interaction_level=0;
-    model.max_interactions=1000;
-    model.min_observations_in_split=20;
+    model.max_interaction_level=100;
+    model.max_interactions=30;
+    model.min_observations_in_split=50;
     model.ineligible_boosting_steps_added=10;
     model.max_eligible_terms=5;
-    model.validation_tuning_metric="mse";
+    model.validation_tuning_metric="group_mse";
 
     //Data    
     MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -38,12 +37,15 @@ int main()
 
     VectorXd sample_weight{VectorXd::Constant(y_train.size(),1.0)};
 
+    VectorXi group{X_train.col(0).cast<int>()};
+
     std::cout<<X_train;
 
     //Fitting
     //model.fit(X_train,y_train);
-    model.fit(X_train,y_train,sample_weight);
+    //model.fit(X_train,y_train,sample_weight);
     //model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+    model.fit(X_train,y_train,sample_weight,{},{},{},{},group);
     std::cout<<"feature importance\n"<<model.feature_importance<<"\n\n";
 
     VectorXd predictions{model.predict(X_test)};
@@ -53,7 +55,7 @@ int main()
     save_as_csv_file("data/output.csv",predictions);
 
     std::cout<<predictions.mean()<<"\n\n";
-    tests.push_back(is_approximately_equal(predictions.mean(),23.6503,0.00001));
+    tests.push_back(is_approximately_equal(predictions.mean(),20.2462,0.00001));
 
     //Test summary
     std::cout<<"\n\nTest summary\n"<<"Passed "<<std::accumulate(tests.begin(),tests.end(),0)<<" out of "<<tests.size()<<" tests.";

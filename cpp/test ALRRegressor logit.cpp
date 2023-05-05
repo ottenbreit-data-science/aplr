@@ -20,7 +20,7 @@ int main()
     model.v=0.5;
     model.bins=300;
     model.n_jobs=0;
-    model.family="binomial";
+    model.loss_function="binomial";
     model.link_function="logit";
     model.verbosity=3;
     model.max_interaction_level=0;

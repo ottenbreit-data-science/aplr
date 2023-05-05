@@ -35,10 +35,10 @@ validation_results=pd.DataFrame()
 best_validation_result=np.inf
 param_grid=ParameterGrid({"max_interaction_level":[0,1,2,3,100],"min_observations_in_split":[1, 20, 50, 100, 200]})
 best_model=None
-family="gaussian" #other available families are binomial, poisson, gamma, tweedie, group_gaussian, mae and quantile.
+loss_function="mse" #other available families are binomial, poisson, gamma, tweedie, group_mse, mae, quantile, negative_binomial and cauchy.
 link_function="identity" #other available link functions are logit and log.
 for params in param_grid:
-    model = APLRRegressor(random_state=random_state,verbosity=3,m=1000,v=0.1,family=family,link_function=link_function,**params) 
+    model = APLRRegressor(random_state=random_state,verbosity=3,m=1000,v=0.1,loss_function=loss_function,link_function=link_function,**params) 
     model.fit(data_train[predictors].values,data_train[response].values,X_names=predictors)
     validation_error_for_this_model=np.min(model.get_validation_error_steps())
     validation_results_for_this_model=pd.DataFrame(model.get_params(),index=[0])

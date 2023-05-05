@@ -20,7 +20,7 @@ int main()
     model.v=0.1;
     model.bins=300;
     model.n_jobs=0;
-    model.loss_function="gamma";
+    model.loss_function="negative_binomial";
     model.link_function="log";
     model.verbosity=3;
     model.max_interaction_level=0;
@@ -28,13 +28,13 @@ int main()
     model.min_observations_in_split=20;
     model.ineligible_boosting_steps_added=10;
     model.max_eligible_terms=5;
-    model.validation_tuning_metric="mse";
+    model.dispersion_parameter=1.0;
 
     //Data    
     MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
     MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")}; 
-    VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};    
-    VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")}; 
+    VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train_poisson.csv")};    
+    VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test_poisson.csv")}; 
 
     VectorXd sample_weight{VectorXd::Constant(y_train.size(),1.0)};
 
@@ -53,7 +53,9 @@ int main()
     save_as_csv_file("data/output.csv",predictions);
 
     std::cout<<predictions.mean()<<"\n\n";
-    tests.push_back(is_approximately_equal(predictions.mean(),23.6503,0.00001));
+    tests.push_back(is_approximately_equal(predictions.mean(),1.87605,0.00001));
+
+    //std::cout<<model.validation_error_steps<<"\n\n";
 
     //Test summary
     std::cout<<"\n\nTest summary\n"<<"Passed "<<std::accumulate(tests.begin(),tests.end(),0)<<" out of "<<tests.size()<<" tests.";
