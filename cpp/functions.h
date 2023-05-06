@@ -256,7 +256,7 @@ VectorXd calculate_exp_of_linear_predictor_adjusted_for_numerical_problems(const
     return exp_of_linear_predictor;
 }
 
-VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predictor, const std::string &link_function="identity", double dispersion_parameter=1.5)
+VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predictor, const std::string &link_function="identity")
 {
     if(link_function=="identity")
         return linear_predictor;

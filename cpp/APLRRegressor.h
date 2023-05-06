@@ -599,8 +599,8 @@ void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors
     linear_predictor_current=VectorXd::Constant(y_train.size(),intercept);
     linear_predictor_null_model=linear_predictor_current;
     linear_predictor_current_validation=VectorXd::Constant(y_validation.size(),intercept);
-    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function,dispersion_parameter);
-    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function,dispersion_parameter);
+    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function);
+    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function);
 
     validation_error_steps.resize(m);
     validation_error_steps.setConstant(std::numeric_limits<double>::infinity());
@@ -770,8 +770,8 @@ void APLRRegressor::update_linear_predictor_and_predictions()
 {
     linear_predictor_current+=linear_predictor_update;
     linear_predictor_current_validation+=linear_predictor_update_validation;
-    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function,dispersion_parameter);
-    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function,dispersion_parameter);
+    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function);
+    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function);
 }
 
 void APLRRegressor::update_gradient_and_errors()
@@ -1427,7 +1427,7 @@ VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_predictions_to_minma
     validate_that_model_can_be_used(X);
 
     VectorXd linear_predictor{calculate_linear_predictor(X)};
-    VectorXd predictions{transform_linear_predictor_to_predictions(linear_predictor,link_function,dispersion_parameter)};
+    VectorXd predictions{transform_linear_predictor_to_predictions(linear_predictor,link_function)};
 
     if(cap_predictions_to_minmax_in_training)
     {
