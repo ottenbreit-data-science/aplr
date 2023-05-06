@@ -162,6 +162,14 @@ VectorXd calculate_cauchy_errors(const VectorXd &y,const VectorXd &predicted,dou
     return errors;    
 }
 
+VectorXd calculate_weibull_errors(const VectorXd &y,const VectorXd &predicted,double dispersion_parameter)
+{
+    VectorXd errors{ dispersion_parameter*predicted.array().log() + (1-dispersion_parameter) * y.array().log() +
+        (y.array()/predicted.array()).pow(dispersion_parameter) };
+
+    return errors;    
+}
+
 VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const VectorXd &sample_weight=VectorXd(0),const std::string &loss_function="mse",
     double dispersion_parameter=1.5, const VectorXi &group=VectorXi(0), const std::set<int> &unique_groups={}, double quantile=0.5)
 {   
@@ -186,6 +194,8 @@ VectorXd calculate_errors(const VectorXd &y,const VectorXd &predicted,const Vect
         errors=calculate_negative_binomial_errors(y,predicted,dispersion_parameter);
     else if(loss_function=="cauchy")
         errors=calculate_cauchy_errors(y,predicted,dispersion_parameter);
+    else if(loss_function=="weibull")
+        errors=calculate_weibull_errors(y,predicted,dispersion_parameter);
 
     if(sample_weight.size()>0)
         errors=errors.array()*sample_weight.array();

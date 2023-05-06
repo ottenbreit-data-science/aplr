@@ -261,6 +261,8 @@ void APLRRegressor::throw_error_if_loss_function_does_not_exist()
         loss_function_exists=true;
     else if(loss_function=="cauchy")
         loss_function_exists=true;
+    else if(loss_function=="weibull")
+        loss_function_exists=true;
     if(!loss_function_exists)
         throw std::runtime_error("Loss function "+loss_function+" is not available in APLR.");   
 }
@@ -288,7 +290,7 @@ void APLRRegressor::throw_error_if_dispersion_parameter_is_invalid()
         if(dispersion_parameter_is_invalid)
             throw std::runtime_error("Invalid dispersion_parameter (variance power). It must not equal 1.0 or 2.0 and cannot be below 1.0.");
     }
-    else if(loss_function=="negative_binomial" || loss_function=="cauchy")
+    else if(loss_function=="negative_binomial" || loss_function=="cauchy" || loss_function=="weibull")
     {
         bool dispersion_parameter_is_in_invalid{std::islessequal(dispersion_parameter, 0.0)};
         if(dispersion_parameter_is_in_invalid)
@@ -373,7 +375,7 @@ void APLRRegressor::throw_error_if_response_contains_invalid_values(const Vector
         std::string error_message{"Response values for the logit link function or binomial loss_function cannot be less than zero or greater than one."};
         throw_error_if_response_is_not_between_0_and_1(y,error_message);
     }
-    else if(loss_function=="gamma" || (loss_function=="tweedie" && std::isgreater(dispersion_parameter,2)) )
+    else if(loss_function=="gamma" || (loss_function=="tweedie" && std::isgreater(dispersion_parameter,2)))
     {
         std::string error_message;
         if(loss_function=="tweedie")
@@ -382,10 +384,10 @@ void APLRRegressor::throw_error_if_response_contains_invalid_values(const Vector
             error_message="Response values for the "+loss_function+" loss_function must be greater than zero.";
         throw_error_if_response_is_not_greater_than_zero(y,error_message);
     }
-    else if(link_function=="log" || loss_function=="poisson" || loss_function=="negative_binomial" 
+    else if(link_function=="log" || loss_function=="poisson" || loss_function=="negative_binomial" || loss_function=="weibull"
         || (loss_function=="tweedie" && std::isless(dispersion_parameter,2) && std::isgreater(dispersion_parameter,1)))
     {
-        std::string error_message{"Response values for the log link function or poisson loss_function or negative binomial loss function or tweedie loss_function when dispersion_parameter<2 cannot be less than zero."};
+        std::string error_message{"Response values for the log link function or poisson loss_function or negative binomial loss function or weibull loss function or tweedie loss_function when dispersion_parameter<2 cannot be less than zero."};
         throw_error_if_vector_contains_negative_values(y,error_message);
     }
     else if(validation_tuning_metric=="negative_gini")
@@ -685,6 +687,10 @@ VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &sample_we
     {
         ArrayXd residuals{y_train.array()-predictions_current.array()};
         output=2*residuals / (dispersion_parameter*dispersion_parameter + residuals.pow(2));
+    }
+    else if(loss_function=="weibull")
+    {
+        output= dispersion_parameter / predictions_current.array() * ( (y_train.array()/predictions_current.array()).pow(dispersion_parameter) - 1);
     }    
     
     if(link_function!="identity")
