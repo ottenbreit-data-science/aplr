@@ -1,15 +1,15 @@
 #pragma once
 #include <string>
 #include <limits>
-#include "../dependencies/eigen-master/Eigen/Dense"
-#include "functions.h"
-#include "term.h"
-#include <vector>
-#include "constants.h"
-#include "functions.h"
 #include <thread>
 #include <future>
 #include <random>
+#include <vector>
+#include "../dependencies/eigen-master/Eigen/Dense"
+#include "functions.h"
+#include "term.h"
+#include "constants.h"
+
 
 using namespace Eigen;
 
@@ -18,8 +18,7 @@ using namespace Eigen;
 class APLRRegressor
 {
 private:
-    //Fields
-    size_t reserved_terms_times_num_x; //How many times number of variables in X to reserve memory for term (terms in model)
+    size_t reserved_terms_times_num_x;
     MatrixXd X_train;
     VectorXd y_train;
     VectorXd sample_weight_train;
@@ -52,7 +51,6 @@ private:
     std::set<int> unique_groups_validation;
     std::vector<int> interaction_constraints;
 
-    //Methods
     void validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, 
         const std::vector<size_t> &validation_set_indexes, const std::vector<size_t> &prioritized_predictors_indexes,
         const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<int> &interaction_constraints);
@@ -113,32 +111,30 @@ private:
     std::string compute_raw_base_term_name(const Term &term, const std::string &X_name);
     
 public:
-    //Fields
     double intercept;
     std::vector<Term> terms;
-    size_t m; //Boosting steps to run. Can shrink to auto tuned value after running fit().
-    double v; //Learning rate.
+    size_t m;
+    size_t m_optimal;
+    double v;
     std::string loss_function;
     std::string link_function;
     double validation_ratio;
-    size_t n_jobs; //0:using all available cores. 1:no multithreading. >1: Using a specified number of cores but not more than is available.
-    uint_fast32_t random_state; //For train/validation split. If std::numeric_limits<uint_fast32_t>::lowest() then will randomly set a seed
-    size_t bins; //Used if nobs>bins
-    size_t verbosity; //0 none, 1 summary after running fit(), 2 each boosting step when running fit().
+    size_t n_jobs;
+    uint_fast32_t random_state;
+    size_t bins;
+    size_t verbosity;
     std::vector<std::string> term_names;
     VectorXd term_coefficients;
     size_t max_interaction_level;
     VectorXd intercept_steps;
-    size_t max_interactions; //Max interactions allowed to add (counted in interactions_eligible)
-    size_t interactions_eligible; //Interactions that were eligible when training the model
-    VectorXd validation_error_steps; //Validation error for each boosting step
-    size_t min_observations_in_split; //Must be at least 1
-    size_t ineligible_boosting_steps_added; //Determines the magnitude of ineligible_boosting_steps when set to >0 during fit(). Not used if 0.
-    size_t max_eligible_terms; //Determines how many terms with ineligible_boosting_steps=0 are supposed to be left eligible
-                                    //at the end of each boosting step (before decreasing ineligible_boosting_steps by one for all 
-                                    //terms with ineligible_boosting_steps>0). Not used if 0.
+    size_t max_interactions;
+    size_t interactions_eligible;
+    VectorXd validation_error_steps;
+    size_t min_observations_in_split;
+    size_t ineligible_boosting_steps_added;
+    size_t max_eligible_terms; 
     size_t number_of_base_terms; 
-    VectorXd feature_importance; //Populated in fit() using validation set. Rows are in the same order as in X.
+    VectorXd feature_importance;
     double dispersion_parameter;
     double min_training_prediction_or_response;
     double max_training_prediction_or_response;
@@ -146,7 +142,6 @@ public:
     std::string validation_tuning_metric;
     double quantile;
 
-    //Methods
     APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string loss_function="mse",
         std::string link_function="identity", size_t n_jobs=0, double validation_ratio=0.2,double intercept=NAN_DOUBLE,
         size_t reserved_terms_times_num_x=100, size_t bins=300,size_t verbosity=0,size_t max_interaction_level=1,size_t max_interactions=100000,
@@ -154,9 +149,9 @@ public:
         std::string validation_tuning_metric="default", double quantile=0.5);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
-    void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},const std::vector<size_t> &validation_set_indexes={},
-        const std::vector<size_t> &prioritized_predictors_indexes={}, const std::vector<int> &monotonic_constraints={},
-        const VectorXi &group=VectorXi(0), const std::vector<int> &interaction_constraints={});
+    void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},
+        const std::vector<size_t> &validation_set_indexes={},const std::vector<size_t> &prioritized_predictors_indexes={},
+        const std::vector<int> &monotonic_constraints={},const VectorXi &group=VectorXi(0), const std::vector<int> &interaction_constraints={});
     VectorXd predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training=true);
     void set_term_names(const std::vector<std::string> &X_names);
     MatrixXd calculate_local_feature_importance(const MatrixXd &X);
@@ -169,12 +164,11 @@ public:
     VectorXd get_feature_importance();
     double get_intercept();
     VectorXd get_intercept_steps();
-    size_t get_m();
+    size_t get_optimal_m();
     std::string get_validation_tuning_metric();
     std::vector<size_t> get_validation_indexes();
 };
 
-//Regular constructor
 APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::string loss_function,std::string link_function,size_t n_jobs,
     double validation_ratio,double intercept,size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,
     size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double dispersion_parameter,
@@ -190,7 +184,6 @@ APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::s
 {
 }
 
-//Copy constructor
 APLRRegressor::APLRRegressor(const APLRRegressor &other):
     reserved_terms_times_num_x{other.reserved_terms_times_num_x},intercept{other.intercept},terms{other.terms},m{other.m},v{other.v},
     loss_function{other.loss_function},link_function{other.link_function},validation_ratio{other.validation_ratio},
@@ -202,19 +195,14 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other):
     max_eligible_terms{other.max_eligible_terms},number_of_base_terms{other.number_of_base_terms},
     feature_importance{other.feature_importance},dispersion_parameter{other.dispersion_parameter},min_training_prediction_or_response{other.min_training_prediction_or_response},
     max_training_prediction_or_response{other.max_training_prediction_or_response},validation_tuning_metric{other.validation_tuning_metric},
-    validation_indexes{other.validation_indexes}, quantile{other.quantile}
+    validation_indexes{other.validation_indexes}, quantile{other.quantile}, m_optimal{other.m_optimal}
 {
 }
 
-//Destructor
 APLRRegressor::~APLRRegressor()
 {
 }
 
-//Fits the model
-//X_names specifies names for each column in X. If not specified then X1, X2, X3, ... will be used as names for each column in X.
-//If validation_set_indexes.size()>0 then validation_set_indexes defines which of the indexes in X, y and sample_weight are used to validate, 
-//invalidating validation_ratio. The rest of indexes are used to train. 
 void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names,
     const std::vector<size_t> &validation_set_indexes,const std::vector<size_t> &prioritized_predictors_indexes, 
     const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<int> &interaction_constraints)
@@ -552,8 +540,8 @@ void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors
 {
     number_of_base_terms=static_cast<size_t>(X_train.cols());
 
-    terms.reserve(X_train.cols()*reserved_terms_times_num_x);
     terms.clear();
+    terms.reserve(X_train.cols()*reserved_terms_times_num_x);
 
     intercept=0;
     intercept_steps=VectorXd::Constant(m,0);
@@ -1033,7 +1021,7 @@ void APLRRegressor::add_promising_interactions_and_select_the_best_one()
     size_t best_term_before_interactions{best_term_index};
     bool best_term_before_interactions_was_not_selected{best_term_before_interactions==std::numeric_limits<size_t>::max()};
     bool error_is_less_than_for_best_term_before_interactions;
-    for (Eigen::Index j = 0; j < sorted_indexes_of_errors_for_interactions_to_consider.size(); ++j) //for each interaction to consider starting from lowest to highest error
+    for (Eigen::Index j = 0; j < sorted_indexes_of_errors_for_interactions_to_consider.size(); ++j) //For each interaction to consider starting from lowest to highest error
     {
         bool allowed_to_add_one_interaction{interactions_eligible<max_interactions};
         if(allowed_to_add_one_interaction)
@@ -1249,7 +1237,7 @@ void APLRRegressor::find_optimal_m_and_update_model_accordingly()
     {
         terms[i].coefficient = terms[i].coefficient_steps[best_boosting_step_index];
     }
-    m=best_boosting_step_index+1; 
+    m_optimal=best_boosting_step_index+1; 
 
     //Removing unused terms
     std::vector<Term> terms_new;
@@ -1356,7 +1344,7 @@ void APLRRegressor::calculate_feature_importance_on_validation_set()
 {
     feature_importance=VectorXd::Constant(number_of_base_terms,0);
     MatrixXd li{calculate_local_feature_importance(X_validation)};
-    for (Eigen::Index i = 0; i < li.cols(); ++i) //for each column calculate mean abs values
+    for (Eigen::Index i = 0; i < li.cols(); ++i) //For each column calculate mean abs values
     {
         feature_importance[i]=li.col(i).cwiseAbs().mean();
     }
@@ -1426,6 +1414,7 @@ void APLRRegressor::cleanup_after_fit()
     unique_groups_train.clear();
     unique_groups_validation.clear();
     interaction_constraints.clear();
+    interactions_eligible=0;
 }
 
 VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)
@@ -1446,7 +1435,7 @@ VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_predictions_to_minma
 VectorXd APLRRegressor::calculate_linear_predictor(const MatrixXd &X)
 {
     VectorXd predictions{VectorXd::Constant(X.rows(),intercept)};
-    for (size_t i = 0; i < terms.size(); ++i) //for each term
+    for (size_t i = 0; i < terms.size(); ++i)
     {
         VectorXd contrib{terms[i].calculate_contribution_to_linear_predictor(X)};
         predictions+=contrib;
@@ -1530,9 +1519,9 @@ VectorXd APLRRegressor::get_intercept_steps()
     return intercept_steps;
 }
 
-size_t APLRRegressor::get_m()
+size_t APLRRegressor::get_optimal_m()
 {
-    return m;
+    return m_optimal;
 }
 
 std::string APLRRegressor::get_validation_tuning_metric()

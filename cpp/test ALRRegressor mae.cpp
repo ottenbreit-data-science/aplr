@@ -1,10 +1,10 @@
+#include <cmath>
 #include <iostream>
-#include "term.h"
-#include "../dependencies/eigen-master/Eigen/Dense"
 #include <vector>
 #include <numeric>
+#include "../dependencies/eigen-master/Eigen/Dense"
 #include "APLRRegressor.h"
-#include <cmath>
+#include "term.h"
 
 
 using namespace Eigen;
@@ -40,6 +40,7 @@ int main()
 
     //Fitting
     //model.fit(X_train,y_train);
+    model.fit(X_train,y_train,sample_weight);
     model.fit(X_train,y_train,sample_weight);
     //model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
     std::cout<<"feature importance\n"<<model.feature_importance<<"\n\n";

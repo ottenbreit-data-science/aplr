@@ -1,9 +1,11 @@
 #include <iostream>
-#include "term.h"
-#include "../dependencies/eigen-master/Eigen/Dense"
 #include <vector>
 #include <numeric>
+#include <cmath>
+#include "../dependencies/eigen-master/Eigen/Dense"
+#include "term.h"
 #include "functions.h"
+
 
 using namespace Eigen;
 

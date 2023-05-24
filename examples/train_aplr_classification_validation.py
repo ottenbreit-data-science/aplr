@@ -1,0 +1,94 @@
+import pandas as pd
+import numpy as np
+import joblib
+from sklearn.model_selection import ParameterGrid, train_test_split
+from sklearn.datasets import load_iris
+from sklearn.metrics import balanced_accuracy_score
+from aplr import APLRClassifier
+
+
+#Settings
+random_state=0
+
+#Loading data
+iris = load_iris()
+data = pd.DataFrame(iris.data, columns=iris.feature_names)
+data["target"] = pd.Series(iris.target).astype("str")
+
+#Please note that APLRClassifier requires that all predictor columns in the data have numerical values,
+#This means that if you have missing values in the data then you need to either drop rows with missing data or impute them.
+#This also means that if you have a categorical text variable then you need to convert it to for example dummy variables for each category.
+
+#However, APLRClassifier requires that the response variable is a list of strings.
+
+#Please also note that APLR may be vulnerable to outliers in predictor values. If you experience this problem then please consider winsorising 
+#the predictors (or similar methods) before passing them to APLR.
+
+#Randomly splitting data into training and test sets
+data_train, data_test = train_test_split(data, test_size=0.3, random_state=random_state)
+del data
+
+#Predictors and response
+predictors=iris.feature_names
+response="target"
+predicted="predicted"
+
+#Training model
+validation_results=pd.DataFrame()
+best_validation_result=np.inf
+param_grid=ParameterGrid({"max_interaction_level":[0,1,2,3,100],"min_observations_in_split":[1, 20, 40]})
+best_model=None
+for params in param_grid:
+    model = APLRClassifier(random_state=random_state,verbosity=2,m=9000,v=0.1,**params) 
+    model.fit(data_train[predictors].values,data_train[response].values,X_names=predictors)
+    
+    validation_error_for_this_model = model.get_validation_error(); #Using the average of log loss for each underlying logit model.
+    #An alternative to the above line is to use an external method for calculating the validation error, such as in the three lines below.
+    data_validation = data_train.reset_index(drop=True).iloc[model.get_validation_indexes()]
+    data_validation[predicted] = model.predict(data_validation[predictors])
+    validation_error_for_this_model = -balanced_accuracy_score(y_true=data_validation[response], y_pred=data_validation[predicted])
+
+    validation_results_for_this_model=pd.DataFrame(model.get_params(),index=[0])
+    validation_results_for_this_model["validation_error"]=validation_error_for_this_model
+    validation_results=pd.concat([validation_results,validation_results_for_this_model])
+    if(validation_error_for_this_model<best_validation_result):
+        best_validation_result=validation_error_for_this_model
+        best_model=model
+print("Done training")
+
+#Saving model
+joblib.dump(best_model,"best_model.gz")
+
+#Validation results when doing grid search
+validation_results = validation_results.sort_values(by="validation_error")
+
+#Validation error per boosting step (per boosting step, average of log loss for each underlying logit model).
+validation_error_per_boosting_step = best_model.get_validation_error_steps()
+
+#Get a list of the categories in the model
+categories = best_model.get_categories() #In this example the categories are "0", "1" and "2".
+
+#Accessing the logit model that predicts whether an observation belongs to class "1" or not. The logit model is an APLRRegressor and can be used
+#for example to inspect which terms are in the model.
+logit_model_for_class_1 = best_model.get_logit_model(category="1")
+
+#Estimated feature importance on the validation set, average of the underlying logit models.
+estimated_feature_importance = pd.DataFrame({"predictor":predictors,"importance":best_model.get_feature_importance()})
+estimated_feature_importance = estimated_feature_importance.sort_values(by="importance", ascending=False)
+
+
+#PREDICTING AND TESTING ON THE TEST SET
+data_test[predicted] = best_model.predict(data_test[predictors].values)
+predicted_class_probabilities = pd.DataFrame(data = best_model.predict_class_probabilities(data_test[predictors].values), columns=categories)
+data_test = pd.concat([data_test.reset_index(drop=True),predicted_class_probabilities],axis=1)
+
+#Goodness of fit
+balanced_accuracy=balanced_accuracy_score(y_true=data_test[response], y_pred=data_test[predicted])
+
+#Local feature importance for each prediction. For each prediction, uses calculate_local_feature_importance() in the logit APLRRegressor model
+#for the category that corresponds to the prediction. Example in this data: If a prediction is "2" then using calculate_local_feature_importance()
+#in the logit model that predicts whether an observation belongs to class "2" or not.
+estimated_local_feature_importance_of_each_original_predictor = pd.DataFrame(
+    best_model.calculate_local_feature_importance(data_test[predictors]),
+    columns = predictors
+)

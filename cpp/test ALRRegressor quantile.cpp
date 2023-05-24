@@ -1,10 +1,10 @@
+#include <cmath>
 #include <iostream>
-#include "term.h"
-#include "../dependencies/eigen-master/Eigen/Dense"
 #include <vector>
 #include <numeric>
+#include "../dependencies/eigen-master/Eigen/Dense"
 #include "APLRRegressor.h"
-#include <cmath>
+#include "term.h"
 
 
 using namespace Eigen;

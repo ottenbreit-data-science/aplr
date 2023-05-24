@@ -186,7 +186,7 @@ The index of the term selected. So ***0*** is the first term, ***1*** is the sec
 ***Returns a numpy vector containing the regression coefficients of the intercept term by boosting step.***
 
 
-## Method: get_m()
+## Method: get_optimal_m()
 
 ***Returns the number of boosting steps in the model (the value that minimized validation error).***
 

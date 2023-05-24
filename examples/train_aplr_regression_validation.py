@@ -1,6 +1,7 @@
 import pandas as pd
+import numpy as np
 import joblib
-from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.model_selection import ParameterGrid, train_test_split
 from sklearn.datasets import load_diabetes
 from aplr import APLRRegressor
 
@@ -30,20 +31,29 @@ response="target"
 predicted="predicted"
 
 #Training model
-param_grid = {"max_interaction_level":[0,1,2,3,100],"min_observations_in_split":[1, 20, 50, 100, 200]}
+validation_results=pd.DataFrame()
+best_validation_result=np.inf
+param_grid=ParameterGrid({"max_interaction_level":[0,1,2,3,100],"min_observations_in_split":[1, 20, 50, 100, 200]})
+best_model=None
 loss_function="mse" #other available families are binomial, poisson, gamma, tweedie, group_mse, mae, quantile, negative_binomial, cauchy and weibull.
 link_function="identity" #other available link functions are logit and log.
-grid_search_cv = GridSearchCV(APLRRegressor(random_state=random_state,verbosity=1,m=1000,v=0.1,loss_function=loss_function,link_function=link_function),param_grid,cv=5,n_jobs=4,scoring="neg_mean_squared_error")
-grid_search_cv.fit(data_train[predictors].values,data_train[response].values)
-best_model:APLRRegressor = grid_search_cv.best_estimator_
-best_model.set_term_names(X_names=predictors)
+for params in param_grid:
+    model = APLRRegressor(random_state=random_state,verbosity=2,m=1000,v=0.1,loss_function=loss_function,link_function=link_function,**params) 
+    model.fit(data_train[predictors].values,data_train[response].values,X_names=predictors)
+    validation_error_for_this_model=np.min(model.get_validation_error_steps())
+    validation_results_for_this_model=pd.DataFrame(model.get_params(),index=[0])
+    validation_results_for_this_model["validation_error"]=validation_error_for_this_model
+    validation_results=pd.concat([validation_results,validation_results_for_this_model])
+    if(validation_error_for_this_model<best_validation_result):
+        best_validation_result=validation_error_for_this_model
+        best_model=model
 print("Done training")
 
 #Saving model
 joblib.dump(best_model,"best_model.gz")
 
-#Cross validation results when doing grid search
-cv_results = pd.DataFrame(grid_search_cv.cv_results_).sort_values(by="rank_test_score")
+#Validation results when doing grid search
+validation_results = validation_results.sort_values(by="validation_error")
 
 #Validation errors that occurred during training of the best model. APLR used the boosting step that gave the lowest validation error
 validation_error_per_boosting_step = best_model.get_validation_error_steps()

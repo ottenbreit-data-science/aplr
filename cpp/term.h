@@ -1,12 +1,12 @@
 #pragma once
 #include <string>
 #include <limits>
-#include "../dependencies/eigen-master/Eigen/Dense"
-#include "functions.h"
 #include <functional>
-#include "constants.h"
 #include <vector>
 #include <algorithm>
+#include "../dependencies/eigen-master/Eigen/Dense"
+#include "functions.h"
+#include "constants.h"
 
 using namespace Eigen;
 
@@ -408,7 +408,7 @@ void Term::setup_bins()
                 }
                 else
                 {
-                    bins_start_index.push_back(potential_start_indexes[0]); //first bin
+                    bins_start_index.push_back(potential_start_indexes[0]); //First bin
 
                     size_t observations_between_outer_start_indexes{potential_start_indexes[last_potential_start_index]-potential_start_indexes[0]};
                     size_t bins_to_create{bins-2};
@@ -429,7 +429,7 @@ void Term::setup_bins()
                         }
                     }
 
-                    bins_start_index.push_back(potential_start_indexes[last_potential_start_index]); //last bin
+                    bins_start_index.push_back(potential_start_indexes[last_potential_start_index]); //Last bin
                 }
             }
         }

@@ -15,12 +15,12 @@ sfc_module = setuptools.Extension(
 
 setuptools.setup(
     name='aplr',
-    version='3.1.0',
+    version='4.0.0',
     description='Automatic Piecewise Linear Regression',
     ext_modules=[sfc_module],
     author="Mathias von Ottenbreit",
     author_email="ottenbreitdatascience@gmail.com",
-    long_description="Build predictive and interpretable parametric machine learning models in Python based on the Automatic Piecewise Linear Regression methodology developed by Mathias von Ottenbreit.",
+    long_description="Build predictive and interpretable parametric regression or classification machine learning models in Python based on the Automatic Piecewise Linear Regression methodology developed by Mathias von Ottenbreit.",
     long_description_content_type="text/markdown",
     packages=['aplr'],
     install_requires=["numpy>=1.20"],       

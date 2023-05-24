@@ -39,6 +39,12 @@ static bool is_approximately_zero(TReal a, TReal tolerance = std::numeric_limits
     return false;
 }
 
+std::set<std::string> get_unique_strings(const std::vector<std::string> &string_vector)
+{
+    std::set<std::string> unique_strings{string_vector.begin(),string_vector.end()};
+    return unique_strings;
+}
+
 std::set<int> get_unique_integers(const VectorXi &int_vector)
 {
     std::set<int> unique_integers{int_vector.begin(),int_vector.end()};
@@ -334,13 +340,13 @@ struct DistributedIndices
     std::vector<size_t> index_highest; 
 };
 
-template <typename T> //type must implement a size() method
+template <typename T> //Type must implement a size() method
 size_t calculate_max_index_in_vector(T &vector)
 {
     return vector.size()-static_cast<size_t>(1);
 }
 
-template <typename T> //type must be an Eigen Matrix or Vector
+template <typename T> //Type must be an Eigen Matrix or Vector
 bool matrix_has_nan_or_infinite_elements(const T &x)
 {
     bool has_nan_or_infinite_elements{!x.allFinite()};
@@ -350,7 +356,7 @@ bool matrix_has_nan_or_infinite_elements(const T &x)
         return false;
 }
 
-template <typename T> //type must be an Eigen Matrix or Vector
+template <typename T> //Type must be an Eigen Matrix or Vector
 void throw_error_if_matrix_has_nan_or_infinite_elements(const T &x, const std::string &matrix_name)
 {
     bool matrix_is_empty{x.size()==0};
