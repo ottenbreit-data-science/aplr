@@ -50,6 +50,7 @@ private:
     std::set<int> unique_groups_train;
     std::set<int> unique_groups_validation;
     std::vector<int> interaction_constraints;
+    bool update_intercept_only_once;
 
     void validate_input_to_fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight,const std::vector<std::string> &X_names, 
         const std::vector<size_t> &validation_set_indexes, const std::vector<size_t> &prioritized_predictors_indexes,
@@ -109,6 +110,7 @@ private:
     void revert_scaling_if_using_log_link_function();
     void cap_predictions_to_minmax_in_training(VectorXd &predictions);
     std::string compute_raw_base_term_name(const Term &term, const std::string &X_name);
+    void throw_error_if_m_is_invalid();
     
 public:
     double intercept;
@@ -210,6 +212,7 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
     throw_error_if_loss_function_does_not_exist();
     throw_error_if_link_function_does_not_exist();
     throw_error_if_dispersion_parameter_is_invalid();
+    throw_error_if_m_is_invalid();
     validate_input_to_fit(X,y,sample_weight,X_names,validation_set_indexes,prioritized_predictors_indexes,monotonic_constraints,group,
                         interaction_constraints);
     define_training_and_validation_sets(X,y,sample_weight,validation_set_indexes,group);
@@ -543,8 +546,21 @@ void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors
     terms.clear();
     terms.reserve(X_train.cols()*reserved_terms_times_num_x);
 
-    intercept=0;
-    intercept_steps=VectorXd::Constant(m,0);
+    if(loss_function == "group_mse")
+    {
+        update_intercept_only_once = true;
+        if(sample_weight_train.size()==0)
+            intercept = y_train.mean();
+        else
+            intercept = (y_train.array()*sample_weight_train.array()).sum()/sample_weight_train.array().sum();
+    }
+    else
+    {
+        update_intercept_only_once = false;
+        intercept=0;
+    }
+    intercept_steps=VectorXd::Constant(m, intercept);
+
 
     terms_eligible_current.reserve(X_train.cols()*reserved_terms_times_num_x);
     size_t X_train_cols{static_cast<size_t>(X_train.cols())};
@@ -710,7 +726,8 @@ void APLRRegressor::execute_boosting_steps()
 
 void APLRRegressor::execute_boosting_step(size_t boosting_step)
 {
-    update_intercept(boosting_step);
+    if(!update_intercept_only_once)
+        update_intercept(boosting_step);
     bool prioritize_predictors{!abort_boosting && prioritized_predictors_indexes.size()>0};
     if(prioritize_predictors)
     {
@@ -1532,4 +1549,10 @@ std::string APLRRegressor::get_validation_tuning_metric()
 std::vector<size_t> APLRRegressor::get_validation_indexes()
 {
     return validation_indexes;
+}
+
+void APLRRegressor::throw_error_if_m_is_invalid()
+{
+    if(m<1)
+        throw std::runtime_error("The maximum number of boosting steps, m, must be at least 1.");   
 }
