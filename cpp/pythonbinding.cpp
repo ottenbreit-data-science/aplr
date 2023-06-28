@@ -39,12 +39,10 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def("get_validation_error_steps", &APLRRegressor::get_validation_error_steps)
         .def("get_feature_importance", &APLRRegressor::get_feature_importance)
         .def("get_intercept", &APLRRegressor::get_intercept)
-        .def("get_intercept_steps", &APLRRegressor::get_intercept_steps)
         .def("get_optimal_m", &APLRRegressor::get_optimal_m)
         .def("get_validation_tuning_metric", &APLRRegressor::get_validation_tuning_metric)
         .def("get_validation_indexes", &APLRRegressor::get_validation_indexes)
         .def_readwrite("intercept", &APLRRegressor::intercept)
-        .def_readwrite("intercept_steps", &APLRRegressor::intercept_steps)
         .def_readwrite("m", &APLRRegressor::m)
         .def_readwrite("m_optimal", &APLRRegressor::m_optimal)
         .def_readwrite("v", &APLRRegressor::v)
@@ -77,36 +75,35 @@ PYBIND11_MODULE(aplr_cpp, m) {
             [](const APLRRegressor &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
                 return py::make_tuple(a.m,a.v,a.random_state,a.loss_function,a.n_jobs,a.validation_ratio,a.intercept,a.bins,a.verbosity,
-                    a.max_interaction_level,a.max_interactions,a.validation_error_steps,a.term_names,a.term_coefficients,a.terms,a.intercept_steps,
+                    a.max_interaction_level,a.max_interactions,a.validation_error_steps,a.term_names,a.term_coefficients,a.terms,
                     a.interactions_eligible,a.min_observations_in_split,a.ineligible_boosting_steps_added,a.max_eligible_terms,
                     a.number_of_base_terms,a.feature_importance,a.link_function,a.dispersion_parameter,a.min_training_prediction_or_response,a.max_training_prediction_or_response,
                     a.validation_tuning_metric,a.validation_indexes,a.quantile,a.m_optimal);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 30)
+                if (t.size() != 29)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
                 APLRRegressor a(t[0].cast<size_t>(),t[1].cast<double>(),t[2].cast<uint_fast32_t>(),t[3].cast<std::string>(),
-                    t[22].cast<std::string>(),t[4].cast<size_t>(),t[5].cast<double>(),
-                    t[6].cast<double>(),100,t[7].cast<size_t>(),t[8].cast<size_t>(),t[9].cast<size_t>(),t[10].cast<double>(),t[17].cast<size_t>(),
-                    t[23].cast<double>(),t[28].cast<double>());
+                    t[21].cast<std::string>(),t[4].cast<size_t>(),t[5].cast<double>(),
+                    t[6].cast<double>(),100,t[7].cast<size_t>(),t[8].cast<size_t>(),t[9].cast<size_t>(),t[10].cast<double>(),t[16].cast<size_t>(),
+                    t[22].cast<double>(),t[27].cast<double>());
 
                 a.validation_error_steps=t[11].cast<VectorXd>();
                 a.term_names=t[12].cast<std::vector<std::string>>();
                 a.term_coefficients=t[13].cast<VectorXd>();
                 a.terms=t[14].cast<std::vector<Term>>();
-                a.intercept_steps=t[15].cast<VectorXd>();
-                a.interactions_eligible=t[16].cast<size_t>();
-                a.ineligible_boosting_steps_added=t[18].cast<size_t>();
-                a.max_eligible_terms=t[19].cast<size_t>();
-                a.number_of_base_terms=t[20].cast<size_t>();
-                a.feature_importance=t[21].cast<VectorXd>();
-                a.min_training_prediction_or_response=t[24].cast<double>();
-                a.max_training_prediction_or_response=t[25].cast<double>();
-                a.validation_tuning_metric=t[26].cast<std::string>();
-                a.validation_indexes=t[27].cast<std::vector<size_t>>();
-                a.m_optimal=t[29].cast<size_t>();
+                a.interactions_eligible=t[15].cast<size_t>();
+                a.ineligible_boosting_steps_added=t[17].cast<size_t>();
+                a.max_eligible_terms=t[18].cast<size_t>();
+                a.number_of_base_terms=t[19].cast<size_t>();
+                a.feature_importance=t[20].cast<VectorXd>();
+                a.min_training_prediction_or_response=t[23].cast<double>();
+                a.max_training_prediction_or_response=t[24].cast<double>();
+                a.validation_tuning_metric=t[25].cast<std::string>();
+                a.validation_indexes=t[26].cast<std::vector<size_t>>();
+                a.m_optimal=t[28].cast<size_t>();
 
                 return a;
             }

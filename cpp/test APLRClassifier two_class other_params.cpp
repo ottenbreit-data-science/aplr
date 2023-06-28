@@ -60,13 +60,13 @@ int main()
     //MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_importance(X_test)};
 
     std::cout<<"validation_error\n"<<model.get_validation_error()<<"\n\n";
-    tests.push_back(is_approximately_equal(model.get_validation_error(),0.022242,0.000001));
+    tests.push_back(is_approximately_equal(model.get_validation_error(),0.022308,0.000001));
 
     std::cout<<"predicted_class_prob_mean\n"<<predicted_class_probabilities.mean()<<"\n\n";
     tests.push_back(is_approximately_equal(predicted_class_probabilities.mean(),0.5,0.00001));
 
     std::cout<<"local_feature_importance_mean\n"<<local_feature_importance.mean()<<"\n\n";
-    tests.push_back(is_approximately_equal(local_feature_importance.mean(),0.205557,0.00001));
+    tests.push_back(is_approximately_equal(local_feature_importance.mean(),0.31367,0.00001));
 
     //Test summary
     std::cout<<"\n\nTest summary\n"<<"Passed "<<std::accumulate(tests.begin(),tests.end(),0)<<" out of "<<tests.size()<<" tests.";

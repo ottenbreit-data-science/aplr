@@ -74,13 +74,13 @@ int main()
     tests.push_back(is_approximately_zero(feature_importance_mae));
 
     std::cout<<"validation_error\n"<<model.get_validation_error()<<"\n\n";
-    tests.push_back(is_approximately_equal(model.get_validation_error(),0.111216,0.000001));
+    tests.push_back(is_approximately_equal(model.get_validation_error(),0.121648,0.000001));
 
     std::cout<<"predicted_class_prob_mean\n"<<predicted_class_probabilities.mean()<<"\n\n";
     tests.push_back(is_approximately_equal(predicted_class_probabilities.mean(),0.2,0.00001));
 
     std::cout<<"local_feature_importance_mean\n"<<local_feature_importance.mean()<<"\n\n";
-    tests.push_back(is_approximately_equal(local_feature_importance.mean(),0.160147,0.00001));
+    tests.push_back(is_approximately_equal(local_feature_importance.mean(),0.157701,0.00001));
 
     //Test summary
     std::cout<<"\n\nTest summary\n"<<"Passed "<<std::accumulate(tests.begin(),tests.end(),0)<<" out of "<<tests.size()<<" tests.";
