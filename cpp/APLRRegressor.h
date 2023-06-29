@@ -110,6 +110,7 @@ private:
     void cap_predictions_to_minmax_in_training(VectorXd &predictions);
     std::string compute_raw_base_term_name(const Term &term, const std::string &X_name);
     void throw_error_if_m_is_invalid();
+    bool model_has_not_been_trained();
     
 public:
     double intercept;
@@ -143,7 +144,7 @@ public:
     double quantile;
 
     APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string loss_function="mse",
-        std::string link_function="identity", size_t n_jobs=0, double validation_ratio=0.2,double intercept=NAN_DOUBLE,
+        std::string link_function="identity", size_t n_jobs=0, double validation_ratio=0.2,
         size_t reserved_terms_times_num_x=100, size_t bins=300,size_t verbosity=0,size_t max_interaction_level=1,size_t max_interactions=100000,
         size_t min_observations_in_split=20, size_t ineligible_boosting_steps_added=10, size_t max_eligible_terms=5,double dispersion_parameter=1.5,
         std::string validation_tuning_metric="default", double quantile=0.5);
@@ -169,10 +170,10 @@ public:
 };
 
 APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::string loss_function,std::string link_function,size_t n_jobs,
-    double validation_ratio,double intercept,size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,
+    double validation_ratio,size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,
     size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double dispersion_parameter,
     std::string validation_tuning_metric, double quantile):
-        reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{intercept},m{m},v{v},
+        reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{NAN_DOUBLE},m{m},v{v},
         loss_function{loss_function},link_function{link_function},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},
         max_interactions{max_interactions},interactions_eligible{0},validation_error_steps{VectorXd(0)},
@@ -1274,8 +1275,7 @@ void APLRRegressor::name_terms(const MatrixXd &X, const std::vector<std::string>
 
 void APLRRegressor::set_term_names(const std::vector<std::string> &X_names)
 {
-    bool model_has_not_been_trained{!std::isfinite(intercept)};
-    if(model_has_not_been_trained)
+    if(model_has_not_been_trained())
         throw std::runtime_error("The model must be trained with fit() before term names can be set.");
 
     for (size_t i = 0; i < terms.size(); ++i)
@@ -1304,6 +1304,11 @@ void APLRRegressor::set_term_names(const std::vector<std::string> &X_names)
         term_names[i+1]=terms[i].name;
         term_coefficients[i+1]=terms[i].coefficient;
     }   
+}
+
+bool APLRRegressor::model_has_not_been_trained()
+{
+    return !std::isfinite(intercept);
 }
 
 std::string APLRRegressor::compute_raw_base_term_name(const Term &term, const std::string &X_name)
@@ -1363,7 +1368,7 @@ void APLRRegressor::find_min_and_max_training_predictions_or_responses()
 
 void APLRRegressor::validate_that_model_can_be_used(const MatrixXd &X)
 {
-    if(std::isnan(intercept) || number_of_base_terms==0) throw std::runtime_error("Model must be trained before predict() can be run.");
+    if(model_has_not_been_trained()) throw std::runtime_error("The model must be trained with fit() before predict() can be run.");
     if(X.rows()==0) throw std::runtime_error("X cannot have zero rows.");
     size_t cols_provided{static_cast<size_t>(X.cols())};
     if(cols_provided!=number_of_base_terms) throw std::runtime_error("X must have "+std::to_string(number_of_base_terms) +" columns but "+std::to_string(cols_provided)+" were provided.");

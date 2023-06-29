@@ -5,7 +5,7 @@ import aplr_cpp
 
 
 class APLRRegressor():
-    def __init__(self, m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5):
+    def __init__(self, m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5):
         self.m=m
         self.v=v
         self.random_state=random_state
@@ -13,7 +13,6 @@ class APLRRegressor():
         self.link_function=link_function
         self.n_jobs=n_jobs
         self.validation_ratio=validation_ratio
-        self.intercept=intercept
         self.bins=bins
         self.max_interaction_level=max_interaction_level
         self.max_interactions=max_interactions
@@ -38,7 +37,6 @@ class APLRRegressor():
         self.APLRRegressor.link_function=self.link_function
         self.APLRRegressor.n_jobs=self.n_jobs
         self.APLRRegressor.validation_ratio=self.validation_ratio
-        self.APLRRegressor.intercept=self.intercept
         self.APLRRegressor.bins=self.bins
         self.APLRRegressor.max_interaction_level=self.max_interaction_level
         self.APLRRegressor.max_interactions=self.max_interactions
@@ -106,7 +104,6 @@ class APLRRegressor():
             "link_function":self.link_function,
             "n_jobs":self.n_jobs,
             "validation_ratio":self.validation_ratio,
-            "intercept":self.intercept,
             "bins":self.bins,
             "max_interaction_level":self.max_interaction_level,
             "max_interactions":self.max_interactions,

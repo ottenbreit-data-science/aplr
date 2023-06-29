@@ -1,6 +1,6 @@
 # APLRRegressor
 
-## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, intercept:float=np.nan, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5)
+## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5)
 
 ### Constructor parameters
 
@@ -24,9 +24,6 @@ Multi-threading parameter. If ***0*** then uses all available cores for multi-th
 
 #### validation_ratio (default = 0.2)
 The ratio of training observations to use for validation instead of training. The number of boosting steps is automatically tuned to minimize validation error.
-
-#### intercept (default = nan)
-Specifies the intercept term of the model if you want to predict before doing any training. However, when the ***fit*** method is run then the intercept is estimated based on data and whatever was specified as ***intercept*** when instantiating ***APLRRegressor*** gets overwritten.
 
 #### bins (default = 300)
 Specifies the maximum number of bins to discretize the data into when searching for the best split. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs. Must be greater than 1.

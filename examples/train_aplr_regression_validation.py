@@ -38,7 +38,7 @@ best_model=None
 loss_function="mse" #other available families are binomial, poisson, gamma, tweedie, group_mse, mae, quantile, negative_binomial, cauchy and weibull.
 link_function="identity" #other available link functions are logit and log.
 for params in param_grid:
-    model = APLRRegressor(random_state=random_state,verbosity=2,m=1000,v=0.1,loss_function=loss_function,link_function=link_function,**params) 
+    model = APLRRegressor(random_state=random_state,verbosity=2,m=1000,v=0.01,loss_function=loss_function,link_function=link_function,**params) 
     model.fit(data_train[predictors].values,data_train[response].values,X_names=predictors)
     validation_error_for_this_model=np.min(model.get_validation_error_steps())
     validation_results_for_this_model=pd.DataFrame(model.get_params(),index=[0])

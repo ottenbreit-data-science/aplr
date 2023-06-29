@@ -101,7 +101,7 @@ void APLRClassifier::fit(const MatrixXd &X,const std::vector<std::string> &y,con
     bool two_class_case{categories.size()==2};
     if(two_class_case)
     {
-        logit_models[categories[0]] = APLRRegressor(m,v,random_state,"binomial","logit",n_jobs,validation_ratio,NAN_DOUBLE,reserved_terms_times_num_x,
+        logit_models[categories[0]] = APLRRegressor(m,v,random_state,"binomial","logit",n_jobs,validation_ratio,reserved_terms_times_num_x,
             bins,verbosity,max_interaction_level,max_interactions,min_observations_in_split,ineligible_boosting_steps_added,
             max_eligible_terms,1.5,"default",0.5);
         logit_models[categories[0]].fit(X,response_values[categories[0]],sample_weight,X_names,validation_indexes,prioritized_predictors_indexes,
@@ -114,7 +114,7 @@ void APLRClassifier::fit(const MatrixXd &X,const std::vector<std::string> &y,con
     {
         for (auto &category:categories)
         {
-            logit_models[category] = APLRRegressor(m,v,random_state,"binomial","logit",n_jobs,validation_ratio,NAN_DOUBLE,reserved_terms_times_num_x,
+            logit_models[category] = APLRRegressor(m,v,random_state,"binomial","logit",n_jobs,validation_ratio,reserved_terms_times_num_x,
                 bins,verbosity,max_interaction_level,max_interactions,min_observations_in_split,ineligible_boosting_steps_added,
                 max_eligible_terms,1.5,"default",0.5);
             logit_models[category].fit(X,response_values[category],sample_weight,X_names,validation_indexes,prioritized_predictors_indexes,
