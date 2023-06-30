@@ -77,7 +77,7 @@ private:
     void add_necessary_given_terms_to_interaction(Term &interaction, Term &existing_model_term);
     void find_sorted_indexes_for_errors_for_interactions_to_consider();
     void add_promising_interactions_and_select_the_best_one();
-    void update_intercept();
+    void update_intercept(size_t boosting_step);
     void select_the_best_term_and_update_errors(size_t boosting_step, bool not_evaluating_prioritized_predictors=true);
     void update_terms(size_t boosting_step);
     void update_gradient_and_errors();
@@ -128,6 +128,7 @@ public:
     std::vector<std::string> term_names;
     VectorXd term_coefficients;
     size_t max_interaction_level;
+    VectorXd intercept_steps;
     size_t max_interactions;
     size_t interactions_eligible;
     VectorXd validation_error_steps;
@@ -164,6 +165,7 @@ public:
     VectorXd get_validation_error_steps();
     VectorXd get_feature_importance();
     double get_intercept();
+    VectorXd get_intercept_steps();
     size_t get_optimal_m();
     std::string get_validation_tuning_metric();
     std::vector<size_t> get_validation_indexes();
@@ -175,7 +177,7 @@ APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::s
     std::string validation_tuning_metric, double quantile):
         reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{NAN_DOUBLE},m{m},v{v},
         loss_function{loss_function},link_function{link_function},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
-        bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},
+        bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},intercept_steps{VectorXd(0)},
         max_interactions{max_interactions},interactions_eligible{0},validation_error_steps{VectorXd(0)},
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
         max_eligible_terms{max_eligible_terms},number_of_base_terms{0},dispersion_parameter{dispersion_parameter},min_training_prediction_or_response{NAN_DOUBLE},
@@ -189,7 +191,7 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other):
     loss_function{other.loss_function},link_function{other.link_function},validation_ratio{other.validation_ratio},
     n_jobs{other.n_jobs},random_state{other.random_state},bins{other.bins},
     verbosity{other.verbosity},term_names{other.term_names},term_coefficients{other.term_coefficients},
-    max_interaction_level{other.max_interaction_level},max_interactions{other.max_interactions},
+    max_interaction_level{other.max_interaction_level},intercept_steps{other.intercept_steps},max_interactions{other.max_interactions},
     interactions_eligible{other.interactions_eligible},validation_error_steps{other.validation_error_steps},
     min_observations_in_split{other.min_observations_in_split},ineligible_boosting_steps_added{other.ineligible_boosting_steps_added},
     max_eligible_terms{other.max_eligible_terms},number_of_base_terms{other.number_of_base_terms},
@@ -550,7 +552,8 @@ void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors
     terms.clear();
     terms.reserve(X_train.cols()*reserved_terms_times_num_x);
 
-    double initial_prediction{0.0};
+    intercept=0;
+    intercept_steps=VectorXd::Constant(m,0);
 
     terms_eligible_current.reserve(X_train.cols()*reserved_terms_times_num_x);
     size_t X_train_cols{static_cast<size_t>(X_train.cols())};
@@ -592,9 +595,9 @@ void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors
         }
     }
 
-    linear_predictor_current=VectorXd::Constant(y_train.size(),initial_prediction);
+    linear_predictor_current=VectorXd::Constant(y_train.size(),intercept);
     linear_predictor_null_model=linear_predictor_current;
-    linear_predictor_current_validation=VectorXd::Constant(y_validation.size(),initial_prediction);
+    linear_predictor_current_validation=VectorXd::Constant(y_validation.size(),intercept);
     predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function);
     predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function);
 
@@ -707,31 +710,16 @@ VectorXd APLRRegressor::differentiate_predictions()
 void APLRRegressor::execute_boosting_steps()
 {
     abort_boosting = false;
-    update_intercept();
-    for (size_t boosting_step = 1; boosting_step < m; ++boosting_step)
+    for (size_t boosting_step = 0; boosting_step < m; ++boosting_step)
     {
         execute_boosting_step(boosting_step);
         if(abort_boosting) break;
     }
 }
 
-void APLRRegressor::update_intercept()
-{
-    double intercept_update;
-    if(sample_weight_train.size()==0)
-        intercept=neg_gradient_current.mean();
-    else
-        intercept=(neg_gradient_current.array()*sample_weight_train.array()).sum()/sample_weight_train.array().sum();
-    linear_predictor_update=VectorXd::Constant(neg_gradient_current.size(),intercept);
-    linear_predictor_update_validation=VectorXd::Constant(y_validation.size(),intercept);
-    update_linear_predictor_and_predictions();
-    update_gradient_and_errors();
-    calculate_and_validate_validation_error(0);
-    print_summary_after_boosting_step(0);
-}
-
 void APLRRegressor::execute_boosting_step(size_t boosting_step)
 {
+    update_intercept(boosting_step);
     bool prioritize_predictors{!abort_boosting && prioritized_predictors_indexes.size()>0};
     if(prioritize_predictors)
     {
@@ -760,6 +748,25 @@ void APLRRegressor::execute_boosting_step(size_t boosting_step)
     if(abort_boosting) return;
     update_term_eligibility();
     print_summary_after_boosting_step(boosting_step);
+}
+
+void APLRRegressor::update_intercept(size_t boosting_step)
+{
+    double intercept_update;
+    if(sample_weight_train.size()==0)
+        intercept_update=v*neg_gradient_current.mean();
+    else
+        intercept_update=v*(neg_gradient_current.array()*sample_weight_train.array()).sum()/sample_weight_train.array().sum();
+    linear_predictor_update=VectorXd::Constant(neg_gradient_current.size(),intercept_update);
+    linear_predictor_update_validation=VectorXd::Constant(y_validation.size(),intercept_update);
+    update_linear_predictor_and_predictions();
+    update_gradient_and_errors();
+    calculate_and_validate_validation_error(boosting_step);
+    if(!abort_boosting)
+    {
+        intercept+=intercept_update;
+        intercept_steps[boosting_step]=intercept;
+    }
 }
 
 void APLRRegressor::update_linear_predictor_and_predictions()
@@ -1204,6 +1211,13 @@ void APLRRegressor::print_summary_after_boosting_step(size_t boosting_step)
 
 void APLRRegressor::update_coefficients_for_all_steps()
 {
+    for (size_t j = 0; j < m; ++j)
+    {
+        bool fill_down_coefficient_steps{j>0 && is_approximately_zero(intercept_steps[j]) && !is_approximately_zero(intercept_steps[j-1])};
+        if(fill_down_coefficient_steps)
+            intercept_steps[j]=intercept_steps[j-1];
+    }
+
     for (size_t i = 0; i < terms.size(); ++i)
     {
         for (size_t j = 0; j < m; ++j)
@@ -1227,6 +1241,7 @@ void APLRRegressor::find_optimal_m_and_update_model_accordingly()
 {
     size_t best_boosting_step_index;
     validation_error_steps.minCoeff(&best_boosting_step_index);
+    intercept=intercept_steps[best_boosting_step_index];
     for (size_t i = 0; i < terms.size(); ++i)
     {
         terms[i].coefficient = terms[i].coefficient_steps[best_boosting_step_index];
@@ -1251,6 +1266,10 @@ void APLRRegressor::revert_scaling_if_using_log_link_function()
     {
         y_train/=scaling_factor_for_log_link_function;
         intercept+=std::log(1/scaling_factor_for_log_link_function);
+        for (Eigen::Index i = 0; i < intercept_steps.size(); ++i)
+        {
+            intercept_steps[i]+=std::log(1/scaling_factor_for_log_link_function);
+        }
     }
 }
 
@@ -1506,6 +1525,11 @@ VectorXd APLRRegressor::get_feature_importance()
 double APLRRegressor::get_intercept()
 {
     return intercept;
+}
+
+VectorXd APLRRegressor::get_intercept_steps()
+{
+    return intercept_steps;
 }
 
 size_t APLRRegressor::get_optimal_m()

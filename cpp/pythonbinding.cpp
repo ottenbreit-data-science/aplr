@@ -39,10 +39,12 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def("get_validation_error_steps", &APLRRegressor::get_validation_error_steps)
         .def("get_feature_importance", &APLRRegressor::get_feature_importance)
         .def("get_intercept", &APLRRegressor::get_intercept)
+        .def("get_intercept_steps", &APLRRegressor::get_intercept_steps)
         .def("get_optimal_m", &APLRRegressor::get_optimal_m)
         .def("get_validation_tuning_metric", &APLRRegressor::get_validation_tuning_metric)
         .def("get_validation_indexes", &APLRRegressor::get_validation_indexes)
         .def_readwrite("intercept", &APLRRegressor::intercept)
+        .def_readwrite("intercept_steps", &APLRRegressor::intercept_steps)
         .def_readwrite("m", &APLRRegressor::m)
         .def_readwrite("m_optimal", &APLRRegressor::m_optimal)
         .def_readwrite("v", &APLRRegressor::v)
@@ -78,10 +80,11 @@ PYBIND11_MODULE(aplr_cpp, m) {
                     a.verbosity,a.max_interaction_level,a.max_interactions,a.validation_error_steps,a.term_names,a.term_coefficients,a.terms,
                     a.interactions_eligible,a.min_observations_in_split,a.ineligible_boosting_steps_added,a.max_eligible_terms,
                     a.number_of_base_terms,a.feature_importance,a.dispersion_parameter,a.min_training_prediction_or_response,
-                    a.max_training_prediction_or_response,a.validation_tuning_metric,a.validation_indexes,a.quantile,a.m_optimal);
+                    a.max_training_prediction_or_response,a.validation_tuning_metric,a.validation_indexes,a.quantile,a.m_optimal,
+                    a.intercept_steps);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 29)
+                if (t.size() != 30)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
@@ -114,6 +117,7 @@ PYBIND11_MODULE(aplr_cpp, m) {
                 std::vector<size_t> validation_indexes=t[26].cast<std::vector<size_t>>();
                 double quantile=t[27].cast<double>();
                 size_t m_optimal=t[28].cast<size_t>();
+                VectorXd intercept_steps=t[29].cast<VectorXd>();
 
                 APLRRegressor a(m,v,random_state,loss_function,link_function,n_jobs,validation_ratio,100,bins,verbosity,max_interaction_level,
                     max_interactions,min_observations_in_split,ineligible_boosting_steps_added,max_eligible_terms,dispersion_parameter,
@@ -130,6 +134,7 @@ PYBIND11_MODULE(aplr_cpp, m) {
                 a.max_training_prediction_or_response=max_training_prediction_or_response;
                 a.validation_indexes=validation_indexes;
                 a.m_optimal=m_optimal;
+                a.intercept_steps=intercept_steps;
 
                 return a;
             }

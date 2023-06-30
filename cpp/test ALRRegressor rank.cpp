@@ -55,7 +55,7 @@ int main()
     save_as_csv_file("data/output.csv",predictions);
 
     std::cout<<predictions.mean()<<"\n\n";
-    tests.push_back(is_approximately_equal(predictions.mean(),23.5911,0.00001));
+    tests.push_back(is_approximately_equal(predictions.mean(),23.4975,0.00001));
 
     std::vector<size_t> validation_indexes_from_model{model.get_validation_indexes()};
     bool validation_indexes_from_model_are_correct{validation_indexes_from_model == validation_indexes};

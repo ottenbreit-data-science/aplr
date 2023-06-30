@@ -85,6 +85,9 @@ class APLRRegressor():
     def get_intercept(self)->float:
         return self.APLRRegressor.get_intercept()
 
+    def get_intercept_steps(self)->npt.ArrayLike:
+        return self.APLRRegressor.get_intercept_steps()
+
     def get_optimal_m(self)->int:
         return self.APLRRegressor.get_optimal_m()
     
