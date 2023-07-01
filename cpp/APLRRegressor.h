@@ -143,12 +143,14 @@ public:
     std::vector<size_t> validation_indexes;
     std::string validation_tuning_metric;
     double quantile;
+    std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)> calculate_custom_validation_error_function;
 
     APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string loss_function="mse",
         std::string link_function="identity", size_t n_jobs=0, double validation_ratio=0.2,
         size_t reserved_terms_times_num_x=100, size_t bins=300,size_t verbosity=0,size_t max_interaction_level=1,size_t max_interactions=100000,
         size_t min_observations_in_split=20, size_t ineligible_boosting_steps_added=10, size_t max_eligible_terms=5,double dispersion_parameter=1.5,
-        std::string validation_tuning_metric="default", double quantile=0.5);
+        std::string validation_tuning_metric="default", double quantile=0.5,
+        const std::function<double(VectorXd,VectorXd,VectorXd,VectorXi)> &calculate_custom_validation_error_function={});
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},
@@ -174,7 +176,8 @@ public:
 APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::string loss_function,std::string link_function,size_t n_jobs,
     double validation_ratio,size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,
     size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double dispersion_parameter,
-    std::string validation_tuning_metric, double quantile):
+    std::string validation_tuning_metric, double quantile, 
+    const std::function<double(VectorXd,VectorXd,VectorXd,VectorXi)> &calculate_custom_validation_error_function):
         reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{NAN_DOUBLE},m{m},v{v},
         loss_function{loss_function},link_function{link_function},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},intercept_steps{VectorXd(0)},
@@ -182,7 +185,7 @@ APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::s
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
         max_eligible_terms{max_eligible_terms},number_of_base_terms{0},dispersion_parameter{dispersion_parameter},min_training_prediction_or_response{NAN_DOUBLE},
         max_training_prediction_or_response{NAN_DOUBLE}, validation_tuning_metric{validation_tuning_metric},
-        validation_indexes{std::vector<size_t>(0)}, quantile{quantile}
+        validation_indexes{std::vector<size_t>(0)}, quantile{quantile}, calculate_custom_validation_error_function{calculate_custom_validation_error_function}
 {
 }
 
@@ -197,7 +200,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other):
     max_eligible_terms{other.max_eligible_terms},number_of_base_terms{other.number_of_base_terms},
     feature_importance{other.feature_importance},dispersion_parameter{other.dispersion_parameter},min_training_prediction_or_response{other.min_training_prediction_or_response},
     max_training_prediction_or_response{other.max_training_prediction_or_response},validation_tuning_metric{other.validation_tuning_metric},
-    validation_indexes{other.validation_indexes}, quantile{other.quantile}, m_optimal{other.m_optimal}
+    validation_indexes{other.validation_indexes}, quantile{other.quantile}, m_optimal{other.m_optimal},
+    calculate_custom_validation_error_function{other.calculate_custom_validation_error_function}
 {
 }
 
@@ -1156,6 +1160,18 @@ void APLRRegressor::calculate_validation_error(size_t boosting_step, const Vecto
         if(group_is_not_provided)
             throw std::runtime_error("When validation_tuning_metric is group_mse then the group argument in fit() must be provided.");    
         validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,"group_mse",dispersion_parameter,group_validation,unique_groups_validation,quantile),sample_weight_validation);
+    }
+    else if(validation_tuning_metric=="custom_function")
+    {
+        try
+        {
+            validation_error_steps[boosting_step] = calculate_custom_validation_error_function(y_validation, predictions, sample_weight_validation, group_validation);
+        }
+        catch(const std::exception& e)
+        {
+            std::string error_msg{"Error when calculating custom validation error: " + static_cast<std::string>(e.what())};
+            throw std::runtime_error(error_msg);
+        }
     }
     else
         throw std::runtime_error(validation_tuning_metric + " is an invalid validation_tuning_metric.");

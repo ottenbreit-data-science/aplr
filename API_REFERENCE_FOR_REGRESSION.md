@@ -1,6 +1,6 @@
 # APLRRegressor
 
-## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5)
+## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5, calculate_custom_validation_error_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None)
 
 ### Constructor parameters
 
@@ -50,11 +50,19 @@ Limits 1) the number of terms already in the model that can be considered as int
 Specifies the variance power when ***loss_function*** is "tweedie". Specifies a dispersion parameter when ***loss_function*** is "negative_binomial", "cauchy" or "weibull". 
 
 #### validation_tuning_metric (default = "default")
-Specifies which metric to use for validating the model and tuning ***m***. Available options are "default" (using the same methodology as when calculating the training error), "mse", "mae", "negative_gini", "rankability" and "group_mse". The default is often a choice that fits well with respect to the ***loss_function*** chosen. However, if you want to use ***loss_function*** or ***dispersion_parameter*** as tuning parameters then the default is not suitable. "rankability" uses a methodology similar to the one described in https://towardsdatascience.com/how-to-calculate-roc-auc-score-for-regression-models-c0be4fdf76bb except that the metric is inverted and can be weighted by sample weights. "group_mse" requires that the "group" argument in the ***fit*** method is provided.
+Specifies which metric to use for validating the model and tuning ***m***. Available options are "default" (using the same methodology as when calculating the training error), "mse", "mae", "negative_gini", "rankability", "group_mse" and "custom_function". The default is often a choice that fits well with respect to the ***loss_function*** chosen. However, if you want to use ***loss_function*** or ***dispersion_parameter*** as tuning parameters then the default is not suitable. "rankability" uses a methodology similar to the one described in https://towardsdatascience.com/how-to-calculate-roc-auc-score-for-regression-models-c0be4fdf76bb except that the metric is inverted and can be weighted by sample weights. "group_mse" requires that the "group" argument in the ***fit*** method is provided. For "custom_function" see ***calculate_custom_validation_error_function*** below.
 
 #### quantile (default = 0.5)
 Specifies the quantile to use when ***loss_function*** is "quantile".
 
+#### calculate_custom_validation_error_function (default = None)
+An optional Python function that calculates validation error if ***validation_tuning_metric*** is "custom_function". Example:
+
+```
+def custom_validation_error_function(y, predictions, sample_weight, group):
+    squared_errors = (y-predictions)**2
+    return squared_errors.mean()
+```
 
 ## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], group:npt.ArrayLike = np.empty(0), interaction_constraints:List[int]=[])
 
