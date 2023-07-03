@@ -13,11 +13,15 @@
 namespace py = pybind11;
 
 std::function<double(VectorXd,VectorXd,VectorXd,VectorXi)> empty_calculate_custom_validation_error_function={};
+std::function<double(VectorXd,VectorXd,VectorXd,VectorXi)> empty_calculate_custom_loss_function={};
+std::function<VectorXd(VectorXd,VectorXd,VectorXi)> empty_calculate_custom_negative_gradient_function={};
 
 PYBIND11_MODULE(aplr_cpp, m) {
     py::class_<APLRRegressor>(m, "APLRRegressor",py::module_local())
         .def(py::init<int&,double&,int&,std::string&,std::string&,int&,double&,int&,int&,int&,int&,int&,int&,int&,int&,double&,std::string&,
-            double&,std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)>&>(),
+            double&,std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)>&,
+            std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)>&,
+            std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group)>&>(),
             py::arg("m")=1000,py::arg("v")=0.1,py::arg("random_state")=0,py::arg("loss_function")="mse",py::arg("link_function")="identity",
             py::arg("n_jobs")=0,py::arg("validation_ratio")=0.2,
             py::arg("reserved_terms_times_num_x")=100,py::arg("bins")=300,py::arg("verbosity")=0,
@@ -26,7 +30,9 @@ PYBIND11_MODULE(aplr_cpp, m) {
             py::arg("dispersion_parameter")=1.5,
             py::arg("validation_tuning_metric")="default",
             py::arg("quantile")=0.5,
-            py::arg("calculate_custom_validation_error_function")=empty_calculate_custom_validation_error_function
+            py::arg("calculate_custom_validation_error_function")=empty_calculate_custom_validation_error_function,
+            py::arg("calculate_custom_loss_function")=empty_calculate_custom_loss_function,
+            py::arg("calculate_custom_negative_gradient_function")=empty_calculate_custom_negative_gradient_function
             )
         .def("fit", &APLRRegressor::fit,py::arg("X"),py::arg("y"),py::arg("sample_weight")=VectorXd(0),py::arg("X_names")=std::vector<std::string>(),
             py::arg("validation_set_indexes")=std::vector<size_t>(),py::arg("prioritized_predictors_indexes")=std::vector<size_t>(),
@@ -78,6 +84,8 @@ PYBIND11_MODULE(aplr_cpp, m) {
         .def_readwrite("validation_indexes",&APLRRegressor::validation_indexes)
         .def_readwrite("quantile",&APLRRegressor::quantile)
         .def_readwrite("calculate_custom_validation_error_function",&APLRRegressor::calculate_custom_validation_error_function)
+        .def_readwrite("calculate_custom_loss_function",&APLRRegressor::calculate_custom_loss_function)
+        .def_readwrite("calculate_custom_negative_gradient_function",&APLRRegressor::calculate_custom_negative_gradient_function)
         .def(py::pickle(
             [](const APLRRegressor &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */

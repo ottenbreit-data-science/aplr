@@ -1,6 +1,6 @@
 # APLRRegressor
 
-## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5, calculate_custom_validation_error_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None)
+## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5, calculate_custom_validation_error_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_loss_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_negative_gradient_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], npt.ArrayLike]]=None)
 
 ### Constructor parameters
 
@@ -14,7 +14,7 @@ The learning rate. Must be greater than zero and not more than one. The higher t
 Used to randomly split training observations into training and validation if ***validation_set_indexes*** is not specified when fitting.
 
 #### loss_function (default = "mse")
-Determines the loss function used. Allowed values are "mse", "binomial", "poisson", "gamma", "tweedie", "group_mse", "mae", "quantile", "negative_binomial", "cauchy" and "weibull". This is used together with ***link_function***. When ***loss_function*** is "group_mse" then the "group" argument in the ***fit*** method must be provided. In the latter case APLR will try to minimize group MSE when training the model. The ***loss_function*** "quantile" is used together with the ***quantile*** constructor parameter.
+Determines the loss function used. Allowed values are "mse", "binomial", "poisson", "gamma", "tweedie", "group_mse", "mae", "quantile", "negative_binomial", "cauchy", "weibull" and "custom_function". This is used together with ***link_function***. When ***loss_function*** is "group_mse" then the "group" argument in the ***fit*** method must be provided. In the latter case APLR will try to minimize group MSE when training the model. The ***loss_function*** "quantile" is used together with the ***quantile*** constructor parameter. When ***loss_function*** is "custom_function" then the constructor parameters ***calculate_custom_loss_function*** and ***calculate_custom_negative_gradient_function***, both described below, must be provided.
 
 #### link_function (default = "identity")
 Determines how the linear predictor is transformed to predictions. Allowed values are "identity", "logit" and "log". For an ordinary regression model use ***loss_function*** "mse" and ***link_function*** "identity". For logistic regression use ***loss_function*** "binomial" and ***link_function*** "logit". For a multiplicative model use the "log" ***link_function***. The "log" ***link_function*** often works best with a "poisson", "gamma", "tweedie", "negative_binomial" or "weibull" ***loss_function***, depending on the data. The ***loss_function*** "poisson", "gamma", "tweedie", "negative_binomial" or "weibull" should only be used with the "log" ***link_function***. Inappropriate combinations of ***loss_function*** and ***link_function*** may result in a warning message when fitting the model and/or a poor model fit. Please note that values other than "identity" typically require a significantly higher ***m*** (or ***v***) in order to converge.
@@ -56,12 +56,30 @@ Specifies which metric to use for validating the model and tuning ***m***. Avail
 Specifies the quantile to use when ***loss_function*** is "quantile".
 
 #### calculate_custom_validation_error_function (default = None)
-An optional Python function that calculates validation error if ***validation_tuning_metric*** is "custom_function". Example:
+A Python function that calculates validation error if ***validation_tuning_metric*** is "custom_function". Example:
 
 ```
 def custom_validation_error_function(y, predictions, sample_weight, group):
     squared_errors = (y-predictions)**2
     return squared_errors.mean()
+```
+
+#### calculate_custom_loss_function (default = None)
+A Python function that calculates loss if ***loss_function*** is "custom_function". Example:
+
+```
+def custom_loss_function(y, predictions, sample_weight, group):
+    squared_errors = (y-predictions)**2
+    return squared_errors.mean()
+```
+
+#### calculate_custom_negative_gradient_function (default = None)
+A Python function that calculates the negative gradient if ***loss_function*** is "custom_function". The negative gradient should be proportional to the negative of the first order differentiation of the custom loss function (***calculate_custom_loss_function***) with respect to the predictions. Example:
+
+```
+def custom_negative_gradient_function(y, predictions, group):
+    residuals = y-predictions
+    return residuals
 ```
 
 ## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], group:npt.ArrayLike = np.empty(0), interaction_constraints:List[int]=[])

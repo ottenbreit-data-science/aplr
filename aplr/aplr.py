@@ -9,7 +9,9 @@ class APLRRegressor():
                  validation_ratio:float=0.2, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, 
                  min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, 
                  dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5,
-                 calculate_custom_validation_error_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None):
+                 calculate_custom_validation_error_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None,
+                 calculate_custom_loss_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None,
+                 calculate_custom_negative_gradient_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], npt.ArrayLike]]=None):
         self.m=m
         self.v=v
         self.random_state=random_state
@@ -28,6 +30,8 @@ class APLRRegressor():
         self.validation_tuning_metric=validation_tuning_metric
         self.quantile=quantile
         self.calculate_custom_validation_error_function=calculate_custom_validation_error_function
+        self.calculate_custom_loss_function=calculate_custom_loss_function
+        self.calculate_custom_negative_gradient_function=calculate_custom_negative_gradient_function
 
         #Creating aplr_cpp and setting parameters
         self.APLRRegressor=aplr_cpp.APLRRegressor()
@@ -53,6 +57,8 @@ class APLRRegressor():
         self.APLRRegressor.validation_tuning_metric=self.validation_tuning_metric
         self.APLRRegressor.quantile=self.quantile
         self.APLRRegressor.calculate_custom_validation_error_function=self.calculate_custom_validation_error_function
+        self.APLRRegressor.calculate_custom_loss_function=self.calculate_custom_loss_function
+        self.APLRRegressor.calculate_custom_negative_gradient_function=self.calculate_custom_negative_gradient_function
 
     def fit(self, X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], group:npt.ArrayLike = np.empty(0), interaction_constraints:List[int]=[]):
         self.__set_params_cpp()
@@ -123,7 +129,9 @@ class APLRRegressor():
             "dispersion_parameter":self.dispersion_parameter,
             "validation_tuning_metric":self.validation_tuning_metric,
             "quantile":self.quantile,
-            "calculate_custom_validation_error_function":self.calculate_custom_validation_error_function
+            "calculate_custom_validation_error_function":self.calculate_custom_validation_error_function,
+            "calculate_custom_loss_function":self.calculate_custom_loss_function,
+            "calculate_custom_negative_gradient_function":self.calculate_custom_negative_gradient_function
         }
 
     #For sklearn

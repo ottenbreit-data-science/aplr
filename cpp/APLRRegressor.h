@@ -104,7 +104,7 @@ private:
     void throw_error_if_vector_contains_negative_values(const VectorXd &y, const std::string &error_message);
     void throw_error_if_response_is_not_greater_than_zero(const VectorXd &y, const std::string &error_message);
     void throw_error_if_dispersion_parameter_is_invalid();
-    VectorXd differentiate_predictions();
+    VectorXd differentiate_predictions_wrt_linear_predictor();
     void scale_training_observations_if_using_log_link_function();
     void revert_scaling_if_using_log_link_function();
     void cap_predictions_to_minmax_in_training(VectorXd &predictions);
@@ -144,13 +144,17 @@ public:
     std::string validation_tuning_metric;
     double quantile;
     std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)> calculate_custom_validation_error_function;
+    std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)> calculate_custom_loss_function;
+    std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group)> calculate_custom_negative_gradient_function;
 
     APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string loss_function="mse",
         std::string link_function="identity", size_t n_jobs=0, double validation_ratio=0.2,
         size_t reserved_terms_times_num_x=100, size_t bins=300,size_t verbosity=0,size_t max_interaction_level=1,size_t max_interactions=100000,
         size_t min_observations_in_split=20, size_t ineligible_boosting_steps_added=10, size_t max_eligible_terms=5,double dispersion_parameter=1.5,
         std::string validation_tuning_metric="default", double quantile=0.5,
-        const std::function<double(VectorXd,VectorXd,VectorXd,VectorXi)> &calculate_custom_validation_error_function={});
+        const std::function<double(VectorXd,VectorXd,VectorXd,VectorXi)> &calculate_custom_validation_error_function={},
+        const std::function<double(VectorXd,VectorXd,VectorXd,VectorXi)> &calculate_custom_loss_function={},
+        const std::function<VectorXd(VectorXd,VectorXd,VectorXi)> &calculate_custom_negative_gradient_function={});
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},
@@ -177,7 +181,9 @@ APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::s
     double validation_ratio,size_t reserved_terms_times_num_x,size_t bins,size_t verbosity,size_t max_interaction_level,
     size_t max_interactions,size_t min_observations_in_split,size_t ineligible_boosting_steps_added,size_t max_eligible_terms,double dispersion_parameter,
     std::string validation_tuning_metric, double quantile, 
-    const std::function<double(VectorXd,VectorXd,VectorXd,VectorXi)> &calculate_custom_validation_error_function):
+    const std::function<double(VectorXd,VectorXd,VectorXd,VectorXi)> &calculate_custom_validation_error_function,
+    const std::function<double(VectorXd,VectorXd,VectorXd,VectorXi)> &calculate_custom_loss_function,
+    const std::function<VectorXd(VectorXd,VectorXd,VectorXi)> &calculate_custom_negative_gradient_function):
         reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{NAN_DOUBLE},m{m},v{v},
         loss_function{loss_function},link_function{link_function},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},intercept_steps{VectorXd(0)},
@@ -185,7 +191,8 @@ APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::s
         min_observations_in_split{min_observations_in_split},ineligible_boosting_steps_added{ineligible_boosting_steps_added},
         max_eligible_terms{max_eligible_terms},number_of_base_terms{0},dispersion_parameter{dispersion_parameter},min_training_prediction_or_response{NAN_DOUBLE},
         max_training_prediction_or_response{NAN_DOUBLE}, validation_tuning_metric{validation_tuning_metric},
-        validation_indexes{std::vector<size_t>(0)}, quantile{quantile}, calculate_custom_validation_error_function{calculate_custom_validation_error_function}
+        validation_indexes{std::vector<size_t>(0)}, quantile{quantile}, calculate_custom_validation_error_function{calculate_custom_validation_error_function},
+        calculate_custom_loss_function{calculate_custom_loss_function},calculate_custom_negative_gradient_function{calculate_custom_negative_gradient_function}
 {
 }
 
@@ -201,7 +208,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other):
     feature_importance{other.feature_importance},dispersion_parameter{other.dispersion_parameter},min_training_prediction_or_response{other.min_training_prediction_or_response},
     max_training_prediction_or_response{other.max_training_prediction_or_response},validation_tuning_metric{other.validation_tuning_metric},
     validation_indexes{other.validation_indexes}, quantile{other.quantile}, m_optimal{other.m_optimal},
-    calculate_custom_validation_error_function{other.calculate_custom_validation_error_function}
+    calculate_custom_validation_error_function{other.calculate_custom_validation_error_function},
+    calculate_custom_loss_function{other.calculate_custom_loss_function},calculate_custom_negative_gradient_function{other.calculate_custom_negative_gradient_function}
 {
 }
 
@@ -257,6 +265,8 @@ void APLRRegressor::throw_error_if_loss_function_does_not_exist()
     else if(loss_function=="cauchy")
         loss_function_exists=true;
     else if(loss_function=="weibull")
+        loss_function_exists=true;
+    else if(loss_function=="custom_function")
         loss_function_exists=true;
     if(!loss_function_exists)
         throw std::runtime_error("Loss function "+loss_function+" is not available in APLR.");   
@@ -691,16 +701,28 @@ VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &sample_we
     }
     else if(loss_function=="weibull")
     {
-        output= dispersion_parameter / predictions_current.array() * ( (y_train.array()/predictions_current.array()).pow(dispersion_parameter) - 1);
+        output=dispersion_parameter / predictions_current.array() * ( (y_train.array()/predictions_current.array()).pow(dispersion_parameter) - 1);
     }    
+    else if(loss_function=="custom_function")
+    {
+        try
+        {
+            output=calculate_custom_negative_gradient_function(y_train, predictions_current, group_train);
+        }
+        catch(const std::exception& e)
+        {
+            std::string error_msg{"Error when calculating custom negative gradient function: " + static_cast<std::string>(e.what())};
+            throw std::runtime_error(error_msg);
+        }    
+    }
     
     if(link_function!="identity")
-        output=output.array()*differentiate_predictions().array();
+        output=output.array()*differentiate_predictions_wrt_linear_predictor().array();
     
     return output;
 }
 
-VectorXd APLRRegressor::differentiate_predictions()
+VectorXd APLRRegressor::differentiate_predictions_wrt_linear_predictor()
 {
     if(link_function=="logit")
         return 1.0/4.0 * (linear_predictor_current.array()/2.0).cosh().array().pow(-2);
@@ -1145,7 +1167,22 @@ void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step
 void APLRRegressor::calculate_validation_error(size_t boosting_step, const VectorXd &predictions)
 {
     if(validation_tuning_metric=="default")
-        validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,loss_function,dispersion_parameter,group_validation,unique_groups_validation,quantile),sample_weight_validation);
+    {
+        if(loss_function=="custom_function")
+        {
+            try
+            {
+                validation_error_steps[boosting_step] = calculate_custom_loss_function(y_validation, predictions, sample_weight_validation, group_validation);
+            }
+            catch(const std::exception& e)
+            {
+                std::string error_msg{"Error when calculating custom loss function: " + static_cast<std::string>(e.what())};
+                throw std::runtime_error(error_msg);
+            }
+        }
+        else
+            validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,loss_function,dispersion_parameter,group_validation,unique_groups_validation,quantile),sample_weight_validation);
+    }
     else if(validation_tuning_metric=="mse")
         validation_error_steps[boosting_step]=calculate_mean_error(calculate_errors(y_validation,predictions,sample_weight_validation,MSE_LOSS_FUNCTION),sample_weight_validation);
     else if(validation_tuning_metric=="mae")
@@ -1169,7 +1206,7 @@ void APLRRegressor::calculate_validation_error(size_t boosting_step, const Vecto
         }
         catch(const std::exception& e)
         {
-            std::string error_msg{"Error when calculating custom validation error: " + static_cast<std::string>(e.what())};
+            std::string error_msg{"Error when calculating custom validation error function: " + static_cast<std::string>(e.what())};
             throw std::runtime_error(error_msg);
         }
     }
