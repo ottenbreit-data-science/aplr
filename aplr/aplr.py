@@ -11,7 +11,10 @@ class APLRRegressor():
                  dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5,
                  calculate_custom_validation_error_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None,
                  calculate_custom_loss_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None,
-                 calculate_custom_negative_gradient_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], npt.ArrayLike]]=None):
+                 calculate_custom_negative_gradient_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], npt.ArrayLike]]=None,
+                 calculate_custom_transform_linear_predictor_to_predictions_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None,
+                 calculate_custom_differentiate_predictions_wrt_linear_predictor_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None
+                 ):
         self.m=m
         self.v=v
         self.random_state=random_state
@@ -32,6 +35,8 @@ class APLRRegressor():
         self.calculate_custom_validation_error_function=calculate_custom_validation_error_function
         self.calculate_custom_loss_function=calculate_custom_loss_function
         self.calculate_custom_negative_gradient_function=calculate_custom_negative_gradient_function
+        self.calculate_custom_transform_linear_predictor_to_predictions_function=calculate_custom_transform_linear_predictor_to_predictions_function
+        self.calculate_custom_differentiate_predictions_wrt_linear_predictor_function=calculate_custom_differentiate_predictions_wrt_linear_predictor_function
 
         #Creating aplr_cpp and setting parameters
         self.APLRRegressor=aplr_cpp.APLRRegressor()
@@ -59,12 +64,16 @@ class APLRRegressor():
         self.APLRRegressor.calculate_custom_validation_error_function=self.calculate_custom_validation_error_function
         self.APLRRegressor.calculate_custom_loss_function=self.calculate_custom_loss_function
         self.APLRRegressor.calculate_custom_negative_gradient_function=self.calculate_custom_negative_gradient_function
+        self.APLRRegressor.calculate_custom_transform_linear_predictor_to_predictions_function=self.calculate_custom_transform_linear_predictor_to_predictions_function
+        self.APLRRegressor.calculate_custom_differentiate_predictions_wrt_linear_predictor_function=self.calculate_custom_differentiate_predictions_wrt_linear_predictor_function
 
     def fit(self, X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], group:npt.ArrayLike = np.empty(0), interaction_constraints:List[int]=[]):
         self.__set_params_cpp()
         self.APLRRegressor.fit(X,y,sample_weight,X_names,validation_set_indexes,prioritized_predictors_indexes,monotonic_constraints,group,interaction_constraints)
 
     def predict(self, X:npt.ArrayLike, cap_predictions_to_minmax_in_training:bool=True)->npt.ArrayLike:
+        if self.link_function=="custom_function":
+            self.APLRRegressor.calculate_custom_transform_linear_predictor_to_predictions_function=self.calculate_custom_transform_linear_predictor_to_predictions_function        
         return self.APLRRegressor.predict(X, cap_predictions_to_minmax_in_training)
 
     def set_term_names(self, X_names:List[str]):
@@ -131,7 +140,9 @@ class APLRRegressor():
             "quantile":self.quantile,
             "calculate_custom_validation_error_function":self.calculate_custom_validation_error_function,
             "calculate_custom_loss_function":self.calculate_custom_loss_function,
-            "calculate_custom_negative_gradient_function":self.calculate_custom_negative_gradient_function
+            "calculate_custom_negative_gradient_function":self.calculate_custom_negative_gradient_function,
+            "calculate_custom_transform_linear_predictor_to_predictions_function":self.calculate_custom_transform_linear_predictor_to_predictions_function,
+            "calculate_custom_differentiate_predictions_wrt_linear_predictor_function":self.calculate_custom_differentiate_predictions_wrt_linear_predictor_function
         }
 
     #For sklearn

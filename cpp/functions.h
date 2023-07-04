@@ -272,7 +272,8 @@ VectorXd calculate_exp_of_linear_predictor_adjusted_for_numerical_problems(const
     return exp_of_linear_predictor;
 }
 
-VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predictor, const std::string &link_function="identity")
+VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predictor, const std::string &link_function="identity",
+const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function={})
 {
     if(link_function=="identity")
         return linear_predictor;
@@ -289,6 +290,18 @@ VectorXd transform_linear_predictor_to_predictions(const VectorXd &linear_predic
         double min_exponent{std::numeric_limits<double>::min_exponent10};
         double max_exponent{std::numeric_limits<double>::max_exponent10};
         return calculate_exp_of_linear_predictor_adjusted_for_numerical_problems(linear_predictor, min_exponent, max_exponent);
+    }
+    else if(link_function=="custom_function")
+    {
+        try
+        {
+            return calculate_custom_transform_linear_predictor_to_predictions_function(linear_predictor);
+        }
+        catch(const std::exception& e)
+        {
+            std::string error_msg{"Error when executing calculate_custom_transform_linear_predictor_to_predictions_function: " + static_cast<std::string>(e.what())};
+            throw std::runtime_error(error_msg);
+        }
     }
     return VectorXd(0);
 }

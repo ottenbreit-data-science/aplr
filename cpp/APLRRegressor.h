@@ -146,6 +146,8 @@ public:
     std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)> calculate_custom_validation_error_function;
     std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)> calculate_custom_loss_function;
     std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group)> calculate_custom_negative_gradient_function;
+    std::function<VectorXd(const VectorXd &linear_predictor)> calculate_custom_transform_linear_predictor_to_predictions_function;
+    std::function<VectorXd(const VectorXd &linear_predictor)> calculate_custom_differentiate_predictions_wrt_linear_predictor_function;
 
     APLRRegressor(size_t m=1000,double v=0.1,uint_fast32_t random_state=std::numeric_limits<uint_fast32_t>::lowest(),std::string loss_function="mse",
         std::string link_function="identity", size_t n_jobs=0, double validation_ratio=0.2,
@@ -154,7 +156,9 @@ public:
         std::string validation_tuning_metric="default", double quantile=0.5,
         const std::function<double(VectorXd,VectorXd,VectorXd,VectorXi)> &calculate_custom_validation_error_function={},
         const std::function<double(VectorXd,VectorXd,VectorXd,VectorXi)> &calculate_custom_loss_function={},
-        const std::function<VectorXd(VectorXd,VectorXd,VectorXi)> &calculate_custom_negative_gradient_function={});
+        const std::function<VectorXd(VectorXd,VectorXd,VectorXi)> &calculate_custom_negative_gradient_function={},
+        const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function={},
+        const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function={});
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X,const VectorXd &y,const VectorXd &sample_weight=VectorXd(0),const std::vector<std::string> &X_names={},
@@ -183,7 +187,10 @@ APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::s
     std::string validation_tuning_metric, double quantile, 
     const std::function<double(VectorXd,VectorXd,VectorXd,VectorXi)> &calculate_custom_validation_error_function,
     const std::function<double(VectorXd,VectorXd,VectorXd,VectorXi)> &calculate_custom_loss_function,
-    const std::function<VectorXd(VectorXd,VectorXd,VectorXi)> &calculate_custom_negative_gradient_function):
+    const std::function<VectorXd(VectorXd,VectorXd,VectorXi)> &calculate_custom_negative_gradient_function,
+    const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function,
+    const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function
+    ):
         reserved_terms_times_num_x{reserved_terms_times_num_x},intercept{NAN_DOUBLE},m{m},v{v},
         loss_function{loss_function},link_function{link_function},validation_ratio{validation_ratio},n_jobs{n_jobs},random_state{random_state},
         bins{bins},verbosity{verbosity},max_interaction_level{max_interaction_level},intercept_steps{VectorXd(0)},
@@ -192,7 +199,9 @@ APLRRegressor::APLRRegressor(size_t m,double v,uint_fast32_t random_state,std::s
         max_eligible_terms{max_eligible_terms},number_of_base_terms{0},dispersion_parameter{dispersion_parameter},min_training_prediction_or_response{NAN_DOUBLE},
         max_training_prediction_or_response{NAN_DOUBLE}, validation_tuning_metric{validation_tuning_metric},
         validation_indexes{std::vector<size_t>(0)}, quantile{quantile}, calculate_custom_validation_error_function{calculate_custom_validation_error_function},
-        calculate_custom_loss_function{calculate_custom_loss_function},calculate_custom_negative_gradient_function{calculate_custom_negative_gradient_function}
+        calculate_custom_loss_function{calculate_custom_loss_function},calculate_custom_negative_gradient_function{calculate_custom_negative_gradient_function},
+        calculate_custom_transform_linear_predictor_to_predictions_function{calculate_custom_transform_linear_predictor_to_predictions_function},
+        calculate_custom_differentiate_predictions_wrt_linear_predictor_function{calculate_custom_differentiate_predictions_wrt_linear_predictor_function}
 {
 }
 
@@ -209,7 +218,9 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other):
     max_training_prediction_or_response{other.max_training_prediction_or_response},validation_tuning_metric{other.validation_tuning_metric},
     validation_indexes{other.validation_indexes}, quantile{other.quantile}, m_optimal{other.m_optimal},
     calculate_custom_validation_error_function{other.calculate_custom_validation_error_function},
-    calculate_custom_loss_function{other.calculate_custom_loss_function},calculate_custom_negative_gradient_function{other.calculate_custom_negative_gradient_function}
+    calculate_custom_loss_function{other.calculate_custom_loss_function},calculate_custom_negative_gradient_function{other.calculate_custom_negative_gradient_function},
+    calculate_custom_transform_linear_predictor_to_predictions_function{other.calculate_custom_transform_linear_predictor_to_predictions_function},
+    calculate_custom_differentiate_predictions_wrt_linear_predictor_function{other.calculate_custom_differentiate_predictions_wrt_linear_predictor_function}
 {
 }
 
@@ -280,6 +291,8 @@ void APLRRegressor::throw_error_if_link_function_does_not_exist()
     else if(link_function=="logit")
         link_function_exists=true;
     else if(link_function=="log")
+        link_function_exists=true;
+    else if(link_function=="custom_function")
         link_function_exists=true;
     if(!link_function_exists)
         throw std::runtime_error("Link function "+link_function+" is not available in APLR.");
@@ -612,8 +625,8 @@ void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors
     linear_predictor_current=VectorXd::Constant(y_train.size(),intercept);
     linear_predictor_null_model=linear_predictor_current;
     linear_predictor_current_validation=VectorXd::Constant(y_validation.size(),intercept);
-    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function);
-    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function);
+    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function,calculate_custom_transform_linear_predictor_to_predictions_function);
+    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function,calculate_custom_transform_linear_predictor_to_predictions_function);
 
     validation_error_steps.resize(m);
     validation_error_steps.setConstant(std::numeric_limits<double>::infinity());
@@ -730,6 +743,18 @@ VectorXd APLRRegressor::differentiate_predictions_wrt_linear_predictor()
     {
         return linear_predictor_current.array().exp();
     }
+    else if(link_function=="custom_function")
+    {
+        try
+        {
+            return calculate_custom_differentiate_predictions_wrt_linear_predictor_function(linear_predictor_current);
+        }
+        catch(const std::exception& e)
+        {
+            std::string error_msg{"Error when executing calculate_custom_differentiate_predictions_wrt_linear_predictor_function: " + static_cast<std::string>(e.what())};
+            throw std::runtime_error(error_msg);
+        }   
+    }
     return VectorXd(0);
 }
 
@@ -799,8 +824,8 @@ void APLRRegressor::update_linear_predictor_and_predictions()
 {
     linear_predictor_current+=linear_predictor_update;
     linear_predictor_current_validation+=linear_predictor_update_validation;
-    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function);
-    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function);
+    predictions_current=transform_linear_predictor_to_predictions(linear_predictor_current,link_function,calculate_custom_transform_linear_predictor_to_predictions_function);
+    predictions_current_validation=transform_linear_predictor_to_predictions(linear_predictor_current_validation,link_function,calculate_custom_transform_linear_predictor_to_predictions_function);
 }
 
 void APLRRegressor::update_gradient_and_errors()
@@ -1488,7 +1513,7 @@ VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_predictions_to_minma
     validate_that_model_can_be_used(X);
 
     VectorXd linear_predictor{calculate_linear_predictor(X)};
-    VectorXd predictions{transform_linear_predictor_to_predictions(linear_predictor,link_function)};
+    VectorXd predictions{transform_linear_predictor_to_predictions(linear_predictor,link_function,calculate_custom_transform_linear_predictor_to_predictions_function)};
 
     if(cap_predictions_to_minmax_in_training)
     {

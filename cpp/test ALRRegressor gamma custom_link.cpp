@@ -1,0 +1,73 @@
+#include <cmath>
+#include <iostream>
+#include <vector>
+#include <numeric>
+#include "../dependencies/eigen-master/Eigen/Dense"
+#include "APLRRegressor.h"
+#include "term.h"
+
+
+using namespace Eigen;
+
+VectorXd calculate_custom_transform_linear_predictor_to_predictions(const VectorXd &linear_predictor)
+{
+    VectorXd predictions{linear_predictor.array().exp()};
+    return predictions;
+}
+
+VectorXd calculate_custom_differentiate_predictions_wrt_linear_predictor(const VectorXd &linear_predictor)
+{
+    VectorXd differentiated_predictions{linear_predictor.array().exp()};
+    return differentiated_predictions;
+}
+
+int main()
+{
+    std::vector<bool> tests;
+    tests.reserve(1000);
+
+    //Model
+    APLRRegressor model{APLRRegressor()};
+    model.m=100;
+    model.v=0.1;
+    model.bins=300;
+    model.n_jobs=0;
+    model.loss_function="gamma";
+    model.link_function="custom_function";
+    model.verbosity=3;
+    model.max_interaction_level=0;
+    model.max_interactions=1000;
+    model.min_observations_in_split=20;
+    model.ineligible_boosting_steps_added=10;
+    model.max_eligible_terms=5;
+    model.calculate_custom_transform_linear_predictor_to_predictions_function=calculate_custom_transform_linear_predictor_to_predictions;
+    model.calculate_custom_differentiate_predictions_wrt_linear_predictor_function=calculate_custom_differentiate_predictions_wrt_linear_predictor;
+
+    //Data    
+    MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+    MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")}; 
+    VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};    
+    VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")}; 
+
+    VectorXd sample_weight{VectorXd::Constant(y_train.size(),1.0)};
+
+    std::cout<<X_train;
+
+    //Fitting
+    //model.fit(X_train,y_train);
+    model.fit(X_train,y_train,sample_weight);
+    //model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+    std::cout<<"feature importance\n"<<model.feature_importance<<"\n\n";
+
+    VectorXd predictions{model.predict(X_test)};
+    MatrixXd li{model.calculate_local_feature_importance(X_test)};
+
+    //Saving results
+    save_as_csv_file("data/output.csv",predictions);
+
+    std::cout<<predictions.mean()<<"\n\n";
+    tests.push_back(is_approximately_equal(predictions.mean(),23.6098,0.00001));
+
+    //Test summary
+    std::cout<<"\n\nTest summary\n"<<"Passed "<<std::accumulate(tests.begin(),tests.end(),0)<<" out of "<<tests.size()<<" tests.";
+}
