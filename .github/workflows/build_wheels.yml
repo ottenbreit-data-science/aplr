@@ -1,0 +1,23 @@
+name: Build
+
+on: [workflow_dispatch]
+
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-2019,ubuntu-20.04]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build wheels
+        run: pipx run cibuildwheel==2.5.0
+        env:
+          CIBW_SKIP: "*musllinux*"
+
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ./wheelhouse/*.whl
