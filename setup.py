@@ -8,14 +8,14 @@ if "win" not in sys.platform:
 sfc_module = setuptools.Extension(
     name = 'aplr_cpp', 
     sources=['cpp/pythonbinding.cpp'],
-    include_dirs=['cpp','dependencies/eigen-master','dependencies/pybind11/include'],
+    include_dirs=['cpp','dependencies/eigen-3.4.0','dependencies/pybind11/include'],
     language='c++',
     extra_compile_args=extra_compile_args,
     )
 
 setuptools.setup(
     name='aplr',
-    version='6.4.0',
+    version='6.5.0',
     description='Automatic Piecewise Linear Regression',
     ext_modules=[sfc_module],
     author="Mathias von Ottenbreit",

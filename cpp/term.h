@@ -4,7 +4,7 @@
 #include <functional>
 #include <vector>
 #include <algorithm>
-#include "../dependencies/eigen-master/Eigen/Dense"
+#include "../dependencies/eigen-3.4.0/Eigen/Dense"
 #include "functions.h"
 #include "constants.h"
 

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <numeric>
-#include "../dependencies/eigen-master/Eigen/Dense"
+#include "../dependencies/eigen-3.4.0/Eigen/Dense"
 #include "APLRRegressor.h"
 #include "term.h"
 

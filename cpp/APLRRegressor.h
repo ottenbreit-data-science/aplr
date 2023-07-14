@@ -5,7 +5,7 @@
 #include <future>
 #include <random>
 #include <vector>
-#include "../dependencies/eigen-master/Eigen/Dense"
+#include "../dependencies/eigen-3.4.0/Eigen/Dense"
 #include "functions.h"
 #include "term.h"
 #include "constants.h"

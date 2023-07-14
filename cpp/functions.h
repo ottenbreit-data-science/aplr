@@ -10,7 +10,7 @@
 #include <random>
 #include <set>
 #include <map>
-#include "../dependencies/eigen-master/Eigen/Dense"
+#include "../dependencies/eigen-3.4.0/Eigen/Dense"
 #include "constants.h"
 
 using namespace Eigen;
