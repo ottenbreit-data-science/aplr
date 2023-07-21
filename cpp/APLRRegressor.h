@@ -89,6 +89,8 @@ private:
     void update_coefficients_for_all_steps();
     void print_final_summary();
     void find_optimal_m_and_update_model_accordingly();
+    void remove_redundant_terms();
+    void remove_unused_terms();
     void name_terms(const MatrixXd &X, const std::vector<std::string> &X_names);
     void calculate_feature_importance_on_validation_set();
     void find_min_and_max_training_predictions_or_responses();
@@ -245,6 +247,8 @@ void APLRRegressor::fit(const MatrixXd &X,const VectorXd &y,const VectorXd &samp
     update_coefficients_for_all_steps();
     print_final_summary();
     find_optimal_m_and_update_model_accordingly();
+    remove_redundant_terms();
+    remove_unused_terms();
     revert_scaling_if_using_log_link_function();
     name_terms(X, X_names);
     calculate_feature_importance_on_validation_set();
@@ -1325,8 +1329,42 @@ void APLRRegressor::find_optimal_m_and_update_model_accordingly()
         terms[i].coefficient = terms[i].coefficient_steps[best_boosting_step_index];
     }
     m_optimal=best_boosting_step_index+1; 
+}
 
-    //Removing unused terms
+void APLRRegressor::remove_redundant_terms()
+{
+    for(size_t i = 0; i < terms.size(); ++i)
+    {        
+        for(size_t j = 0; j < terms.size(); ++j)
+        {
+            bool term_is_used{!is_approximately_zero(terms[i].coefficient)};
+            bool other_term_is_used{!is_approximately_zero(terms[j].coefficient)};
+            if(i!=j && term_is_used && other_term_is_used && terms[i].equals_not_comparing_given_terms(terms[i],terms[j]))
+            {
+                VectorXd values_i{terms[i].calculate(X_train)};
+                VectorXd values_j{terms[j].calculate(X_train)};
+                bool terms_are_similar{values_i==values_j};
+                if(terms_are_similar)
+                {
+                    if(terms[i].get_interaction_level()>terms[j].get_interaction_level())
+                    {
+                        terms[j].coefficient+=terms[i].coefficient;
+                        terms[i].coefficient=0;
+                        break;
+                    }
+                    else
+                    {
+                        terms[i].coefficient+=terms[j].coefficient;
+                        terms[j].coefficient=0;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void APLRRegressor::remove_unused_terms()
+{
     std::vector<Term> terms_new;
     terms_new.reserve(terms.size());
     for (size_t i = 0; i < terms.size(); ++i)
