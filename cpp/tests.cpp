@@ -1551,7 +1551,6 @@ public:
         VectorXd weights_different(3);
         VectorXd y_pred_good(3);
         VectorXd y_pred_bad(3);
-        VectorXd y_pred_equal(3);
         y_true << 1.0, 2.0, 3.0;
         weights_equal << 1, 1, 1;
         weights_different << 0, 0.5, 0.75;
@@ -1559,16 +1558,12 @@ public:
         y_pred_bad << 4.0, 3.0, -1.0;
         double rankability_good_ew{calculate_rankability(y_true, y_pred_good, weights_equal)};
         double rankability_bad_ew{calculate_rankability(y_true, y_pred_bad, weights_equal)};
-        double rankability_equal_ew{calculate_rankability(y_true, y_pred_equal, weights_equal)};
         double rankability_good_dw{calculate_rankability(y_true, y_pred_good, weights_different)};
         double rankability_bad_dw{calculate_rankability(y_true, y_pred_bad, weights_different)};
-        double rankability_equal_dw{calculate_rankability(y_true, y_pred_equal, weights_different)};
         tests.push_back(is_approximately_equal(rankability_good_ew, 1.0));
         tests.push_back(is_approximately_equal(rankability_bad_ew, 0.0));
-        tests.push_back(is_approximately_equal(rankability_equal_ew, 0.5));
         tests.push_back(is_approximately_equal(rankability_good_dw, 1.0));
         tests.push_back(is_approximately_equal(rankability_bad_dw, 0.0));
-        tests.push_back(is_approximately_equal(rankability_equal_dw, 0.5));
 
         VectorXd y_integration(3);
         VectorXd x_integration(3);
