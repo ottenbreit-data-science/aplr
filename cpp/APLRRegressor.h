@@ -86,7 +86,7 @@ private:
     void update_coefficients_for_all_steps();
     void print_final_summary();
     void find_optimal_m_and_update_model_accordingly();
-    void remove_redundant_terms();
+    void merge_similar_terms();
     void remove_unused_terms();
     void name_terms(const MatrixXd &X, const std::vector<std::string> &X_names);
     void calculate_feature_importance_on_validation_set();
@@ -241,7 +241,7 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
     update_coefficients_for_all_steps();
     print_final_summary();
     find_optimal_m_and_update_model_accordingly();
-    remove_redundant_terms();
+    merge_similar_terms();
     remove_unused_terms();
     revert_scaling_if_using_log_link_function();
     name_terms(X, X_names);
@@ -1333,7 +1333,7 @@ void APLRRegressor::find_optimal_m_and_update_model_accordingly()
     m_optimal = best_boosting_step_index + 1;
 }
 
-void APLRRegressor::remove_redundant_terms()
+void APLRRegressor::merge_similar_terms()
 {
     for (size_t i = 0; i < terms.size(); ++i)
     {
