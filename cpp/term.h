@@ -82,7 +82,7 @@ public:
     static bool equals_not_comparing_given_terms(const Term &p1, const Term &p2);
     static bool equals_given_terms(const Term &p1, const Term &p2);
     void estimate_split_point(const MatrixXd &X, const VectorXd &negative_gradient, const VectorXd &sample_weight, size_t bins, double v, size_t min_observations_in_split);
-    size_t get_interaction_level(size_t previous_int_level = 0);
+    size_t get_interaction_level();
     VectorXd calculate_without_interactions(const VectorXd &x);
     void calculate_rows_to_zero_out_and_not_due_to_given_terms(const MatrixXd &X);
     bool get_can_be_used_as_a_given_term();
@@ -663,7 +663,7 @@ VectorXd Term::calculate_contribution_to_linear_predictor(const MatrixXd &X)
     return values.array() * coefficient;
 }
 
-size_t Term::get_interaction_level(size_t previous_int_level)
+size_t Term::get_interaction_level()
 {
     return given_terms.size();
 }
