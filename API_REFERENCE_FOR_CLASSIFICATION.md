@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int=9000, v:float=0.1, random_state:int=0, n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, verbosity:int=0, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5)
+## class aplr.APLRClassifier(m:int=9000, v:float=0.1, random_state:int=0, n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, verbosity:int=0, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, boosting_steps_before_pruning_is_done:int = 500)
 
 ### Constructor parameters
 
@@ -40,8 +40,11 @@ Controls how many boosting steps a term that becomes ineligible has to remain in
 #### max_eligible_terms (default = 5)
 Limits 1) the number of terms already in the model that can be considered as interaction partners in a boosting step and 2) how many terms remain eligible in the next boosting step. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
 
+#### boosting_steps_before_pruning_is_done (default = 500)
+Specifies how many boosting steps to wait before pruning the model. With the default value, this means that in boosting steps 500, 1000, and so on, the model will be pruned. When pruning, terms are removed as long as this reduces the training error. This can be a computationally costly operation especially if the model gets many terms. To switch off pruning set ***boosting_steps_before_pruning_is_done*** to a value higher than ***m***.
 
-## Method: fit(X:npt.ArrayLike, y:List[str], sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], interaction_constraints:List[int]=[])
+
+## Method: fit(X:npt.ArrayLike, y:List[str], sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], interaction_constraints:List[List[int]]=[])
 
 ***This method fits the model to data.***
 
@@ -69,7 +72,7 @@ An optional list of integers specifying the indexes of predictors (columns) in *
 An optional list of integers specifying monotonic constraints on model terms. For example, if there are three predictors in ***X***, then monotonic_constraints = [1,0,-1] means that 1) the first predictor in ***X*** cannot be used in interaction terms as a secondary effect and all terms using the first predictor in ***X*** as a main effect must have positive regression coefficients, 2) there are no monotonic constraints on terms using the second predictor in ***X***, and 3) the third predictor in ***X*** cannot be used in interaction terms as a secondary effect and all terms using the third predictor in ***X*** as a main effect must have negative regression coefficients.
 
 #### interaction_constraints
-An optional list of integers specifying interaction constraints on model terms. For example, if there are three predictors in ***X***, then interaction_constraints = [1,0,2] means that 1) the first predictor in ***X*** cannot be used in interaction terms as a secondary effect, 2) there are no interaction constraints on terms using the second predictor in ***X***, and 3) the third predictor in ***X*** cannot be used in any interaction terms.
+An optional list containing lists of integers. Specifies interaction constraints on model terms. For example, interaction_constraints = [[0,1], [1,2,3]] means that 1) the first and second predictors may interact with each other, and that 2) the second, third and fourth predictors may interact with each other. There are no interaction constraints on predictors not mentioned in interaction_constraints.
 
 
 ## Method: predict_class_probabilities(X:npt.ArrayLike, cap_predictions_to_minmax_in_training:bool=False)

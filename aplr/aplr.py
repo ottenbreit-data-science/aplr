@@ -43,6 +43,7 @@ class APLRRegressor:
         calculate_custom_differentiate_predictions_wrt_linear_predictor_function: Optional[
             Callable[[npt.ArrayLike], npt.ArrayLike]
         ] = None,
+        boosting_steps_before_pruning_is_done: int = 500,
     ):
         self.m = m
         self.v = v
@@ -73,6 +74,9 @@ class APLRRegressor:
         )
         self.calculate_custom_differentiate_predictions_wrt_linear_predictor_function = (
             calculate_custom_differentiate_predictions_wrt_linear_predictor_function
+        )
+        self.boosting_steps_before_pruning_is_done = (
+            boosting_steps_before_pruning_is_done
         )
 
         # Creating aplr_cpp and setting parameters
@@ -115,6 +119,9 @@ class APLRRegressor:
         self.APLRRegressor.calculate_custom_differentiate_predictions_wrt_linear_predictor_function = (
             self.calculate_custom_differentiate_predictions_wrt_linear_predictor_function
         )
+        self.APLRRegressor.boosting_steps_before_pruning_is_done = (
+            self.boosting_steps_before_pruning_is_done
+        )
 
     def fit(
         self,
@@ -126,7 +133,7 @@ class APLRRegressor:
         prioritized_predictors_indexes: List[int] = [],
         monotonic_constraints: List[int] = [],
         group: npt.ArrayLike = np.empty(0),
-        interaction_constraints: List[int] = [],
+        interaction_constraints: List[List[int]] = [],
     ):
         self.__set_params_cpp()
         self.APLRRegressor.fit(
@@ -219,6 +226,7 @@ class APLRRegressor:
             "calculate_custom_negative_gradient_function": self.calculate_custom_negative_gradient_function,
             "calculate_custom_transform_linear_predictor_to_predictions_function": self.calculate_custom_transform_linear_predictor_to_predictions_function,
             "calculate_custom_differentiate_predictions_wrt_linear_predictor_function": self.calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
+            "boosting_steps_before_pruning_is_done": self.boosting_steps_before_pruning_is_done,
         }
 
     # For sklearn
@@ -244,6 +252,7 @@ class APLRClassifier:
         min_observations_in_split: int = 20,
         ineligible_boosting_steps_added: int = 10,
         max_eligible_terms: int = 5,
+        boosting_steps_before_pruning_is_done: int = 500,
     ):
         self.m = m
         self.v = v
@@ -257,6 +266,9 @@ class APLRClassifier:
         self.min_observations_in_split = min_observations_in_split
         self.ineligible_boosting_steps_added = ineligible_boosting_steps_added
         self.max_eligible_terms = max_eligible_terms
+        self.boosting_steps_before_pruning_is_done = (
+            boosting_steps_before_pruning_is_done
+        )
 
         # Creating aplr_cpp and setting parameters
         self.APLRClassifier = aplr_cpp.APLRClassifier()
@@ -278,6 +290,9 @@ class APLRClassifier:
             self.ineligible_boosting_steps_added
         )
         self.APLRClassifier.max_eligible_terms = self.max_eligible_terms
+        self.APLRClassifier.boosting_steps_before_pruning_is_done = (
+            self.boosting_steps_before_pruning_is_done
+        )
 
     def fit(
         self,
@@ -288,7 +303,7 @@ class APLRClassifier:
         validation_set_indexes: List[int] = [],
         prioritized_predictors_indexes: List[int] = [],
         monotonic_constraints: List[int] = [],
-        interaction_constraints: List[int] = [],
+        interaction_constraints: List[List[int]] = [],
     ):
         self.__set_params_cpp()
         self.APLRClassifier.fit(
@@ -350,6 +365,7 @@ class APLRClassifier:
             "min_observations_in_split": self.min_observations_in_split,
             "ineligible_boosting_steps_added": self.ineligible_boosting_steps_added,
             "max_eligible_terms": self.max_eligible_terms,
+            "boosting_steps_before_pruning_is_done": self.boosting_steps_before_pruning_is_done,
         }
 
     # For sklearn

@@ -531,3 +531,13 @@ double calculate_gini(const VectorXd &y_true, const VectorXd &y_pred, const Vect
 
     return gini;
 }
+
+std::vector<size_t> remove_duplicate_elements_from_vector(const std::vector<size_t> &vector)
+{
+    std::vector<size_t> output{vector};
+    std::sort(output.begin(), output.end());
+    std::vector<size_t>::iterator it;
+    it = std::unique(output.begin(), output.end());
+    output.resize(distance(output.begin(), it));
+    return output;
+}

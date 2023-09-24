@@ -42,16 +42,18 @@ public:
     VectorXd feature_importance;
     std::vector<std::string> categories;
     std::map<std::string, APLRRegressor> logit_models; // Key is category and value is logit model
+    size_t boosting_steps_before_pruning_is_done;
 
     APLRClassifier(size_t m = 9000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), size_t n_jobs = 0,
                    double validation_ratio = 0.2, size_t reserved_terms_times_num_x = 100, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1,
-                   size_t max_interactions = 100000, size_t min_observations_in_split = 20, size_t ineligible_boosting_steps_added = 10, size_t max_eligible_terms = 5);
+                   size_t max_interactions = 100000, size_t min_observations_in_split = 20, size_t ineligible_boosting_steps_added = 10, size_t max_eligible_terms = 5,
+                   size_t boosting_steps_before_pruning_is_done = 500);
     APLRClassifier(const APLRClassifier &other);
     ~APLRClassifier();
     void fit(const MatrixXd &X, const std::vector<std::string> &y, const VectorXd &sample_weight = VectorXd(0),
              const std::vector<std::string> &X_names = {}, const std::vector<size_t> &validation_set_indexes = {},
              const std::vector<size_t> &prioritized_predictors_indexes = {}, const std::vector<int> &monotonic_constraints = {},
-             const std::vector<int> &interaction_constraints = {});
+             const std::vector<std::vector<size_t>> &interaction_constraints = {});
     MatrixXd predict_class_probabilities(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = false);
     std::vector<std::string> predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = false);
     MatrixXd calculate_local_feature_importance(const MatrixXd &X);
@@ -65,10 +67,12 @@ public:
 
 APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, size_t n_jobs, double validation_ratio,
                                size_t reserved_terms_times_num_x, size_t bins, size_t verbosity, size_t max_interaction_level, size_t max_interactions,
-                               size_t min_observations_in_split, size_t ineligible_boosting_steps_added, size_t max_eligible_terms) : m{m}, v{v}, random_state{random_state}, n_jobs{n_jobs}, validation_ratio{validation_ratio},
-                                                                                                                                      reserved_terms_times_num_x{reserved_terms_times_num_x}, bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
-                                                                                                                                      max_interactions{max_interactions}, min_observations_in_split{min_observations_in_split},
-                                                                                                                                      ineligible_boosting_steps_added{ineligible_boosting_steps_added}, max_eligible_terms{max_eligible_terms}
+                               size_t min_observations_in_split, size_t ineligible_boosting_steps_added, size_t max_eligible_terms,
+                               size_t boosting_steps_before_pruning_is_done) : m{m}, v{v}, random_state{random_state}, n_jobs{n_jobs}, validation_ratio{validation_ratio},
+                                                                               reserved_terms_times_num_x{reserved_terms_times_num_x}, bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
+                                                                               max_interactions{max_interactions}, min_observations_in_split{min_observations_in_split},
+                                                                               ineligible_boosting_steps_added{ineligible_boosting_steps_added}, max_eligible_terms{max_eligible_terms},
+                                                                               boosting_steps_before_pruning_is_done{boosting_steps_before_pruning_is_done}
 {
 }
 
@@ -78,7 +82,7 @@ APLRClassifier::APLRClassifier(const APLRClassifier &other) : m{other.m}, v{othe
                                                               min_observations_in_split{other.min_observations_in_split}, ineligible_boosting_steps_added{other.ineligible_boosting_steps_added},
                                                               max_eligible_terms{other.max_eligible_terms}, logit_models{other.logit_models}, categories{other.categories},
                                                               validation_indexes{other.validation_indexes}, validation_error_steps{other.validation_error_steps}, validation_error{other.validation_error},
-                                                              feature_importance{other.feature_importance}
+                                                              feature_importance{other.feature_importance}, boosting_steps_before_pruning_is_done{other.boosting_steps_before_pruning_is_done}
 {
 }
 
@@ -88,7 +92,7 @@ APLRClassifier::~APLRClassifier()
 
 void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                          const std::vector<size_t> &validation_set_indexes, const std::vector<size_t> &prioritized_predictors_indexes,
-                         const std::vector<int> &monotonic_constraints, const std::vector<int> &interaction_constraints)
+                         const std::vector<int> &monotonic_constraints, const std::vector<std::vector<size_t>> &interaction_constraints)
 {
     initialize();
     find_categories(y);
@@ -101,6 +105,7 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
         logit_models[categories[0]] = APLRRegressor(m, v, random_state, "binomial", "logit", n_jobs, validation_ratio, reserved_terms_times_num_x,
                                                     bins, verbosity, max_interaction_level, max_interactions, min_observations_in_split, ineligible_boosting_steps_added,
                                                     max_eligible_terms, 1.5, "default", 0.5);
+        logit_models[categories[0]].boosting_steps_before_pruning_is_done = boosting_steps_before_pruning_is_done;
         logit_models[categories[0]].fit(X, response_values[categories[0]], sample_weight, X_names, validation_indexes, prioritized_predictors_indexes,
                                         monotonic_constraints, VectorXi(0), interaction_constraints);
 
@@ -114,6 +119,7 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
             logit_models[category] = APLRRegressor(m, v, random_state, "binomial", "logit", n_jobs, validation_ratio, reserved_terms_times_num_x,
                                                    bins, verbosity, max_interaction_level, max_interactions, min_observations_in_split, ineligible_boosting_steps_added,
                                                    max_eligible_terms, 1.5, "default", 0.5);
+            logit_models[category].boosting_steps_before_pruning_is_done = boosting_steps_before_pruning_is_done;
             logit_models[category].fit(X, response_values[category], sample_weight, X_names, validation_indexes, prioritized_predictors_indexes,
                                        monotonic_constraints, VectorXi(0), interaction_constraints);
         }

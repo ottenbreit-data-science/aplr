@@ -23,6 +23,12 @@ struct SortedData
     VectorXd sample_weight_sorted{VectorXd(0)};
 };
 
+struct InteractionConstraintsTest
+{
+    bool term_adheres_to_combination;
+    bool at_least_one_term_found_in_combination;
+};
+
 class Term
 {
 private:
@@ -48,6 +54,7 @@ private:
     void discretize_data_by_bin();
     void estimate_split_point_on_discretized_data();
     void estimate_coefficient_and_error(const VectorXd &x, const VectorXd &y, const VectorXd &sample_weight, double error_added = 0.0);
+    void prune_given_terms();
     double estimate_coefficient(const VectorXd &x, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0));
     void cleanup_after_estimate_split_point();
     void cleanup_after_fit();
@@ -55,6 +62,8 @@ private:
     void make_term_ineligible();
     void determine_if_can_be_used_as_a_given_term(const VectorXd &x);
     bool coefficient_adheres_to_monotonic_constraint();
+    InteractionConstraintsTest test_interaction_constraints(const std::vector<size_t> &legal_interaction_combination);
+    std::vector<size_t> get_unique_base_terms_used_in_this_term();
 
 public:
     std::string name;
@@ -88,8 +97,6 @@ public:
     bool get_can_be_used_as_a_given_term();
     void set_monotonic_constraint(int constraint);
     int get_monotonic_constraint();
-    void set_interaction_constraint(int constraint);
-    int get_interaction_constraint();
 
     friend bool operator==(const Term &p1, const Term &p2);
     friend class APLRRegressor;
@@ -176,6 +183,11 @@ void Term::estimate_split_point(const MatrixXd &X, const VectorXd &negative_grad
     }
     discretize_data_by_bin();
     estimate_split_point_on_discretized_data();
+    if (!std::isfinite(split_point_search_errors_sum))
+    {
+        make_term_ineligible();
+        return;
+    }
     estimate_coefficient_and_error(calculate_without_interactions(sorted_vectors.values_sorted), sorted_vectors.negative_gradient_sorted,
                                    sorted_vectors.sample_weight_sorted, error_where_given_terms_are_zero);
     cleanup_after_estimate_split_point();
@@ -509,8 +521,22 @@ void Term::discretize_data_by_bin()
 void Term::estimate_split_point_on_discretized_data()
 {
     split_point = NAN_DOUBLE;
-    estimate_coefficient_and_error(calculate_without_interactions(values_discretized), negative_gradient_discretized, sample_weight_discretized);
-    double error_split_point_nan{split_point_search_errors_sum};
+    double error_split_point_nan{std::numeric_limits<double>::infinity()};
+    bool linear_effect_is_eligible{true};
+    for (auto &given_term : given_terms)
+    {
+        bool a_given_term_with_the_same_base_term_already_exists{base_term == given_term.base_term};
+        if (a_given_term_with_the_same_base_term_already_exists)
+        {
+            linear_effect_is_eligible = false;
+            break;
+        }
+    }
+    if (linear_effect_is_eligible)
+    {
+        estimate_coefficient_and_error(calculate_without_interactions(values_discretized), negative_gradient_discretized, sample_weight_discretized);
+        error_split_point_nan = split_point_search_errors_sum;
+    }
 
     double split_point_left{NAN_DOUBLE};
     double error_min_left{error_split_point_nan};
@@ -553,6 +579,8 @@ void Term::estimate_split_point_on_discretized_data()
         split_point = split_point_right;
         split_point_search_errors_sum = error_min_right;
     }
+
+    prune_given_terms();
 }
 
 void Term::estimate_coefficient_and_error(const VectorXd &x, const VectorXd &y, const VectorXd &sample_weight, double error_added)
@@ -613,6 +641,39 @@ bool Term::coefficient_adheres_to_monotonic_constraint()
         coefficient_adheres = false;
 
     return coefficient_adheres;
+}
+
+void Term::prune_given_terms()
+{
+    std::vector<size_t> given_term_index_to_keep;
+    given_term_index_to_keep.reserve(given_terms.size());
+    for (size_t i = 0; i < given_terms.size(); ++i)
+    {
+        bool keep_given_term{true};
+        bool removing_given_term_with_same_base_term_and_direction{base_term == given_terms[i].base_term && direction_right == given_terms[i].direction_right};
+        bool removing_linear_given_term{base_term == given_terms[i].base_term && std::isfinite(split_point) && !std::isfinite(given_terms[i].split_point)};
+        if (removing_given_term_with_same_base_term_and_direction)
+        {
+            keep_given_term = false;
+        }
+        else if (removing_linear_given_term)
+        {
+            keep_given_term = false;
+        }
+        if (keep_given_term)
+            given_term_index_to_keep.push_back(i);
+    }
+    bool at_least_one_given_predictors_to_remove{given_term_index_to_keep.size() < given_terms.size()};
+    if (at_least_one_given_predictors_to_remove)
+    {
+        std::vector<Term> new_given_terms;
+        new_given_terms.reserve(given_term_index_to_keep.size());
+        for (auto &given_term_index : given_term_index_to_keep)
+        {
+            new_given_terms.push_back(given_terms[given_term_index]);
+        }
+        given_terms = std::move(new_given_terms);
+    }
 }
 
 void Term::cleanup_after_estimate_split_point()
@@ -683,14 +744,40 @@ int Term::get_monotonic_constraint()
     return monotonic_constraint;
 }
 
-void Term::set_interaction_constraint(int constraint)
+InteractionConstraintsTest Term::test_interaction_constraints(const std::vector<size_t> &legal_interaction_combination)
 {
-    interaction_constraint = constraint;
+    InteractionConstraintsTest interaction_constraints_test;
+    interaction_constraints_test.term_adheres_to_combination = true;
+    interaction_constraints_test.at_least_one_term_found_in_combination = false;
+
+    std::vector<size_t> unique_base_terms_used_in_this_term{get_unique_base_terms_used_in_this_term()};
+    for (auto &base_term : unique_base_terms_used_in_this_term)
+    {
+        bool base_term_not_found{std::find(legal_interaction_combination.begin(), legal_interaction_combination.end(), base_term) == legal_interaction_combination.end()};
+        if (base_term_not_found)
+        {
+            interaction_constraints_test.term_adheres_to_combination = false;
+        }
+        else
+        {
+            interaction_constraints_test.at_least_one_term_found_in_combination = true;
+        }
+    }
+
+    return interaction_constraints_test;
 }
 
-int Term::get_interaction_constraint()
+std::vector<size_t> Term::get_unique_base_terms_used_in_this_term()
 {
-    return interaction_constraint;
+    std::vector<size_t> terms_used;
+    terms_used.reserve(1 + given_terms.size());
+    terms_used.push_back(base_term);
+    for (auto &given_term : given_terms)
+    {
+        terms_used.push_back(given_term.base_term);
+    }
+    terms_used = remove_duplicate_elements_from_vector(terms_used);
+    return terms_used;
 }
 
 std::vector<std::vector<size_t>> distribute_terms_indexes_to_cores(std::vector<size_t> &term_indexes, size_t n_jobs)
