@@ -97,70 +97,70 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def_readwrite("boosting_steps_before_pruning_is_done", &APLRRegressor::boosting_steps_before_pruning_is_done)
         .def(py::pickle(
             [](const APLRRegressor &a) { // __getstate__
-        /* Return a tuple that fully encodes the state of the object */
-        return py::make_tuple(a.m, a.v, a.random_state, a.loss_function, a.link_function, a.n_jobs, a.validation_ratio, a.intercept, a.bins,
-                              a.verbosity, a.max_interaction_level, a.max_interactions, a.validation_error_steps, a.term_names, a.term_coefficients, a.terms,
-                              a.interactions_eligible, a.min_observations_in_split, a.ineligible_boosting_steps_added, a.max_eligible_terms,
-                              a.number_of_base_terms, a.feature_importance, a.dispersion_parameter, a.min_training_prediction_or_response,
-                              a.max_training_prediction_or_response, a.validation_tuning_metric, a.validation_indexes, a.quantile, a.m_optimal,
-                              a.intercept_steps, a.boosting_steps_before_pruning_is_done);
+                /* Return a tuple that fully encodes the state of the object */
+                return py::make_tuple(a.m, a.v, a.random_state, a.loss_function, a.link_function, a.n_jobs, a.validation_ratio, a.intercept, a.bins,
+                                      a.verbosity, a.max_interaction_level, a.max_interactions, a.validation_error_steps, a.term_names, a.term_coefficients, a.terms,
+                                      a.interactions_eligible, a.min_observations_in_split, a.ineligible_boosting_steps_added, a.max_eligible_terms,
+                                      a.number_of_base_terms, a.feature_importance, a.dispersion_parameter, a.min_training_prediction_or_response,
+                                      a.max_training_prediction_or_response, a.validation_tuning_metric, a.validation_indexes, a.quantile, a.m_optimal,
+                                      a.intercept_steps, a.boosting_steps_before_pruning_is_done);
             },
             [](py::tuple t) { // __setstate__
-        if (t.size() != 31)
-            throw std::runtime_error("Invalid state!");
+                if (t.size() != 31)
+                    throw std::runtime_error("Invalid state!");
 
-        /* Create a new C++ instance */
-        size_t m = t[0].cast<size_t>();
-        double v = t[1].cast<double>();
-        uint_fast32_t random_state = t[2].cast<uint_fast32_t>();
-        std::string loss_function = t[3].cast<std::string>();
-        std::string link_function = t[4].cast<std::string>();
-        size_t n_jobs = t[5].cast<size_t>();
-        double validation_ratio = t[6].cast<double>();
-        double intercept = t[7].cast<double>();
-        size_t bins = t[8].cast<size_t>();
-        size_t verbosity = t[9].cast<size_t>();
-        size_t max_interaction_level = t[10].cast<size_t>();
-        size_t max_interactions = t[11].cast<size_t>();
-        VectorXd validation_error_steps = t[12].cast<VectorXd>();
-        std::vector<std::string> term_names = t[13].cast<std::vector<std::string>>();
-        VectorXd term_coefficients = t[14].cast<VectorXd>();
-        std::vector<Term> terms = t[15].cast<std::vector<Term>>();
-        size_t interactions_eligible = t[16].cast<size_t>();
-        size_t min_observations_in_split = t[17].cast<size_t>();
-        size_t ineligible_boosting_steps_added = t[18].cast<size_t>();
-        size_t max_eligible_terms = t[19].cast<size_t>();
-        size_t number_of_base_terms = t[20].cast<size_t>();
-        VectorXd feature_importance = t[21].cast<VectorXd>();
-        double dispersion_parameter = t[22].cast<double>();
-        double min_training_prediction_or_response = t[23].cast<double>();
-        double max_training_prediction_or_response = t[24].cast<double>();
-        std::string validation_tuning_metric = t[25].cast<std::string>();
-        std::vector<size_t> validation_indexes = t[26].cast<std::vector<size_t>>();
-        double quantile = t[27].cast<double>();
-        size_t m_optimal = t[28].cast<size_t>();
-        VectorXd intercept_steps = t[29].cast<VectorXd>();
-        size_t boosting_steps_before_pruning_is_done = t[30].cast<size_t>();
+                /* Create a new C++ instance */
+                size_t m = t[0].cast<size_t>();
+                double v = t[1].cast<double>();
+                uint_fast32_t random_state = t[2].cast<uint_fast32_t>();
+                std::string loss_function = t[3].cast<std::string>();
+                std::string link_function = t[4].cast<std::string>();
+                size_t n_jobs = t[5].cast<size_t>();
+                double validation_ratio = t[6].cast<double>();
+                double intercept = t[7].cast<double>();
+                size_t bins = t[8].cast<size_t>();
+                size_t verbosity = t[9].cast<size_t>();
+                size_t max_interaction_level = t[10].cast<size_t>();
+                size_t max_interactions = t[11].cast<size_t>();
+                VectorXd validation_error_steps = t[12].cast<VectorXd>();
+                std::vector<std::string> term_names = t[13].cast<std::vector<std::string>>();
+                VectorXd term_coefficients = t[14].cast<VectorXd>();
+                std::vector<Term> terms = t[15].cast<std::vector<Term>>();
+                size_t interactions_eligible = t[16].cast<size_t>();
+                size_t min_observations_in_split = t[17].cast<size_t>();
+                size_t ineligible_boosting_steps_added = t[18].cast<size_t>();
+                size_t max_eligible_terms = t[19].cast<size_t>();
+                size_t number_of_base_terms = t[20].cast<size_t>();
+                VectorXd feature_importance = t[21].cast<VectorXd>();
+                double dispersion_parameter = t[22].cast<double>();
+                double min_training_prediction_or_response = t[23].cast<double>();
+                double max_training_prediction_or_response = t[24].cast<double>();
+                std::string validation_tuning_metric = t[25].cast<std::string>();
+                std::vector<size_t> validation_indexes = t[26].cast<std::vector<size_t>>();
+                double quantile = t[27].cast<double>();
+                size_t m_optimal = t[28].cast<size_t>();
+                VectorXd intercept_steps = t[29].cast<VectorXd>();
+                size_t boosting_steps_before_pruning_is_done = t[30].cast<size_t>();
 
-        APLRRegressor a(m, v, random_state, loss_function, link_function, n_jobs, validation_ratio, 100, bins, verbosity, max_interaction_level,
-                        max_interactions, min_observations_in_split, ineligible_boosting_steps_added, max_eligible_terms, dispersion_parameter,
-                        validation_tuning_metric, quantile);
-        a.intercept = intercept;
-        a.validation_error_steps = validation_error_steps;
-        a.term_names = term_names;
-        a.term_coefficients = term_coefficients;
-        a.terms = terms;
-        a.interactions_eligible = interactions_eligible;
-        a.number_of_base_terms = number_of_base_terms;
-        a.feature_importance = feature_importance;
-        a.min_training_prediction_or_response = min_training_prediction_or_response;
-        a.max_training_prediction_or_response = max_training_prediction_or_response;
-        a.validation_indexes = validation_indexes;
-        a.m_optimal = m_optimal;
-        a.intercept_steps = intercept_steps;
-        a.boosting_steps_before_pruning_is_done = boosting_steps_before_pruning_is_done;
+                APLRRegressor a(m, v, random_state, loss_function, link_function, n_jobs, validation_ratio, 100, bins, verbosity, max_interaction_level,
+                                max_interactions, min_observations_in_split, ineligible_boosting_steps_added, max_eligible_terms, dispersion_parameter,
+                                validation_tuning_metric, quantile);
+                a.intercept = intercept;
+                a.validation_error_steps = validation_error_steps;
+                a.term_names = term_names;
+                a.term_coefficients = term_coefficients;
+                a.terms = terms;
+                a.interactions_eligible = interactions_eligible;
+                a.number_of_base_terms = number_of_base_terms;
+                a.feature_importance = feature_importance;
+                a.min_training_prediction_or_response = min_training_prediction_or_response;
+                a.max_training_prediction_or_response = max_training_prediction_or_response;
+                a.validation_indexes = validation_indexes;
+                a.m_optimal = m_optimal;
+                a.intercept_steps = intercept_steps;
+                a.boosting_steps_before_pruning_is_done = boosting_steps_before_pruning_is_done;
 
-        return a;
+                return a;
             }));
 
     py::class_<Term>(m, "Term", py::module_local())
