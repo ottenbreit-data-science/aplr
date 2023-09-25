@@ -76,7 +76,7 @@ private:
     void find_sorted_indexes_for_errors_for_interactions_to_consider();
     void add_promising_interactions_and_select_the_best_one();
     void update_intercept(size_t boosting_step);
-    void select_the_best_term_and_update_errors(size_t boosting_step, bool not_evaluating_prioritized_predictors = true);
+    void select_the_best_term_and_update_errors(size_t boosting_step);
     void remove_ineligibility();
     void update_terms(size_t boosting_step);
     void update_gradient_and_errors();
@@ -789,7 +789,7 @@ void APLRRegressor::execute_boosting_step(size_t boosting_step)
                 best_term_index = find_best_term_index(terms_eligible_current, terms_eligible_current_indexes_for_a_base_term);
                 std::vector<size_t> predictor_index{index};
                 consider_interactions(predictor_index);
-                select_the_best_term_and_update_errors(boosting_step, false);
+                select_the_best_term_and_update_errors(boosting_step);
             }
         }
     }
@@ -1123,15 +1123,11 @@ void APLRRegressor::add_promising_interactions_and_select_the_best_one()
     }
 }
 
-void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step, bool not_evaluating_prioritized_predictors)
+void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
 {
     bool no_term_was_selected{best_term_index == std::numeric_limits<size_t>::max()};
     if (no_term_was_selected)
-    {
-        if (not_evaluating_prioritized_predictors)
-            remove_ineligibility();
         return;
-    }
 
     linear_predictor_update = terms_eligible_current[best_term_index].calculate_contribution_to_linear_predictor(X_train);
     linear_predictor_update_validation = terms_eligible_current[best_term_index].calculate_contribution_to_linear_predictor(X_validation);
@@ -1213,12 +1209,11 @@ void APLRRegressor::prune_terms(size_t boosting_step)
             if (term_is_used)
             {
                 linear_predictor_update = -terms[i].calculate_contribution_to_linear_predictor(X_train);
-                linear_predictor_update_validation = -terms[i].calculate_contribution_to_linear_predictor(X_validation);
-                double error_after_updating_term = calculate_sum_error(calculate_errors(neg_gradient_current, linear_predictor_update, sample_weight_train, MSE_LOSS_FUNCTION));
-                bool improvement{std::islessequal(error_after_updating_term, new_error)};
+                double error_after_pruning_term = calculate_sum_error(calculate_errors(neg_gradient_current, linear_predictor_update, sample_weight_train, MSE_LOSS_FUNCTION));
+                bool improvement{std::islessequal(error_after_pruning_term, new_error)};
                 if (improvement)
                 {
-                    new_error = error_after_updating_term;
+                    new_error = error_after_pruning_term;
                     index_for_term_to_remove = i;
                 }
             }
@@ -1227,7 +1222,6 @@ void APLRRegressor::prune_terms(size_t boosting_step)
         if (removal_of_term_is_better)
         {
             linear_predictor_update = -terms[index_for_term_to_remove].calculate_contribution_to_linear_predictor(X_train);
-            linear_predictor_update_validation = -terms[index_for_term_to_remove].calculate_contribution_to_linear_predictor(X_validation);
             terms[index_for_term_to_remove].coefficient = 0.0;
             update_linear_predictor_and_predictions();
             update_gradient_and_errors();
