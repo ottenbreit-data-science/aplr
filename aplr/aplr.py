@@ -43,7 +43,7 @@ class APLRRegressor:
         calculate_custom_differentiate_predictions_wrt_linear_predictor_function: Optional[
             Callable[[npt.ArrayLike], npt.ArrayLike]
         ] = None,
-        boosting_steps_before_pruning_is_done: int = 500,
+        boosting_steps_before_pruning_is_done: int = 0,
     ):
         self.m = m
         self.v = v
@@ -252,7 +252,7 @@ class APLRClassifier:
         min_observations_in_split: int = 20,
         ineligible_boosting_steps_added: int = 10,
         max_eligible_terms: int = 5,
-        boosting_steps_before_pruning_is_done: int = 500,
+        boosting_steps_before_pruning_is_done: int = 0,
     ):
         self.m = m
         self.v = v

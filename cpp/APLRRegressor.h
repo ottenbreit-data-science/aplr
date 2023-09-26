@@ -162,7 +162,7 @@ public:
                   const std::function<VectorXd(VectorXd, VectorXd, VectorXi)> &calculate_custom_negative_gradient_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {},
-                  size_t boosting_steps_before_pruning_is_done = 500);
+                  size_t boosting_steps_before_pruning_is_done = 0);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
@@ -1188,7 +1188,7 @@ void APLRRegressor::add_new_term(size_t boosting_step)
 
 void APLRRegressor::prune_terms(size_t boosting_step)
 {
-    bool prune{(boosting_step + 1) % boosting_steps_before_pruning_is_done == 0 && boosting_step > 0};
+    bool prune{boosting_steps_before_pruning_is_done > 0 && (boosting_step + 1) % boosting_steps_before_pruning_is_done == 0 && boosting_step > 0};
     if (!prune)
     {
         pruning_was_done_in_the_current_boosting_step = false;

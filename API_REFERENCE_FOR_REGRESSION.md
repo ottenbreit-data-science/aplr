@@ -1,6 +1,6 @@
 # APLRRegressor
 
-## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5, calculate_custom_validation_error_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_loss_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_negative_gradient_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], npt.ArrayLike]]=None, calculate_custom_transform_linear_predictor_to_predictions_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None, calculate_custom_differentiate_predictions_wrt_linear_predictor_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None, boosting_steps_before_pruning_is_done: int = 500)
+## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5, calculate_custom_validation_error_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_loss_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_negative_gradient_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], npt.ArrayLike]]=None, calculate_custom_transform_linear_predictor_to_predictions_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None, calculate_custom_differentiate_predictions_wrt_linear_predictor_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None, boosting_steps_before_pruning_is_done: int = 0)
 
 ### Constructor parameters
 
@@ -102,8 +102,8 @@ def calculate_custom_differentiate_predictions_wrt_linear_predictor(linear_predi
     return differentiated_predictions
 ```
 
-#### boosting_steps_before_pruning_is_done (default = 500)
-Specifies how many boosting steps to wait before pruning the model. With the default value, this means that in boosting steps 500, 1000, and so on, the model will be pruned. When pruning, terms are removed as long as this reduces the training error. This can be a computationally costly operation especially if the model gets many terms. To switch off pruning set ***boosting_steps_before_pruning_is_done*** to a value higher than ***m***.
+#### boosting_steps_before_pruning_is_done (default = 0)
+Specifies how many boosting steps to wait before pruning the model. If 0 (default) then pruning is not done. If for example 500 then the model will be pruned in boosting steps 500, 1000, and so on. When pruning, terms are removed as long as this reduces the training error. This can be a computationally costly operation especially if the model gets many terms. Pruning may improve predictiveness.
 
 ## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], group:npt.ArrayLike = np.empty(0), interaction_constraints:List[List[int]]=[])
 
