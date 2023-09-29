@@ -48,16 +48,19 @@ private:
     std::set<int> unique_groups_validation;
     std::vector<std::vector<size_t>> interaction_constraints;
     bool pruning_was_done_in_the_current_boosting_step;
+    MatrixXd other_data_train;
+    MatrixXd other_data_validation;
 
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                const std::vector<size_t> &validation_set_indexes, const std::vector<size_t> &prioritized_predictors_indexes,
-                               const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<std::vector<size_t>> &interaction_constraints);
+                               const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<std::vector<size_t>> &interaction_constraints,
+                               const MatrixXd &other_data);
     void throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes);
     void throw_error_if_prioritized_predictors_indexes_has_invalid_indexes(const MatrixXd &X, const std::vector<size_t> &prioritized_predictors_indexes);
     void throw_error_if_monotonic_constraints_has_invalid_indexes(const MatrixXd &X, const std::vector<int> &monotonic_constraints);
     void throw_error_if_interaction_constraints_has_invalid_indexes(const MatrixXd &X, const std::vector<std::vector<size_t>> &interaction_constraints);
     void define_training_and_validation_sets(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight,
-                                             const std::vector<size_t> &validation_set_indexes, const VectorXi &group);
+                                             const std::vector<size_t> &validation_set_indexes, const VectorXi &group, const MatrixXd &other_data);
     void initialize(const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints,
                     const std::vector<std::vector<size_t>> &interaction_constraints);
     bool check_if_base_term_has_only_one_unique_value(size_t base_term);
@@ -145,9 +148,9 @@ public:
     std::vector<size_t> validation_indexes;
     std::string validation_tuning_metric;
     double quantile;
-    std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)> calculate_custom_validation_error_function;
-    std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)> calculate_custom_loss_function;
-    std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group)> calculate_custom_negative_gradient_function;
+    std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)> calculate_custom_validation_error_function;
+    std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)> calculate_custom_loss_function;
+    std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)> calculate_custom_negative_gradient_function;
     std::function<VectorXd(const VectorXd &linear_predictor)> calculate_custom_transform_linear_predictor_to_predictions_function;
     std::function<VectorXd(const VectorXd &linear_predictor)> calculate_custom_differentiate_predictions_wrt_linear_predictor_function;
     size_t boosting_steps_before_pruning_is_done;
@@ -157,9 +160,9 @@ public:
                   size_t reserved_terms_times_num_x = 100, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1, size_t max_interactions = 100000,
                   size_t min_observations_in_split = 20, size_t ineligible_boosting_steps_added = 10, size_t max_eligible_terms = 5, double dispersion_parameter = 1.5,
                   std::string validation_tuning_metric = "default", double quantile = 0.5,
-                  const std::function<double(VectorXd, VectorXd, VectorXd, VectorXi)> &calculate_custom_validation_error_function = {},
-                  const std::function<double(VectorXd, VectorXd, VectorXd, VectorXi)> &calculate_custom_loss_function = {},
-                  const std::function<VectorXd(VectorXd, VectorXd, VectorXi)> &calculate_custom_negative_gradient_function = {},
+                  const std::function<double(VectorXd, VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_validation_error_function = {},
+                  const std::function<double(VectorXd, VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_loss_function = {},
+                  const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_negative_gradient_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {},
                   size_t boosting_steps_before_pruning_is_done = 0);
@@ -167,7 +170,8 @@ public:
     ~APLRRegressor();
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
              const std::vector<size_t> &validation_set_indexes = {}, const std::vector<size_t> &prioritized_predictors_indexes = {},
-             const std::vector<int> &monotonic_constraints = {}, const VectorXi &group = VectorXi(0), const std::vector<std::vector<size_t>> &interaction_constraints = {});
+             const std::vector<int> &monotonic_constraints = {}, const VectorXi &group = VectorXi(0), const std::vector<std::vector<size_t>> &interaction_constraints = {},
+             const MatrixXd &other_data = MatrixXd(0, 0));
     VectorXd predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = true);
     void set_term_names(const std::vector<std::string> &X_names);
     MatrixXd calculate_local_feature_importance(const MatrixXd &X);
@@ -189,9 +193,9 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              double validation_ratio, size_t reserved_terms_times_num_x, size_t bins, size_t verbosity, size_t max_interaction_level,
                              size_t max_interactions, size_t min_observations_in_split, size_t ineligible_boosting_steps_added, size_t max_eligible_terms, double dispersion_parameter,
                              std::string validation_tuning_metric, double quantile,
-                             const std::function<double(VectorXd, VectorXd, VectorXd, VectorXi)> &calculate_custom_validation_error_function,
-                             const std::function<double(VectorXd, VectorXd, VectorXd, VectorXi)> &calculate_custom_loss_function,
-                             const std::function<VectorXd(VectorXd, VectorXd, VectorXi)> &calculate_custom_negative_gradient_function,
+                             const std::function<double(VectorXd, VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_validation_error_function,
+                             const std::function<double(VectorXd, VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_loss_function,
+                             const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_negative_gradient_function,
                              const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function,
                              const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
                              size_t boosting_steps_before_pruning_is_done) : reserved_terms_times_num_x{reserved_terms_times_num_x}, intercept{NAN_DOUBLE}, m{m}, v{v},
@@ -234,15 +238,16 @@ APLRRegressor::~APLRRegressor()
 
 void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                         const std::vector<size_t> &validation_set_indexes, const std::vector<size_t> &prioritized_predictors_indexes,
-                        const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<std::vector<size_t>> &interaction_constraints)
+                        const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<std::vector<size_t>> &interaction_constraints,
+                        const MatrixXd &other_data)
 {
     throw_error_if_loss_function_does_not_exist();
     throw_error_if_link_function_does_not_exist();
     throw_error_if_dispersion_parameter_is_invalid();
     throw_error_if_m_is_invalid();
     validate_input_to_fit(X, y, sample_weight, X_names, validation_set_indexes, prioritized_predictors_indexes, monotonic_constraints, group,
-                          interaction_constraints);
-    define_training_and_validation_sets(X, y, sample_weight, validation_set_indexes, group);
+                          interaction_constraints, other_data);
+    define_training_and_validation_sets(X, y, sample_weight, validation_set_indexes, group, other_data);
     scale_training_observations_if_using_log_link_function();
     initialize(prioritized_predictors_indexes, monotonic_constraints, interaction_constraints);
     execute_boosting_steps();
@@ -331,7 +336,7 @@ void APLRRegressor::throw_error_if_m_is_invalid()
 void APLRRegressor::validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight,
                                           const std::vector<std::string> &X_names, const std::vector<size_t> &validation_set_indexes,
                                           const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints, const VectorXi &group,
-                                          const std::vector<std::vector<size_t>> &interaction_constraints)
+                                          const std::vector<std::vector<size_t>> &interaction_constraints, const MatrixXd &other_data)
 {
     if (X.rows() != y.size())
         throw std::runtime_error("X and y must have the same number of rows.");
@@ -351,6 +356,13 @@ void APLRRegressor::validate_input_to_fit(const MatrixXd &X, const VectorXd &y, 
     bool group_is_of_incorrect_size{loss_function == "group_mse" && group.rows() != y.rows()};
     if (group_is_of_incorrect_size)
         throw std::runtime_error("When loss_function is group_mse then y and group must have the same number of rows.");
+    bool other_data_is_provided{other_data.size() > 0};
+    if (other_data_is_provided)
+    {
+        bool other_data_is_of_incorrect_size{other_data.rows() != y.rows()};
+        if (other_data_is_of_incorrect_size)
+            throw std::runtime_error("other_data and y must have the same number of rows.");
+    }
 }
 
 void APLRRegressor::throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes)
@@ -468,7 +480,8 @@ void APLRRegressor::throw_error_if_sample_weight_contains_invalid_values(const V
 }
 
 void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight,
-                                                        const std::vector<size_t> &validation_set_indexes, const VectorXi &group)
+                                                        const std::vector<size_t> &validation_set_indexes, const VectorXi &group,
+                                                        const MatrixXd &other_data)
 {
     size_t y_size{static_cast<size_t>(y.size())};
     std::vector<size_t> train_indexes;
@@ -537,6 +550,15 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X, const
         }
         unique_groups_train = get_unique_integers(group_train);
     }
+    bool other_data_is_provided{other_data.size() > 0};
+    if (other_data_is_provided)
+    {
+        other_data_train.resize(train_indexes.size(), other_data.cols());
+        for (size_t i = 0; i < train_indexes.size(); ++i)
+        {
+            other_data_train.row(i) = other_data.row(train_indexes[i]);
+        }
+    }
     // Populating test matrices
     for (size_t i = 0; i < validation_indexes.size(); ++i)
     {
@@ -559,6 +581,14 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X, const
             group_validation[i] = group[validation_indexes[i]];
         }
         unique_groups_validation = get_unique_integers(group_validation);
+    }
+    if (other_data_is_provided)
+    {
+        other_data_validation.resize(validation_indexes.size(), other_data.cols());
+        for (size_t i = 0; i < validation_indexes.size(); ++i)
+        {
+            other_data_validation.row(i) = other_data.row(validation_indexes[i]);
+        }
     }
 }
 
@@ -724,7 +754,7 @@ VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &sample_we
     {
         try
         {
-            output = calculate_custom_negative_gradient_function(y_train, predictions_current, group_train);
+            output = calculate_custom_negative_gradient_function(y_train, predictions_current, group_train, other_data_train);
         }
         catch (const std::exception &e)
         {
@@ -1265,7 +1295,7 @@ void APLRRegressor::calculate_validation_error(size_t boosting_step, const Vecto
         {
             try
             {
-                validation_error_steps[boosting_step] = calculate_custom_loss_function(y_validation, predictions, sample_weight_validation, group_validation);
+                validation_error_steps[boosting_step] = calculate_custom_loss_function(y_validation, predictions, sample_weight_validation, group_validation, other_data_validation);
             }
             catch (const std::exception &e)
             {
@@ -1295,7 +1325,7 @@ void APLRRegressor::calculate_validation_error(size_t boosting_step, const Vecto
     {
         try
         {
-            validation_error_steps[boosting_step] = calculate_custom_validation_error_function(y_validation, predictions, sample_weight_validation, group_validation);
+            validation_error_steps[boosting_step] = calculate_custom_validation_error_function(y_validation, predictions, sample_weight_validation, group_validation, other_data_validation);
         }
         catch (const std::exception &e)
         {
@@ -1613,6 +1643,8 @@ void APLRRegressor::cleanup_after_fit()
     unique_groups_validation.clear();
     interaction_constraints.clear();
     interactions_eligible = 0;
+    other_data_train.resize(0, 0);
+    other_data_validation.resize(0, 0);
 }
 
 VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)

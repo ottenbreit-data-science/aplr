@@ -26,16 +26,33 @@ class APLRRegressor:
         quantile: float = 0.5,
         calculate_custom_validation_error_function: Optional[
             Callable[
-                [npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float
+                [
+                    npt.ArrayLike,
+                    npt.ArrayLike,
+                    npt.ArrayLike,
+                    npt.ArrayLike,
+                    npt.ArrayLike,
+                ],
+                float,
             ]
         ] = None,
         calculate_custom_loss_function: Optional[
             Callable[
-                [npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float
+                [
+                    npt.ArrayLike,
+                    npt.ArrayLike,
+                    npt.ArrayLike,
+                    npt.ArrayLike,
+                    npt.ArrayLike,
+                ],
+                float,
             ]
         ] = None,
         calculate_custom_negative_gradient_function: Optional[
-            Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], npt.ArrayLike]
+            Callable[
+                [npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike],
+                npt.ArrayLike,
+            ]
         ] = None,
         calculate_custom_transform_linear_predictor_to_predictions_function: Optional[
             Callable[[npt.ArrayLike], npt.ArrayLike]
@@ -134,6 +151,7 @@ class APLRRegressor:
         monotonic_constraints: List[int] = [],
         group: npt.ArrayLike = np.empty(0),
         interaction_constraints: List[List[int]] = [],
+        other_data: npt.ArrayLike = np.empty([0, 0]),
     ):
         self.__set_params_cpp()
         self.APLRRegressor.fit(
@@ -146,6 +164,7 @@ class APLRRegressor:
             monotonic_constraints,
             group,
             interaction_constraints,
+            other_data,
         )
 
     def predict(

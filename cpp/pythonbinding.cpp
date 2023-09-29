@@ -11,9 +11,9 @@
 
 namespace py = pybind11;
 
-std::function<double(VectorXd, VectorXd, VectorXd, VectorXi)> empty_calculate_custom_validation_error_function = {};
-std::function<double(VectorXd, VectorXd, VectorXd, VectorXi)> empty_calculate_custom_loss_function = {};
-std::function<VectorXd(VectorXd, VectorXd, VectorXi)> empty_calculate_custom_negative_gradient_function = {};
+std::function<double(VectorXd, VectorXd, VectorXd, VectorXi, MatrixXd)> empty_calculate_custom_validation_error_function = {};
+std::function<double(VectorXd, VectorXd, VectorXd, VectorXi, MatrixXd)> empty_calculate_custom_loss_function = {};
+std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> empty_calculate_custom_negative_gradient_function = {};
 std::function<VectorXd(VectorXd)> empty_calculate_custom_transform_linear_predictor_to_predictions_function = {};
 std::function<VectorXd(VectorXd)> empty_calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {};
 
@@ -21,9 +21,9 @@ PYBIND11_MODULE(aplr_cpp, m)
 {
     py::class_<APLRRegressor>(m, "APLRRegressor", py::module_local())
         .def(py::init<int &, double &, int &, std::string &, std::string &, int &, double &, int &, int &, int &, int &, int &, int &, int &, int &, double &, std::string &,
-                      double &, std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)> &,
-                      std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)> &,
-                      std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group)> &,
+                      double &, std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)> &,
+                      std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)> &,
+                      std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)> &,
                       std::function<VectorXd(const VectorXd &linear_predictor)> &, std::function<VectorXd(const VectorXd &linear_predictor)> &,
                       int &>(),
              py::arg("m") = 1000, py::arg("v") = 0.1, py::arg("random_state") = 0, py::arg("loss_function") = "mse", py::arg("link_function") = "identity",
@@ -42,7 +42,8 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("boosting_steps_before_pruning_is_done") = 0)
         .def("fit", &APLRRegressor::fit, py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("validation_set_indexes") = std::vector<size_t>(), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),
-             py::arg("monotonic_constraints") = std::vector<int>(), py::arg("group") = VectorXi(0), py::arg("interaction_constraints") = std::vector<std::vector<size_t>>(),
+             py::arg("monotonic_constraints") = std::vector<int>(), py::arg("group") = VectorXi(0),
+             py::arg("interaction_constraints") = std::vector<std::vector<size_t>>(), py::arg("other_data") = MatrixXd(0, 0),
              py::call_guard<py::scoped_ostream_redirect, py::scoped_estream_redirect>())
         .def("predict", &APLRRegressor::predict, py::arg("X"), py::arg("bool cap_predictions_to_minmax_in_training") = true)
         .def("set_term_names", &APLRRegressor::set_term_names, py::arg("X_names"))

@@ -9,25 +9,25 @@
 
 using namespace Eigen;
 
-double calculate_custom_loss(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)
+double calculate_custom_loss(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)
 {
     VectorXd error{(y.array() - predictions.array()).pow(2)};
     return error.mean();
 }
 
-VectorXd calculate_custom_negative_gradient(const VectorXd &y, const VectorXd &predictions, const VectorXi &group)
+VectorXd calculate_custom_negative_gradient(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)
 {
     VectorXd negative_gradient{y - predictions};
     return negative_gradient;
 }
 
-double calculate_custom_validation_error(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)
+double calculate_custom_validation_error(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)
 {
     VectorXd error{(y.array() - predictions.array()).pow(3)};
     return error.mean();
 }
 
-double calculate_custom_validation_error_2(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group)
+double calculate_custom_validation_error_2(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)
 {
     VectorXd error{(y.array() - predictions.array()).pow(2)};
     return error.mean();
@@ -188,8 +188,8 @@ public:
         // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
         std::vector<size_t> validation_indexes{0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)};
         std::vector<size_t> prioritized_predictor_indexes{1, 8};
-        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes);
-        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes);
+        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes, {}, VectorXi(0), {}, X_train);
+        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes, {}, VectorXi(0), {}, X_train);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
@@ -241,8 +241,8 @@ public:
         // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
         std::vector<size_t> validation_indexes{0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)};
         std::vector<size_t> prioritized_predictor_indexes{1, 8};
-        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes);
-        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes);
+        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes, {}, VectorXi(0), {}, X_train);
+        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes, {}, VectorXi(0), {}, X_train);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
@@ -653,7 +653,7 @@ public:
         // model.fit(X_train,y_train);
         // model.fit(X_train,y_train,sample_weight);
         model.fit(X_train, y_train, sample_weight, {}, {0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)}, {1, 8}, {0, 0, 1, -1, 0, 0, 0, 0, 0}, VectorXi(0),
-                  {{1, 1, 8, 1, 8, 8}, {2, 3, 2}, {4}});
+                  {{1, 1, 8, 1, 8, 8}, {2, 3, 2}, {4}}, X_train);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 

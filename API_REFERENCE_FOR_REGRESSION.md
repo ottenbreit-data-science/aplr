@@ -1,6 +1,6 @@
 # APLRRegressor
 
-## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5, calculate_custom_validation_error_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_loss_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_negative_gradient_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], npt.ArrayLike]]=None, calculate_custom_transform_linear_predictor_to_predictions_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None, calculate_custom_differentiate_predictions_wrt_linear_predictor_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None, boosting_steps_before_pruning_is_done: int = 0)
+## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5, calculate_custom_validation_error_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_loss_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_negative_gradient_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], npt.ArrayLike]]=None, calculate_custom_transform_linear_predictor_to_predictions_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None, calculate_custom_differentiate_predictions_wrt_linear_predictor_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None, boosting_steps_before_pruning_is_done: int = 0)
 
 ### Constructor parameters
 
@@ -59,7 +59,7 @@ Specifies the quantile to use when ***loss_function*** is "quantile".
 A Python function that calculates validation error if ***validation_tuning_metric*** is "custom_function". Example:
 
 ```
-def custom_validation_error_function(y, predictions, sample_weight, group):
+def custom_validation_error_function(y, predictions, sample_weight, group, other_data):
     squared_errors = (y-predictions)**2
     return squared_errors.mean()
 ```
@@ -68,7 +68,7 @@ def custom_validation_error_function(y, predictions, sample_weight, group):
 A Python function that calculates loss if ***loss_function*** is "custom_function". Example:
 
 ```
-def custom_loss_function(y, predictions, sample_weight, group):
+def custom_loss_function(y, predictions, sample_weight, group, other_data):
     squared_errors = (y-predictions)**2
     return squared_errors.mean()
 ```
@@ -77,7 +77,7 @@ def custom_loss_function(y, predictions, sample_weight, group):
 A Python function that calculates the negative gradient if ***loss_function*** is "custom_function". The negative gradient should be proportional to the negative of the first order differentiation of the custom loss function (***calculate_custom_loss_function***) with respect to the predictions. Example:
 
 ```
-def custom_negative_gradient_function(y, predictions, group):
+def custom_negative_gradient_function(y, predictions, group, other_data):
     residuals = y-predictions
     return residuals
 ```
@@ -105,7 +105,7 @@ def calculate_custom_differentiate_predictions_wrt_linear_predictor(linear_predi
 #### boosting_steps_before_pruning_is_done (default = 0)
 Specifies how many boosting steps to wait before pruning the model. If 0 (default) then pruning is not done. If for example 500 then the model will be pruned in boosting steps 500, 1000, and so on. When pruning, terms are removed as long as this reduces the training error. This can be a computationally costly operation especially if the model gets many terms. Pruning may improve predictiveness.
 
-## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], group:npt.ArrayLike = np.empty(0), interaction_constraints:List[List[int]]=[])
+## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], group:npt.ArrayLike = np.empty(0), interaction_constraints:List[List[int]]=[], other_data: npt.ArrayLike = np.empty([0, 0]))
 
 ***This method fits the model to data.***
 
@@ -137,6 +137,9 @@ A numpy vector of integers that is used when ***loss_function*** is "group_mse".
 
 #### interaction_constraints
 An optional list containing lists of integers. Specifies interaction constraints on model terms. For example, interaction_constraints = [[0,1], [1,2,3]] means that 1) the first and second predictors may interact with each other, and that 2) the second, third and fourth predictors may interact with each other. There are no interaction constraints on predictors not mentioned in interaction_constraints.
+
+#### other_data
+An optional numpy matrix with other data. This is used in custom loss, negative gradient and validation error functions.
 
 
 ## Method: predict(X:npt.ArrayLike, cap_predictions_to_minmax_in_training:bool=True)
