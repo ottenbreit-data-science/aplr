@@ -71,7 +71,7 @@ private:
     std::vector<size_t> find_terms_eligible_current_indexes_for_a_base_term(size_t base_term);
     void estimate_split_point_for_each_term(std::vector<Term> &terms, std::vector<size_t> &terms_indexes);
     size_t find_best_term_index(std::vector<Term> &terms, std::vector<size_t> &terms_indexes);
-    void consider_interactions(const std::vector<size_t> &available_predictor_indexes);
+    void consider_interactions(const std::vector<size_t> &available_predictor_indexes, size_t boosting_step);
     void determine_interactions_to_consider(const std::vector<size_t> &available_predictor_indexes);
     VectorXi find_indexes_for_terms_to_consider_as_interaction_partners();
     size_t find_out_how_many_terms_to_consider_as_interaction_partners();
@@ -154,6 +154,7 @@ public:
     std::function<VectorXd(const VectorXd &linear_predictor)> calculate_custom_transform_linear_predictor_to_predictions_function;
     std::function<VectorXd(const VectorXd &linear_predictor)> calculate_custom_differentiate_predictions_wrt_linear_predictor_function;
     size_t boosting_steps_before_pruning_is_done;
+    size_t boosting_steps_before_interactions_are_allowed;
 
     APLRRegressor(size_t m = 1000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, double validation_ratio = 0.2,
@@ -165,7 +166,7 @@ public:
                   const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_negative_gradient_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {},
-                  size_t boosting_steps_before_pruning_is_done = 0);
+                  size_t boosting_steps_before_pruning_is_done = 0, size_t boosting_steps_before_interactions_are_allowed = 0);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
@@ -198,37 +199,40 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_negative_gradient_function,
                              const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function,
                              const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
-                             size_t boosting_steps_before_pruning_is_done) : reserved_terms_times_num_x{reserved_terms_times_num_x}, intercept{NAN_DOUBLE}, m{m}, v{v},
-                                                                             loss_function{loss_function}, link_function{link_function}, validation_ratio{validation_ratio}, n_jobs{n_jobs}, random_state{random_state},
-                                                                             bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level}, intercept_steps{VectorXd(0)},
-                                                                             max_interactions{max_interactions}, interactions_eligible{0}, validation_error_steps{VectorXd(0)},
-                                                                             min_observations_in_split{min_observations_in_split}, ineligible_boosting_steps_added{ineligible_boosting_steps_added},
-                                                                             max_eligible_terms{max_eligible_terms}, number_of_base_terms{0}, dispersion_parameter{dispersion_parameter}, min_training_prediction_or_response{NAN_DOUBLE},
-                                                                             max_training_prediction_or_response{NAN_DOUBLE}, validation_tuning_metric{validation_tuning_metric},
-                                                                             validation_indexes{std::vector<size_t>(0)}, quantile{quantile}, calculate_custom_validation_error_function{calculate_custom_validation_error_function},
-                                                                             calculate_custom_loss_function{calculate_custom_loss_function}, calculate_custom_negative_gradient_function{calculate_custom_negative_gradient_function},
-                                                                             calculate_custom_transform_linear_predictor_to_predictions_function{calculate_custom_transform_linear_predictor_to_predictions_function},
-                                                                             calculate_custom_differentiate_predictions_wrt_linear_predictor_function{calculate_custom_differentiate_predictions_wrt_linear_predictor_function},
-                                                                             boosting_steps_before_pruning_is_done{boosting_steps_before_pruning_is_done}
+                             size_t boosting_steps_before_pruning_is_done, size_t boosting_steps_before_interactions_are_allowed)
+    : reserved_terms_times_num_x{reserved_terms_times_num_x}, intercept{NAN_DOUBLE}, m{m}, v{v},
+      loss_function{loss_function}, link_function{link_function}, validation_ratio{validation_ratio}, n_jobs{n_jobs}, random_state{random_state},
+      bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level}, intercept_steps{VectorXd(0)},
+      max_interactions{max_interactions}, interactions_eligible{0}, validation_error_steps{VectorXd(0)},
+      min_observations_in_split{min_observations_in_split}, ineligible_boosting_steps_added{ineligible_boosting_steps_added},
+      max_eligible_terms{max_eligible_terms}, number_of_base_terms{0}, dispersion_parameter{dispersion_parameter}, min_training_prediction_or_response{NAN_DOUBLE},
+      max_training_prediction_or_response{NAN_DOUBLE}, validation_tuning_metric{validation_tuning_metric},
+      validation_indexes{std::vector<size_t>(0)}, quantile{quantile}, calculate_custom_validation_error_function{calculate_custom_validation_error_function},
+      calculate_custom_loss_function{calculate_custom_loss_function}, calculate_custom_negative_gradient_function{calculate_custom_negative_gradient_function},
+      calculate_custom_transform_linear_predictor_to_predictions_function{calculate_custom_transform_linear_predictor_to_predictions_function},
+      calculate_custom_differentiate_predictions_wrt_linear_predictor_function{calculate_custom_differentiate_predictions_wrt_linear_predictor_function},
+      boosting_steps_before_pruning_is_done{boosting_steps_before_pruning_is_done}, boosting_steps_before_interactions_are_allowed{boosting_steps_before_interactions_are_allowed}
 {
 }
 
-APLRRegressor::APLRRegressor(const APLRRegressor &other) : reserved_terms_times_num_x{other.reserved_terms_times_num_x}, intercept{other.intercept}, terms{other.terms}, m{other.m}, v{other.v},
-                                                           loss_function{other.loss_function}, link_function{other.link_function}, validation_ratio{other.validation_ratio},
-                                                           n_jobs{other.n_jobs}, random_state{other.random_state}, bins{other.bins},
-                                                           verbosity{other.verbosity}, term_names{other.term_names}, term_coefficients{other.term_coefficients},
-                                                           max_interaction_level{other.max_interaction_level}, intercept_steps{other.intercept_steps}, max_interactions{other.max_interactions},
-                                                           interactions_eligible{other.interactions_eligible}, validation_error_steps{other.validation_error_steps},
-                                                           min_observations_in_split{other.min_observations_in_split}, ineligible_boosting_steps_added{other.ineligible_boosting_steps_added},
-                                                           max_eligible_terms{other.max_eligible_terms}, number_of_base_terms{other.number_of_base_terms},
-                                                           feature_importance{other.feature_importance}, dispersion_parameter{other.dispersion_parameter}, min_training_prediction_or_response{other.min_training_prediction_or_response},
-                                                           max_training_prediction_or_response{other.max_training_prediction_or_response}, validation_tuning_metric{other.validation_tuning_metric},
-                                                           validation_indexes{other.validation_indexes}, quantile{other.quantile}, m_optimal{other.m_optimal},
-                                                           calculate_custom_validation_error_function{other.calculate_custom_validation_error_function},
-                                                           calculate_custom_loss_function{other.calculate_custom_loss_function}, calculate_custom_negative_gradient_function{other.calculate_custom_negative_gradient_function},
-                                                           calculate_custom_transform_linear_predictor_to_predictions_function{other.calculate_custom_transform_linear_predictor_to_predictions_function},
-                                                           calculate_custom_differentiate_predictions_wrt_linear_predictor_function{other.calculate_custom_differentiate_predictions_wrt_linear_predictor_function},
-                                                           boosting_steps_before_pruning_is_done{other.boosting_steps_before_pruning_is_done}
+APLRRegressor::APLRRegressor(const APLRRegressor &other)
+    : reserved_terms_times_num_x{other.reserved_terms_times_num_x}, intercept{other.intercept}, terms{other.terms}, m{other.m}, v{other.v},
+      loss_function{other.loss_function}, link_function{other.link_function}, validation_ratio{other.validation_ratio},
+      n_jobs{other.n_jobs}, random_state{other.random_state}, bins{other.bins},
+      verbosity{other.verbosity}, term_names{other.term_names}, term_coefficients{other.term_coefficients},
+      max_interaction_level{other.max_interaction_level}, intercept_steps{other.intercept_steps}, max_interactions{other.max_interactions},
+      interactions_eligible{other.interactions_eligible}, validation_error_steps{other.validation_error_steps},
+      min_observations_in_split{other.min_observations_in_split}, ineligible_boosting_steps_added{other.ineligible_boosting_steps_added},
+      max_eligible_terms{other.max_eligible_terms}, number_of_base_terms{other.number_of_base_terms},
+      feature_importance{other.feature_importance}, dispersion_parameter{other.dispersion_parameter}, min_training_prediction_or_response{other.min_training_prediction_or_response},
+      max_training_prediction_or_response{other.max_training_prediction_or_response}, validation_tuning_metric{other.validation_tuning_metric},
+      validation_indexes{other.validation_indexes}, quantile{other.quantile}, m_optimal{other.m_optimal},
+      calculate_custom_validation_error_function{other.calculate_custom_validation_error_function},
+      calculate_custom_loss_function{other.calculate_custom_loss_function}, calculate_custom_negative_gradient_function{other.calculate_custom_negative_gradient_function},
+      calculate_custom_transform_linear_predictor_to_predictions_function{other.calculate_custom_transform_linear_predictor_to_predictions_function},
+      calculate_custom_differentiate_predictions_wrt_linear_predictor_function{other.calculate_custom_differentiate_predictions_wrt_linear_predictor_function},
+      boosting_steps_before_pruning_is_done{other.boosting_steps_before_pruning_is_done},
+      boosting_steps_before_interactions_are_allowed{other.boosting_steps_before_interactions_are_allowed}
 {
 }
 
@@ -818,7 +822,7 @@ void APLRRegressor::execute_boosting_step(size_t boosting_step)
                 estimate_split_point_for_each_term(terms_eligible_current, terms_eligible_current_indexes_for_a_base_term);
                 best_term_index = find_best_term_index(terms_eligible_current, terms_eligible_current_indexes_for_a_base_term);
                 std::vector<size_t> predictor_index{index};
-                consider_interactions(predictor_index);
+                consider_interactions(predictor_index, boosting_step);
                 select_the_best_term_and_update_errors(boosting_step);
             }
         }
@@ -828,7 +832,7 @@ void APLRRegressor::execute_boosting_step(size_t boosting_step)
         std::vector<size_t> term_indexes{create_term_indexes(terms_eligible_current)};
         estimate_split_point_for_each_term(terms_eligible_current, term_indexes);
         best_term_index = find_best_term_index(terms_eligible_current, term_indexes);
-        consider_interactions(predictor_indexes);
+        consider_interactions(predictor_indexes, boosting_step);
         select_the_best_term_and_update_errors(boosting_step);
         prune_terms(boosting_step);
     }
@@ -941,9 +945,9 @@ size_t APLRRegressor::find_best_term_index(std::vector<Term> &terms, std::vector
     return best_term_index;
 }
 
-void APLRRegressor::consider_interactions(const std::vector<size_t> &available_predictor_indexes)
+void APLRRegressor::consider_interactions(const std::vector<size_t> &available_predictor_indexes, size_t boosting_step)
 {
-    bool consider_interactions{terms.size() > 0 && max_interaction_level > 0 && interactions_eligible < max_interactions};
+    bool consider_interactions{terms.size() > 0 && max_interaction_level > 0 && interactions_eligible < max_interactions && boosting_step >= boosting_steps_before_interactions_are_allowed};
     if (consider_interactions)
     {
         determine_interactions_to_consider(available_predictor_indexes);

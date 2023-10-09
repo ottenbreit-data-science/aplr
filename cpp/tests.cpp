@@ -123,6 +123,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.dispersion_parameter = 1.0;
+        model.boosting_steps_before_interactions_are_allowed = 60;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -148,7 +149,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 20.0458, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 20.8752, 0.00001));
     }
 
     void test_aplrregressor_custom_loss_and_validation()
@@ -1386,11 +1387,13 @@ public:
         model.bins = 300;
         model.n_jobs = 0;
         model.verbosity = 3;
-        model.max_interaction_level = 0;
+        model.max_interaction_level = 100;
         model.max_interactions = 1000;
         model.min_observations_in_split = 20;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.boosting_steps_before_pruning_is_done = 30;
+        model.boosting_steps_before_interactions_are_allowed = 50;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1425,7 +1428,7 @@ public:
 
         std::cout << "validation_error\n"
                   << model.get_validation_error() << "\n\n";
-        tests.push_back(is_approximately_equal(model.get_validation_error(), 0.0228939, 0.000001));
+        tests.push_back(is_approximately_equal(model.get_validation_error(), 0.0192955, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -1433,7 +1436,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.135719, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.141068, 0.00001));
     }
 
     void test_aplrclassifier_two_class()

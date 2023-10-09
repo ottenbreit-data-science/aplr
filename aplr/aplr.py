@@ -61,6 +61,7 @@ class APLRRegressor:
             Callable[[npt.ArrayLike], npt.ArrayLike]
         ] = None,
         boosting_steps_before_pruning_is_done: int = 0,
+        boosting_steps_before_interactions_are_allowed: int = 0,
     ):
         self.m = m
         self.v = v
@@ -94,6 +95,9 @@ class APLRRegressor:
         )
         self.boosting_steps_before_pruning_is_done = (
             boosting_steps_before_pruning_is_done
+        )
+        self.boosting_steps_before_interactions_are_allowed = (
+            boosting_steps_before_interactions_are_allowed
         )
 
         # Creating aplr_cpp and setting parameters
@@ -138,6 +142,9 @@ class APLRRegressor:
         )
         self.APLRRegressor.boosting_steps_before_pruning_is_done = (
             self.boosting_steps_before_pruning_is_done
+        )
+        self.APLRRegressor.boosting_steps_before_interactions_are_allowed = (
+            self.boosting_steps_before_interactions_are_allowed
         )
 
     def fit(
@@ -246,6 +253,7 @@ class APLRRegressor:
             "calculate_custom_transform_linear_predictor_to_predictions_function": self.calculate_custom_transform_linear_predictor_to_predictions_function,
             "calculate_custom_differentiate_predictions_wrt_linear_predictor_function": self.calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
             "boosting_steps_before_pruning_is_done": self.boosting_steps_before_pruning_is_done,
+            "boosting_steps_before_interactions_are_allowed": self.boosting_steps_before_interactions_are_allowed,
         }
 
     # For sklearn
@@ -272,6 +280,7 @@ class APLRClassifier:
         ineligible_boosting_steps_added: int = 10,
         max_eligible_terms: int = 5,
         boosting_steps_before_pruning_is_done: int = 0,
+        boosting_steps_before_interactions_are_allowed: int = 0,
     ):
         self.m = m
         self.v = v
@@ -287,6 +296,9 @@ class APLRClassifier:
         self.max_eligible_terms = max_eligible_terms
         self.boosting_steps_before_pruning_is_done = (
             boosting_steps_before_pruning_is_done
+        )
+        self.boosting_steps_before_interactions_are_allowed = (
+            boosting_steps_before_interactions_are_allowed
         )
 
         # Creating aplr_cpp and setting parameters
@@ -311,6 +323,9 @@ class APLRClassifier:
         self.APLRClassifier.max_eligible_terms = self.max_eligible_terms
         self.APLRClassifier.boosting_steps_before_pruning_is_done = (
             self.boosting_steps_before_pruning_is_done
+        )
+        self.APLRClassifier.boosting_steps_before_interactions_are_allowed = (
+            self.boosting_steps_before_interactions_are_allowed
         )
 
     def fit(
@@ -385,6 +400,7 @@ class APLRClassifier:
             "ineligible_boosting_steps_added": self.ineligible_boosting_steps_added,
             "max_eligible_terms": self.max_eligible_terms,
             "boosting_steps_before_pruning_is_done": self.boosting_steps_before_pruning_is_done,
+            "boosting_steps_before_interactions_are_allowed": self.boosting_steps_before_interactions_are_allowed,
         }
 
     # For sklearn
