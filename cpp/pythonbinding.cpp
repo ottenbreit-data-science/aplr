@@ -39,7 +39,7 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("calculate_custom_negative_gradient_function") = empty_calculate_custom_negative_gradient_function,
              py::arg("calculate_custom_transform_linear_predictor_to_predictions_function") = empty_calculate_custom_transform_linear_predictor_to_predictions_function,
              py::arg("calculate_custom_differentiate_predictions_wrt_linear_predictor_function") = empty_calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
-             py::arg("boosting_steps_before_pruning_is_done") = 0, py::arg("boosting_steps_before_interactions_are_allowed") = 0)
+             py::arg("boosting_steps_before_pruning_is_done") = 500, py::arg("boosting_steps_before_interactions_are_allowed") = 0)
         .def("fit", &APLRRegressor::fit, py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("validation_set_indexes") = std::vector<size_t>(), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),
              py::arg("monotonic_constraints") = std::vector<int>(), py::arg("group") = VectorXi(0),
@@ -208,7 +208,7 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("m") = 9000, py::arg("v") = 0.1, py::arg("random_state") = 0, py::arg("n_jobs") = 0, py::arg("validation_ratio") = 0.2,
              py::arg("reserved_terms_times_num_x") = 100, py::arg("bins") = 300, py::arg("verbosity") = 0,
              py::arg("max_interaction_level") = 1, py::arg("max_interactions") = 100000, py::arg("min_observations_in_split") = 20,
-             py::arg("ineligible_boosting_steps_added") = 10, py::arg("max_eligible_terms") = 5, py::arg("boosting_steps_before_pruning_is_done") = 0,
+             py::arg("ineligible_boosting_steps_added") = 10, py::arg("max_eligible_terms") = 5, py::arg("boosting_steps_before_pruning_is_done") = 500,
              py::arg("boosting_steps_before_interactions_are_allowed") = 0)
         .def("fit", &APLRClassifier::fit, py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("validation_set_indexes") = std::vector<size_t>(), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),

@@ -166,7 +166,7 @@ public:
                   const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_negative_gradient_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {},
-                  size_t boosting_steps_before_pruning_is_done = 0, size_t boosting_steps_before_interactions_are_allowed = 0);
+                  size_t boosting_steps_before_pruning_is_done = 500, size_t boosting_steps_before_interactions_are_allowed = 0);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
@@ -1269,6 +1269,10 @@ void APLRRegressor::prune_terms(size_t boosting_step)
     {
         remove_unused_terms();
         remove_ineligibility();
+        if (verbosity >= 2)
+        {
+            std::cout << "Pruned " << std::to_string(terms_pruned) <<" terms.\n";
+        }
     }
 }
 
