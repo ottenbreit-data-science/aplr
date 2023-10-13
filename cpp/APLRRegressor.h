@@ -85,11 +85,11 @@ private:
     void update_gradient_and_errors();
     void add_new_term(size_t boosting_step);
     void prune_terms(size_t boosting_step);
+    void update_coefficient_steps(size_t boosting_step);
     void calculate_and_validate_validation_error(size_t boosting_step);
     void calculate_validation_error(size_t boosting_step, const VectorXd &predictions);
     void update_term_eligibility();
     void print_summary_after_boosting_step(size_t boosting_step);
-    void update_coefficients_for_all_steps();
     void print_final_summary();
     void find_optimal_m_and_update_model_accordingly();
     void merge_similar_terms();
@@ -110,7 +110,7 @@ private:
     void throw_error_if_response_is_not_greater_than_zero(const VectorXd &y, const std::string &error_message);
     void throw_error_if_dispersion_parameter_is_invalid();
     VectorXd differentiate_predictions_wrt_linear_predictor();
-    void scale_training_observations_if_using_log_link_function();
+    void scale_response_if_using_log_link_function();
     void revert_scaling_if_using_log_link_function();
     void cap_predictions_to_minmax_in_training(VectorXd &predictions);
     std::string compute_raw_base_term_name(const Term &term, const std::string &X_name);
@@ -252,10 +252,9 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
     validate_input_to_fit(X, y, sample_weight, X_names, validation_set_indexes, prioritized_predictors_indexes, monotonic_constraints, group,
                           interaction_constraints, other_data);
     define_training_and_validation_sets(X, y, sample_weight, validation_set_indexes, group, other_data);
-    scale_training_observations_if_using_log_link_function();
+    scale_response_if_using_log_link_function();
     initialize(prioritized_predictors_indexes, monotonic_constraints, interaction_constraints);
     execute_boosting_steps();
-    update_coefficients_for_all_steps();
     print_final_summary();
     find_optimal_m_and_update_model_accordingly();
     merge_similar_terms();
@@ -596,7 +595,7 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X, const
     }
 }
 
-void APLRRegressor::scale_training_observations_if_using_log_link_function()
+void APLRRegressor::scale_response_if_using_log_link_function()
 {
     if (link_function == "log")
     {
@@ -606,6 +605,7 @@ void APLRRegressor::scale_training_observations_if_using_log_link_function()
         {
             scaling_factor_for_log_link_function = 1 / inverse_scaling_factor;
             y_train *= scaling_factor_for_log_link_function;
+            y_validation *= scaling_factor_for_log_link_function;
         }
         else
             scaling_factor_for_log_link_function = 1.0;
@@ -835,6 +835,7 @@ void APLRRegressor::execute_boosting_step(size_t boosting_step)
         consider_interactions(predictor_indexes, boosting_step);
         select_the_best_term_and_update_errors(boosting_step);
         prune_terms(boosting_step);
+        update_coefficient_steps(boosting_step);
     }
     if (abort_boosting)
         return;
@@ -1201,7 +1202,6 @@ void APLRRegressor::update_terms(size_t boosting_step)
             if (term_is_already_in_model)
             {
                 terms[j].coefficient += terms_eligible_current[best_term_index].coefficient;
-                terms[j].coefficient_steps[boosting_step] = terms[j].coefficient;
                 found = true;
                 break;
             }
@@ -1216,7 +1216,6 @@ void APLRRegressor::update_terms(size_t boosting_step)
 void APLRRegressor::add_new_term(size_t boosting_step)
 {
     terms_eligible_current[best_term_index].coefficient_steps = VectorXd::Constant(m, 0);
-    terms_eligible_current[best_term_index].coefficient_steps[boosting_step] = terms_eligible_current[best_term_index].coefficient;
     terms.push_back(Term(terms_eligible_current[best_term_index]));
 }
 
@@ -1227,6 +1226,11 @@ void APLRRegressor::prune_terms(size_t boosting_step)
     {
         pruning_was_done_in_the_current_boosting_step = false;
         return;
+    }
+
+    if (verbosity >= 1)
+    {
+        std::cout << "\nPruning terms. This can be computationally intensive especially if the model gets many terms. To speed up the algorithm (potentially at the expense of slightly lower predictiveness) you can disable pruning by setting boosting_steps_before_pruning_is_done to 0.\n\n";
     }
 
     pruning_was_done_in_the_current_boosting_step = true;
@@ -1256,6 +1260,7 @@ void APLRRegressor::prune_terms(size_t boosting_step)
         if (removal_of_term_is_better)
         {
             linear_predictor_update = -terms[index_for_term_to_remove].calculate_contribution_to_linear_predictor(X_train);
+            linear_predictor_update_validation = -terms[index_for_term_to_remove].calculate_contribution_to_linear_predictor(X_validation);
             terms[index_for_term_to_remove].coefficient = 0.0;
             update_linear_predictor_and_predictions();
             update_gradient_and_errors();
@@ -1263,29 +1268,33 @@ void APLRRegressor::prune_terms(size_t boosting_step)
             new_error = neg_gradient_nullmodel_errors_sum;
             best_error = new_error;
             ++terms_pruned;
+            if (verbosity >= 2)
+            {
+                std::cout << "Pruning. Reset coefficient for " << std::to_string(terms_pruned) << " terms so far.\n";
+            }
         }
     } while (std::islessequal(new_error, best_error) && terms_pruned < terms.size());
     if (terms_pruned > 0)
     {
-        remove_unused_terms();
         remove_ineligibility();
         if (verbosity >= 2)
         {
-            std::cout << "Pruned " << std::to_string(terms_pruned) <<" terms.\n";
+            std::cout << "Done pruning. Reset coefficient for " << std::to_string(terms_pruned) << " terms in total.\n";
         }
+    }
+}
+
+void APLRRegressor::update_coefficient_steps(size_t boosting_step)
+{
+    for (auto &term : terms)
+    {
+        term.coefficient_steps[boosting_step] = term.coefficient;
     }
 }
 
 void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step)
 {
-    if (link_function == "log")
-    {
-        VectorXd rescaled_predictions_current_validation{predictions_current_validation / scaling_factor_for_log_link_function};
-        calculate_validation_error(boosting_step, rescaled_predictions_current_validation);
-    }
-    else
-        calculate_validation_error(boosting_step, predictions_current_validation);
-
+    calculate_validation_error(boosting_step, predictions_current_validation);
     bool validation_error_is_invalid{!std::isfinite(validation_error_steps[boosting_step])};
     if (validation_error_is_invalid)
     {
@@ -1391,26 +1400,6 @@ void APLRRegressor::print_summary_after_boosting_step(size_t boosting_step)
     }
 }
 
-void APLRRegressor::update_coefficients_for_all_steps()
-{
-    for (size_t j = 0; j < m; ++j)
-    {
-        bool fill_down_coefficient_steps{j > 0 && is_approximately_zero(intercept_steps[j]) && !is_approximately_zero(intercept_steps[j - 1])};
-        if (fill_down_coefficient_steps)
-            intercept_steps[j] = intercept_steps[j - 1];
-    }
-
-    for (size_t i = 0; i < terms.size(); ++i)
-    {
-        for (size_t j = 0; j < m; ++j)
-        {
-            bool fill_down_coefficient_steps{j > 0 && is_approximately_zero(terms[i].coefficient_steps[j]) && !is_approximately_zero(terms[i].coefficient_steps[j - 1])};
-            if (fill_down_coefficient_steps)
-                terms[i].coefficient_steps[j] = terms[i].coefficient_steps[j - 1];
-        }
-    }
-}
-
 void APLRRegressor::print_final_summary()
 {
     if (verbosity >= 1)
@@ -1485,6 +1474,7 @@ void APLRRegressor::revert_scaling_if_using_log_link_function()
     if (link_function == "log")
     {
         y_train /= scaling_factor_for_log_link_function;
+        y_validation /= scaling_factor_for_log_link_function;
         intercept += std::log(1 / scaling_factor_for_log_link_function);
         for (Eigen::Index i = 0; i < intercept_steps.size(); ++i)
         {
