@@ -14,12 +14,12 @@ class APLRRegressor:
         link_function: str = "identity",
         n_jobs: int = 0,
         validation_ratio: float = 0.2,
-        bins: int = 300,
+        bins: int = 100,
         max_interaction_level: int = 1,
         max_interactions: int = 100000,
         min_observations_in_split: int = 20,
-        ineligible_boosting_steps_added: int = 10,
-        max_eligible_terms: int = 5,
+        ineligible_boosting_steps_added: int = 20,
+        max_eligible_terms: int = 10,
         verbosity: int = 0,
         dispersion_parameter: float = 1.5,
         validation_tuning_metric: str = "default",
@@ -60,7 +60,7 @@ class APLRRegressor:
         calculate_custom_differentiate_predictions_wrt_linear_predictor_function: Optional[
             Callable[[npt.ArrayLike], npt.ArrayLike]
         ] = None,
-        boosting_steps_before_pruning_is_done: int = 500,
+        boosting_steps_before_pruning_is_done: int = 0,
         boosting_steps_before_interactions_are_allowed: int = 0,
     ):
         self.m = m
@@ -279,7 +279,7 @@ class APLRClassifier:
         min_observations_in_split: int = 20,
         ineligible_boosting_steps_added: int = 10,
         max_eligible_terms: int = 5,
-        boosting_steps_before_pruning_is_done: int = 500,
+        boosting_steps_before_pruning_is_done: int = 0,
         boosting_steps_before_interactions_are_allowed: int = 0,
     ):
         self.m = m

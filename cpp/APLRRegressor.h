@@ -158,15 +158,15 @@ public:
 
     APLRRegressor(size_t m = 1000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, double validation_ratio = 0.2,
-                  size_t reserved_terms_times_num_x = 100, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1, size_t max_interactions = 100000,
-                  size_t min_observations_in_split = 20, size_t ineligible_boosting_steps_added = 10, size_t max_eligible_terms = 5, double dispersion_parameter = 1.5,
+                  size_t reserved_terms_times_num_x = 100, size_t bins = 100, size_t verbosity = 0, size_t max_interaction_level = 1, size_t max_interactions = 100000,
+                  size_t min_observations_in_split = 20, size_t ineligible_boosting_steps_added = 20, size_t max_eligible_terms = 10, double dispersion_parameter = 1.5,
                   std::string validation_tuning_metric = "default", double quantile = 0.5,
                   const std::function<double(VectorXd, VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_validation_error_function = {},
                   const std::function<double(VectorXd, VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_loss_function = {},
                   const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_negative_gradient_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {},
-                  size_t boosting_steps_before_pruning_is_done = 500, size_t boosting_steps_before_interactions_are_allowed = 0);
+                  size_t boosting_steps_before_pruning_is_done = 0, size_t boosting_steps_before_interactions_are_allowed = 0);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
@@ -835,8 +835,8 @@ void APLRRegressor::execute_boosting_step(size_t boosting_step)
         consider_interactions(predictor_indexes, boosting_step);
         select_the_best_term_and_update_errors(boosting_step);
         prune_terms(boosting_step);
-        update_coefficient_steps(boosting_step);
     }
+    update_coefficient_steps(boosting_step);
     if (abort_boosting)
         return;
     update_term_eligibility();

@@ -1,6 +1,6 @@
 # APLRRegressor
 
-## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5, calculate_custom_validation_error_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_loss_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_negative_gradient_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], npt.ArrayLike]]=None, calculate_custom_transform_linear_predictor_to_predictions_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None, calculate_custom_differentiate_predictions_wrt_linear_predictor_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None, boosting_steps_before_pruning_is_done: int = 500, boosting_steps_before_interactions_are_allowed: int = 0)
+## class aplr.APLRRegressor(m:int=1000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, validation_ratio:float=0.2, bins:int=100, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=20, max_eligible_terms:int=10, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5, calculate_custom_validation_error_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_loss_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_negative_gradient_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], npt.ArrayLike]]=None, calculate_custom_transform_linear_predictor_to_predictions_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None, calculate_custom_differentiate_predictions_wrt_linear_predictor_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None, boosting_steps_before_pruning_is_done: int = 0, boosting_steps_before_interactions_are_allowed: int = 0)
 
 ### Constructor parameters
 
@@ -25,7 +25,7 @@ Multi-threading parameter. If ***0*** then uses all available cores for multi-th
 #### validation_ratio (default = 0.2)
 The ratio of training observations to use for validation instead of training. The number of boosting steps is automatically tuned to minimize validation error.
 
-#### bins (default = 300)
+#### bins (default = 100)
 Specifies the maximum number of bins to discretize the data into when searching for the best split. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs. Must be greater than 1.
 
 #### max_interaction_level (default = 1)
@@ -37,10 +37,10 @@ The maximum number of interactions allowed. A lower value may be used to reduce 
 #### min_observations_in_split (default = 20)
 The minimum effective number of observations that a term in the model must rely on. This hyperparameter should be tuned. Larger values are more appropriate for larger datasets. Larger values result in more robust models (lower variance), potentially at the expense of increased bias.
 
-#### ineligible_boosting_steps_added (default = 10)
+#### ineligible_boosting_steps_added (default = 20)
 Controls how many boosting steps a term that becomes ineligible has to remain ineligible. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
 
-#### max_eligible_terms (default = 5)
+#### max_eligible_terms (default = 10)
 Limits 1) the number of terms already in the model that can be considered as interaction partners in a boosting step and 2) how many terms remain eligible in the next boosting step. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
 
 #### verbosity (default = 0)
@@ -102,8 +102,8 @@ def calculate_custom_differentiate_predictions_wrt_linear_predictor(linear_predi
     return differentiated_predictions
 ```
 
-#### boosting_steps_before_pruning_is_done (default = 500)
-Specifies how many boosting steps to wait before pruning the model. If 0 then pruning is not done. If for example 500 (default) then the model will be pruned in boosting steps 500, 1000, and so on. When pruning, terms are removed as long as this reduces the training error. This can be a computationally costly operation especially if the model gets many terms. Pruning may improve predictiveness.
+#### boosting_steps_before_pruning_is_done (default = 0)
+Specifies how many boosting steps to wait before pruning the model. If 0 (default) then pruning is not done. If for example 500 then the model will be pruned in boosting steps 500, 1000, and so on. When pruning, terms are removed as long as this reduces the training error. This can be a computationally costly operation especially if the model gets many terms. Pruning may slightly improve predictiveness.
 
 #### boosting_steps_before_interactions_are_allowed (default = 0)
 Specifies how many boosting steps to wait before searching for interactions. If for example 800, then the algorithm will be forced to only fit main effects in the first 800 boosting steps, after which it is allowed to search for interactions (given that other hyperparameters that control interactions also allow this). The motivation for fitting main effects first may be 1) to get a cleaner looking model that puts more emphasis on main effects and 2) to speed up the algorithm since looking for interactions is computationally more demanding.
