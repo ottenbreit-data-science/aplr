@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int=9000, v:float=0.1, random_state:int=0, n_jobs:int=0, validation_ratio:float=0.2, bins:int=100, verbosity:int=0, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=20, max_eligible_terms:int=10, boosting_steps_before_pruning_is_done:int = 0, boosting_steps_before_interactions_are_allowed: int = 0)
+## class aplr.APLRClassifier(m:int=9000, v:float=0.1, random_state:int=0, n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, verbosity:int=0, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, boosting_steps_before_pruning_is_done:int = 0, boosting_steps_before_interactions_are_allowed: int = 0)
 
 ### Constructor parameters
 
@@ -19,7 +19,7 @@ Multi-threading parameter. If ***0*** then uses all available cores for multi-th
 #### validation_ratio (default = 0.2)
 The ratio of training observations to use for validation instead of training. The number of boosting steps is automatically tuned to minimize validation error.
 
-#### bins (default = 100)
+#### bins (default = 300)
 Specifies the maximum number of bins to discretize the data into when searching for the best split. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs. Must be greater than 1.
 
 #### verbosity (default = 0)
@@ -34,10 +34,10 @@ The maximum number of interactions allowed. A lower value may be used to reduce 
 #### min_observations_in_split (default = 20)
 The minimum effective number of observations that a term in the model must rely on. This hyperparameter should be tuned. Larger values are more appropriate for larger datasets. Larger values result in more robust models (lower variance), potentially at the expense of increased bias.
 
-#### ineligible_boosting_steps_added (default = 20)
+#### ineligible_boosting_steps_added (default = 10)
 Controls how many boosting steps a term that becomes ineligible has to remain ineligible. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
 
-#### max_eligible_terms (default = 10)
+#### max_eligible_terms (default = 5)
 Limits 1) the number of terms already in the model that can be considered as interaction partners in a boosting step and 2) how many terms remain eligible in the next boosting step. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
 
 #### boosting_steps_before_pruning_is_done (default = 0)
