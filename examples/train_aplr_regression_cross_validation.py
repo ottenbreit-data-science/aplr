@@ -43,7 +43,7 @@ grid_search_cv = GridSearchCV(
         random_state=random_state,
         verbosity=1,
         m=1000,
-        v=0.01,
+        v=0.1,
         loss_function=loss_function,
         link_function=link_function,
     ),
