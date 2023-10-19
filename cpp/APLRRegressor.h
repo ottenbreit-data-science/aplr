@@ -50,6 +50,7 @@ private:
     bool pruning_was_done_in_the_current_boosting_step;
     MatrixXd other_data_train;
     MatrixXd other_data_validation;
+    bool model_has_changed_in_this_boosting_step;
 
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                const std::vector<size_t> &validation_set_indexes, const std::vector<size_t> &prioritized_predictors_indexes,
@@ -620,9 +621,6 @@ void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors
     terms.clear();
     terms.reserve(X_train.cols() * reserved_terms_times_num_x);
 
-    intercept = 0;
-    intercept_steps = VectorXd::Constant(m, 0);
-
     terms_eligible_current.reserve(X_train.cols() * reserved_terms_times_num_x);
     size_t X_train_cols{static_cast<size_t>(X_train.cols())};
     for (size_t i = 0; i < X_train_cols; ++i)
@@ -659,9 +657,11 @@ void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors
         legal_interaction_combination = remove_duplicate_elements_from_vector(legal_interaction_combination);
     }
 
-    linear_predictor_current = VectorXd::Constant(y_train.size(), intercept);
-    linear_predictor_null_model = linear_predictor_current;
-    linear_predictor_current_validation = VectorXd::Constant(y_validation.size(), intercept);
+    intercept = 0.0;
+    intercept_steps = VectorXd::Constant(m, 0.0);
+    linear_predictor_current = VectorXd::Constant(y_train.size(), 0.0);
+    linear_predictor_null_model = VectorXd::Constant(y_train.size(), 0.0);
+    linear_predictor_current_validation = VectorXd::Constant(y_validation.size(), 0.0);
     predictions_current = transform_linear_predictor_to_predictions(linear_predictor_current, link_function, calculate_custom_transform_linear_predictor_to_predictions_function);
     predictions_current_validation = transform_linear_predictor_to_predictions(linear_predictor_current_validation, link_function, calculate_custom_transform_linear_predictor_to_predictions_function);
 
@@ -809,6 +809,7 @@ void APLRRegressor::execute_boosting_steps()
 
 void APLRRegressor::execute_boosting_step(size_t boosting_step)
 {
+    model_has_changed_in_this_boosting_step = false;
     update_intercept(boosting_step);
     bool prioritize_predictors{!abort_boosting && prioritized_predictors_indexes.size() > 0};
     if (prioritize_predictors)
@@ -837,6 +838,14 @@ void APLRRegressor::execute_boosting_step(size_t boosting_step)
         prune_terms(boosting_step);
     }
     update_coefficient_steps(boosting_step);
+    if (!model_has_changed_in_this_boosting_step)
+    {
+        abort_boosting = true;
+        if (verbosity >= 1)
+        {
+            std::cout << "No further reduction in training loss was possible. Terminating the boosting procedure.\n";
+        }
+    }
     if (abort_boosting)
         return;
     update_term_eligibility();
@@ -850,6 +859,8 @@ void APLRRegressor::update_intercept(size_t boosting_step)
         intercept_update = v * neg_gradient_current.mean();
     else
         intercept_update = v * (neg_gradient_current.array() * sample_weight_train.array()).sum() / sample_weight_train.array().sum();
+    if (model_has_changed_in_this_boosting_step == false)
+        model_has_changed_in_this_boosting_step = !is_approximately_equal(intercept_update, 0.0);
     linear_predictor_update = VectorXd::Constant(neg_gradient_current.size(), intercept_update);
     linear_predictor_update_validation = VectorXd::Constant(y_validation.size(), intercept_update);
     update_linear_predictor_and_predictions();
@@ -1164,6 +1175,8 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
     if (no_term_was_selected)
         return;
 
+    if (model_has_changed_in_this_boosting_step == false)
+        model_has_changed_in_this_boosting_step = !is_approximately_equal(terms_eligible_current[best_term_index].coefficient, 0.0);
     linear_predictor_update = terms_eligible_current[best_term_index].calculate_contribution_to_linear_predictor(X_train);
     linear_predictor_update_validation = terms_eligible_current[best_term_index].calculate_contribution_to_linear_predictor(X_validation);
     update_linear_predictor_and_predictions();
@@ -1276,6 +1289,7 @@ void APLRRegressor::prune_terms(size_t boosting_step)
     } while (std::islessequal(new_error, best_error) && terms_pruned < terms.size());
     if (terms_pruned > 0)
     {
+        model_has_changed_in_this_boosting_step = true;
         remove_ineligibility();
         if (verbosity >= 2)
         {
