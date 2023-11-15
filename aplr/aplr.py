@@ -1,6 +1,6 @@
 import numpy as np
 import numpy.typing as npt
-from typing import List, Callable, Optional
+from typing import List, Callable, Optional, Dict
 import aplr_cpp
 
 
@@ -62,6 +62,7 @@ class APLRRegressor:
         ] = None,
         boosting_steps_before_pruning_is_done: int = 0,
         boosting_steps_before_interactions_are_allowed: int = 0,
+        monotonic_constraints_ignore_interactions: bool = False,
     ):
         self.m = m
         self.v = v
@@ -98,6 +99,9 @@ class APLRRegressor:
         )
         self.boosting_steps_before_interactions_are_allowed = (
             boosting_steps_before_interactions_are_allowed
+        )
+        self.monotonic_constraints_ignore_interactions = (
+            monotonic_constraints_ignore_interactions
         )
 
         # Creating aplr_cpp and setting parameters
@@ -145,6 +149,9 @@ class APLRRegressor:
         )
         self.APLRRegressor.boosting_steps_before_interactions_are_allowed = (
             self.boosting_steps_before_interactions_are_allowed
+        )
+        self.APLRRegressor.monotonic_constraints_ignore_interactions = (
+            self.monotonic_constraints_ignore_interactions
         )
 
     def fit(
@@ -227,6 +234,11 @@ class APLRRegressor:
     def get_validation_indexes(self) -> List[int]:
         return self.APLRRegressor.get_validation_indexes()
 
+    def get_coefficient_shape_function(
+        self, predictor_index: int
+    ) -> Dict[float, float]:
+        return self.APLRRegressor.get_coefficient_shape_function(predictor_index)
+
     # For sklearn
     def get_params(self, deep=True):
         return {
@@ -254,6 +266,7 @@ class APLRRegressor:
             "calculate_custom_differentiate_predictions_wrt_linear_predictor_function": self.calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
             "boosting_steps_before_pruning_is_done": self.boosting_steps_before_pruning_is_done,
             "boosting_steps_before_interactions_are_allowed": self.boosting_steps_before_interactions_are_allowed,
+            "monotonic_constraints_ignore_interactions": self.monotonic_constraints_ignore_interactions,
         }
 
     # For sklearn
@@ -281,6 +294,7 @@ class APLRClassifier:
         max_eligible_terms: int = 5,
         boosting_steps_before_pruning_is_done: int = 0,
         boosting_steps_before_interactions_are_allowed: int = 0,
+        monotonic_constraints_ignore_interactions: bool = False,
     ):
         self.m = m
         self.v = v
@@ -299,6 +313,9 @@ class APLRClassifier:
         )
         self.boosting_steps_before_interactions_are_allowed = (
             boosting_steps_before_interactions_are_allowed
+        )
+        self.monotonic_constraints_ignore_interactions = (
+            monotonic_constraints_ignore_interactions
         )
 
         # Creating aplr_cpp and setting parameters
@@ -326,6 +343,9 @@ class APLRClassifier:
         )
         self.APLRClassifier.boosting_steps_before_interactions_are_allowed = (
             self.boosting_steps_before_interactions_are_allowed
+        )
+        self.APLRClassifier.monotonic_constraints_ignore_interactions = (
+            self.monotonic_constraints_ignore_interactions
         )
 
     def fit(
@@ -401,6 +421,7 @@ class APLRClassifier:
             "max_eligible_terms": self.max_eligible_terms,
             "boosting_steps_before_pruning_is_done": self.boosting_steps_before_pruning_is_done,
             "boosting_steps_before_interactions_are_allowed": self.boosting_steps_before_interactions_are_allowed,
+            "monotonic_constraints_ignore_interactions": self.monotonic_constraints_ignore_interactions,
         }
 
     # For sklearn

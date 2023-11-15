@@ -102,16 +102,18 @@ public:
     friend class APLRRegressor;
 };
 
-Term::Term(size_t base_term, const std::vector<Term> &given_terms, double split_point, bool direction_right, double coefficient) : name{""}, base_term{base_term}, given_terms{given_terms}, split_point{split_point}, direction_right{direction_right}, coefficient{coefficient},
-                                                                                                                                   split_point_search_errors_sum{std::numeric_limits<double>::infinity()}, ineligible_boosting_steps{0}, can_be_used_as_a_given_term{false},
-                                                                                                                                   monotonic_constraint{0}, interaction_constraint{0}
+Term::Term(size_t base_term, const std::vector<Term> &given_terms, double split_point, bool direction_right, double coefficient)
+    : name{""}, base_term{base_term}, given_terms{given_terms}, split_point{split_point}, direction_right{direction_right}, coefficient{coefficient},
+      split_point_search_errors_sum{std::numeric_limits<double>::infinity()}, ineligible_boosting_steps{0}, can_be_used_as_a_given_term{false},
+      monotonic_constraint{0}, interaction_constraint{0}
 {
 }
 
-Term::Term(const Term &other) : name{other.name}, base_term{other.base_term}, given_terms{other.given_terms}, split_point{other.split_point}, direction_right{other.direction_right},
-                                coefficient{other.coefficient}, coefficient_steps{other.coefficient_steps}, split_point_search_errors_sum{other.split_point_search_errors_sum},
-                                ineligible_boosting_steps{0}, can_be_used_as_a_given_term{other.can_be_used_as_a_given_term}, monotonic_constraint{other.monotonic_constraint},
-                                interaction_constraint{other.interaction_constraint}
+Term::Term(const Term &other)
+    : name{other.name}, base_term{other.base_term}, given_terms{other.given_terms}, split_point{other.split_point}, direction_right{other.direction_right},
+      coefficient{other.coefficient}, coefficient_steps{other.coefficient_steps}, split_point_search_errors_sum{other.split_point_search_errors_sum},
+      ineligible_boosting_steps{0}, can_be_used_as_a_given_term{other.can_be_used_as_a_given_term}, monotonic_constraint{other.monotonic_constraint},
+      interaction_constraint{other.interaction_constraint}
 {
 }
 

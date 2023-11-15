@@ -117,6 +117,7 @@ private:
     std::string compute_raw_base_term_name(const Term &term, const std::string &X_name);
     void throw_error_if_m_is_invalid();
     bool model_has_not_been_trained();
+    std::vector<size_t> compute_relevant_term_indexes(size_t predictor_index);
 
 public:
     double intercept;
@@ -156,6 +157,7 @@ public:
     std::function<VectorXd(const VectorXd &linear_predictor)> calculate_custom_differentiate_predictions_wrt_linear_predictor_function;
     size_t boosting_steps_before_pruning_is_done;
     size_t boosting_steps_before_interactions_are_allowed;
+    bool monotonic_constraints_ignore_interactions;
 
     APLRRegressor(size_t m = 1000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, double validation_ratio = 0.2,
@@ -167,7 +169,8 @@ public:
                   const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_negative_gradient_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {},
-                  size_t boosting_steps_before_pruning_is_done = 0, size_t boosting_steps_before_interactions_are_allowed = 0);
+                  size_t boosting_steps_before_pruning_is_done = 0, size_t boosting_steps_before_interactions_are_allowed = 0,
+                  bool monotonic_constraints_ignore_interactions = false);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
@@ -189,6 +192,7 @@ public:
     size_t get_optimal_m();
     std::string get_validation_tuning_metric();
     std::vector<size_t> get_validation_indexes();
+    std::map<double, double> get_coefficient_shape_function(size_t predictor_index);
 };
 
 APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std::string loss_function, std::string link_function, size_t n_jobs,
@@ -200,7 +204,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_negative_gradient_function,
                              const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function,
                              const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
-                             size_t boosting_steps_before_pruning_is_done, size_t boosting_steps_before_interactions_are_allowed)
+                             size_t boosting_steps_before_pruning_is_done, size_t boosting_steps_before_interactions_are_allowed,
+                             bool monotonic_constraints_ignore_interactions)
     : reserved_terms_times_num_x{reserved_terms_times_num_x}, intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, validation_ratio{validation_ratio}, n_jobs{n_jobs}, random_state{random_state},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level}, intercept_steps{VectorXd(0)},
@@ -212,7 +217,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
       calculate_custom_loss_function{calculate_custom_loss_function}, calculate_custom_negative_gradient_function{calculate_custom_negative_gradient_function},
       calculate_custom_transform_linear_predictor_to_predictions_function{calculate_custom_transform_linear_predictor_to_predictions_function},
       calculate_custom_differentiate_predictions_wrt_linear_predictor_function{calculate_custom_differentiate_predictions_wrt_linear_predictor_function},
-      boosting_steps_before_pruning_is_done{boosting_steps_before_pruning_is_done}, boosting_steps_before_interactions_are_allowed{boosting_steps_before_interactions_are_allowed}
+      boosting_steps_before_pruning_is_done{boosting_steps_before_pruning_is_done}, boosting_steps_before_interactions_are_allowed{boosting_steps_before_interactions_are_allowed},
+      monotonic_constraints_ignore_interactions{monotonic_constraints_ignore_interactions}
 {
 }
 
@@ -233,7 +239,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       calculate_custom_transform_linear_predictor_to_predictions_function{other.calculate_custom_transform_linear_predictor_to_predictions_function},
       calculate_custom_differentiate_predictions_wrt_linear_predictor_function{other.calculate_custom_differentiate_predictions_wrt_linear_predictor_function},
       boosting_steps_before_pruning_is_done{other.boosting_steps_before_pruning_is_done},
-      boosting_steps_before_interactions_are_allowed{other.boosting_steps_before_interactions_are_allowed}
+      boosting_steps_before_interactions_are_allowed{other.boosting_steps_before_interactions_are_allowed},
+      monotonic_constraints_ignore_interactions{other.monotonic_constraints_ignore_interactions}
 {
 }
 
@@ -992,7 +999,8 @@ void APLRRegressor::determine_interactions_to_consider(const std::vector<size_t>
                 model_term_without_given_terms.given_terms.clear();
                 model_term_without_given_terms.cleanup_when_this_term_was_added_as_a_given_term();
                 Term model_term_with_added_given_term{terms[model_term_index]};
-                bool model_term_without_given_terms_can_be_a_given_term{model_term_without_given_terms.get_monotonic_constraint() == 0};
+                bool model_term_without_given_terms_can_be_a_given_term{
+                    model_term_without_given_terms.get_monotonic_constraint() == 0 || monotonic_constraints_ignore_interactions == true};
                 if (model_term_without_given_terms_can_be_a_given_term)
                     model_term_with_added_given_term.given_terms.push_back(model_term_without_given_terms);
                 add_necessary_given_terms_to_interaction(interaction, model_term_with_added_given_term);
@@ -1774,4 +1782,152 @@ std::string APLRRegressor::get_validation_tuning_metric()
 std::vector<size_t> APLRRegressor::get_validation_indexes()
 {
     return validation_indexes;
+}
+
+std::map<double, double> APLRRegressor::get_coefficient_shape_function(size_t predictor_index)
+{
+    if (model_has_not_been_trained())
+        throw std::runtime_error("The model must have been trained before using get_coefficient_shape_function().");
+
+    std::map<double, double> coefficient_shape_function;
+
+    std::vector<size_t> relevant_term_indexes{compute_relevant_term_indexes(predictor_index)};
+    bool relevant_term_indexes_do_not_exist{relevant_term_indexes.size() == 0};
+    if (relevant_term_indexes_do_not_exist)
+        return coefficient_shape_function;
+
+    std::vector<double> split_points;
+    split_points.reserve(relevant_term_indexes.size());
+    double linear_term_combined_effect{0.0};
+    for (auto &relevant_term_index : relevant_term_indexes)
+    {
+        bool split_point_exits{std::isfinite(terms[relevant_term_index].split_point)};
+        if (split_point_exits)
+        {
+            split_points.push_back(terms[relevant_term_index].split_point);
+        }
+        else
+        {
+            linear_term_combined_effect += terms[relevant_term_index].coefficient;
+        }
+    }
+    split_points = remove_duplicate_elements_from_vector(split_points);
+    split_points.shrink_to_fit();
+
+    bool no_split_points{split_points.size() == 0};
+    if (no_split_points)
+    {
+        coefficient_shape_function[0.0] = linear_term_combined_effect;
+        return coefficient_shape_function;
+    }
+    double increment_around_split_points;
+    bool one_split_point{split_points.size() == 1};
+    if (one_split_point)
+    {
+        increment_around_split_points = split_points[0] / DIVISOR_IN_GET_COEFFICIENT_SHAPE_FUNCTION;
+    }
+    else
+    {
+        std::sort(split_points.begin(), split_points.end());
+        VectorXd split_point_increments{VectorXd(split_points.size() - 1)};
+        for (Eigen::Index i = 0; i < split_point_increments.size(); ++i)
+        {
+            split_point_increments[i] = split_points[i + 1] - split_points[i];
+        }
+        double minimum_split_point_increment{split_point_increments.minCoeff()};
+        increment_around_split_points = minimum_split_point_increment / DIVISOR_IN_GET_COEFFICIENT_SHAPE_FUNCTION;
+    }
+
+    for (size_t i = 0; i < relevant_term_indexes.size(); ++i)
+    {
+        bool split_point_exits{std::isfinite(terms[relevant_term_indexes[i]].split_point)};
+        if (split_point_exits)
+        {
+            coefficient_shape_function[terms[relevant_term_indexes[i]].split_point - increment_around_split_points] = linear_term_combined_effect;
+            coefficient_shape_function[terms[relevant_term_indexes[i]].split_point] = linear_term_combined_effect;
+            coefficient_shape_function[terms[relevant_term_indexes[i]].split_point + increment_around_split_points] = linear_term_combined_effect;
+        }
+    }
+
+    for (size_t i = 0; i < relevant_term_indexes.size(); ++i)
+    {
+        bool split_point_exits{std::isfinite(terms[relevant_term_indexes[i]].split_point)};
+        if (split_point_exits)
+        {
+            if (terms[relevant_term_indexes[i]].direction_right)
+            {
+                for (auto &key : coefficient_shape_function)
+                {
+                    bool key_split_point_is_higher{std::isgreater(key.first, terms[relevant_term_indexes[i]].split_point)};
+                    bool key_split_point_is_not_too_high{true};
+                    for (auto &given_term : terms[relevant_term_indexes[i]].given_terms)
+                    {
+                        if (given_term.direction_right != terms[relevant_term_indexes[i]].direction_right)
+                        {
+                            if (std::isgreater(key.first, given_term.split_point))
+                            {
+                                key_split_point_is_not_too_high = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (key_split_point_is_higher && key_split_point_is_not_too_high)
+                    {
+                        key.second += terms[relevant_term_indexes[i]].coefficient;
+                    }
+                }
+            }
+            else
+            {
+                for (auto &key : coefficient_shape_function)
+                {
+                    bool key_split_point_is_lower{std::isless(key.first, terms[relevant_term_indexes[i]].split_point)};
+                    bool key_split_point_is_not_too_low{true};
+                    for (auto &given_term : terms[relevant_term_indexes[i]].given_terms)
+                    {
+                        if (given_term.direction_right != terms[relevant_term_indexes[i]].direction_right)
+                        {
+                            if (std::isless(key.first, given_term.split_point))
+                            {
+                                key_split_point_is_not_too_low = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (!key_split_point_is_lower)
+                        break;
+                    else if (key_split_point_is_not_too_low)
+                        key.second += terms[relevant_term_indexes[i]].coefficient;
+                }
+            }
+        }
+    }
+
+    return coefficient_shape_function;
+}
+
+std::vector<size_t> APLRRegressor::compute_relevant_term_indexes(size_t predictor_index)
+{
+    std::vector<size_t> relevant_term_indexes;
+    relevant_term_indexes.reserve(terms.size());
+    for (size_t i = 0; i < terms.size(); ++i)
+    {
+        bool predictor_index_is_base_term{terms[i].base_term == predictor_index};
+        if (predictor_index_is_base_term)
+        {
+            bool no_interactions_with_other_base_terms{true};
+            for (auto &given_term : terms[i].given_terms)
+            {
+                if (given_term.base_term != predictor_index)
+                {
+                    no_interactions_with_other_base_terms = false;
+                    break;
+                }
+            }
+            if (no_interactions_with_other_base_terms)
+                relevant_term_indexes.push_back(i);
+        }
+    }
+    relevant_term_indexes.shrink_to_fit();
+    return relevant_term_indexes;
 }

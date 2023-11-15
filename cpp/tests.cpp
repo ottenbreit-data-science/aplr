@@ -846,6 +846,51 @@ public:
         tests.push_back(is_approximately_equal(predictions.mean(), 24.1329, 0.00001));
     }
 
+    void test_aplrregressor_monotonic_ignore_interactions()
+    {
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 1.0;
+        model.bins = 10;
+        model.n_jobs = 1;
+        model.loss_function = "mse";
+        model.verbosity = 3;
+        model.max_interaction_level = 100;
+        model.max_interactions = 30;
+        model.min_observations_in_split = 50;
+        model.ineligible_boosting_steps_added = 10;
+        model.max_eligible_terms = 5;
+        model.monotonic_constraints_ignore_interactions = true;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        std::cout << X_train;
+
+        // Fitting
+        // model.fit(X_train,y_train);
+        // model.fit(X_train,y_train,sample_weight);
+        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        model.fit(X_train, y_train, sample_weight, {}, {0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)}, {1, 8}, {1, 0, -1, 1, 1, 1, 1, 1, 1});
+        std::cout << "feature importance\n"
+                  << model.feature_importance << "\n\n";
+
+        VectorXd predictions{model.predict(X_test)};
+        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predictions.mean(), 24.145, 0.00001));
+    }
+
     void test_aplrregressor_negative_binomial()
     {
         // Model
@@ -1169,6 +1214,12 @@ public:
         std::vector<size_t> validation_indexes_from_model{model.get_validation_indexes()};
         bool validation_indexes_from_model_are_correct{validation_indexes_from_model == validation_indexes};
         tests.push_back(validation_indexes_from_model_are_correct);
+
+        std::map<double, double> coefficient_shape_function = model.get_coefficient_shape_function(1);
+        bool coefficient_shape_function_has_correct_length{coefficient_shape_function.size() == 24};
+        bool coefficient_shape_function_value_test{is_approximately_equal(coefficient_shape_function.begin()->second, 0.12057, 0.00001)};
+        tests.push_back(coefficient_shape_function_has_correct_length);
+        tests.push_back(coefficient_shape_function_value_test);
     }
 
     void test_aplr_classifier_multi_class_other_params()
@@ -1185,6 +1236,7 @@ public:
         model.min_observations_in_split = 20;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.monotonic_constraints_ignore_interactions = true;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1332,6 +1384,7 @@ public:
         model.min_observations_in_split = 20;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.monotonic_constraints_ignore_interactions = true;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1701,6 +1754,7 @@ int main()
     tests.test_aplrregressor_logit();
     tests.test_aplrregressor_mae();
     tests.test_aplrregressor_monotonic();
+    tests.test_aplrregressor_monotonic_ignore_interactions();
     tests.test_aplrregressor_negative_binomial();
     tests.test_aplrregressor_poisson();
     tests.test_aplrregressor_poissongamma();

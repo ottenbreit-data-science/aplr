@@ -541,3 +541,13 @@ std::vector<size_t> remove_duplicate_elements_from_vector(const std::vector<size
     output.resize(distance(output.begin(), it));
     return output;
 }
+
+std::vector<double> remove_duplicate_elements_from_vector(const std::vector<double> &vector)
+{
+    std::vector<double> output{vector};
+    std::sort(output.begin(), output.end());
+    std::vector<double>::iterator it;
+    it = std::unique(output.begin(), output.end());
+    output.resize(distance(output.begin(), it));
+    return output;
+}
