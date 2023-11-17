@@ -652,8 +652,9 @@ void Term::prune_given_terms()
     for (size_t i = 0; i < given_terms.size(); ++i)
     {
         bool keep_given_term{true};
-        bool removing_given_term_with_same_base_term_and_direction{base_term == given_terms[i].base_term && direction_right == given_terms[i].direction_right};
-        bool removing_linear_given_term{base_term == given_terms[i].base_term && std::isfinite(split_point) && !std::isfinite(given_terms[i].split_point)};
+        bool base_term_is_equal{base_term == given_terms[i].base_term};
+        bool removing_given_term_with_same_base_term_and_direction{base_term_is_equal && direction_right == given_terms[i].direction_right};
+        bool removing_linear_given_term{base_term_is_equal && !std::isfinite(given_terms[i].split_point)};
         if (removing_given_term_with_same_base_term_and_direction)
         {
             keep_given_term = false;

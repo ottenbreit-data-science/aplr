@@ -91,7 +91,10 @@ estimated_feature_importance = estimated_feature_importance.sort_values(
 # Coefficient shape for the first predictor. Will be empty if the first predictor is not used as a main effect in the model
 coefficient_shape = best_model.get_coefficient_shape_function(predictor_index=0)
 coefficient_shape = pd.DataFrame(
-    {"predictor_value": coefficient_shape.keys(), "coefficient": coefficient_shape.values()}
+    {
+        "predictor_value": coefficient_shape.keys(),
+        "coefficient": coefficient_shape.values(),
+    }
 )
 
 

@@ -88,7 +88,7 @@ private:
     void prune_terms(size_t boosting_step);
     void update_coefficient_steps(size_t boosting_step);
     void calculate_and_validate_validation_error(size_t boosting_step);
-    void calculate_validation_error(size_t boosting_step, const VectorXd &predictions);
+    double calculate_validation_error(const VectorXd &predictions);
     void update_term_eligibility();
     void print_summary_after_boosting_step(size_t boosting_step);
     void print_final_summary();
@@ -99,6 +99,7 @@ private:
     void calculate_feature_importance_on_validation_set();
     void find_min_and_max_training_predictions_or_responses();
     void cleanup_after_fit();
+    void check_term_integrity();
     void validate_that_model_can_be_used(const MatrixXd &X);
     void throw_error_if_loss_function_does_not_exist();
     void throw_error_if_link_function_does_not_exist();
@@ -272,6 +273,7 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
     calculate_feature_importance_on_validation_set();
     find_min_and_max_training_predictions_or_responses();
     cleanup_after_fit();
+    check_term_integrity();
 }
 
 void APLRRegressor::throw_error_if_loss_function_does_not_exist()
@@ -1316,7 +1318,7 @@ void APLRRegressor::update_coefficient_steps(size_t boosting_step)
 
 void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step)
 {
-    calculate_validation_error(boosting_step, predictions_current_validation);
+    validation_error_steps[boosting_step] = calculate_validation_error(predictions_current_validation);
     bool validation_error_is_invalid{!std::isfinite(validation_error_steps[boosting_step])};
     if (validation_error_is_invalid)
     {
@@ -1326,7 +1328,7 @@ void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step
     }
 }
 
-void APLRRegressor::calculate_validation_error(size_t boosting_step, const VectorXd &predictions)
+double APLRRegressor::calculate_validation_error(const VectorXd &predictions)
 {
     if (validation_tuning_metric == "default")
     {
@@ -1334,7 +1336,7 @@ void APLRRegressor::calculate_validation_error(size_t boosting_step, const Vecto
         {
             try
             {
-                validation_error_steps[boosting_step] = calculate_custom_loss_function(y_validation, predictions, sample_weight_validation, group_validation, other_data_validation);
+                return calculate_custom_loss_function(y_validation, predictions, sample_weight_validation, group_validation, other_data_validation);
             }
             catch (const std::exception &e)
             {
@@ -1343,28 +1345,28 @@ void APLRRegressor::calculate_validation_error(size_t boosting_step, const Vecto
             }
         }
         else
-            validation_error_steps[boosting_step] = calculate_mean_error(calculate_errors(y_validation, predictions, sample_weight_validation, loss_function, dispersion_parameter, group_validation, unique_groups_validation, quantile), sample_weight_validation);
+            return calculate_mean_error(calculate_errors(y_validation, predictions, sample_weight_validation, loss_function, dispersion_parameter, group_validation, unique_groups_validation, quantile), sample_weight_validation);
     }
     else if (validation_tuning_metric == "mse")
-        validation_error_steps[boosting_step] = calculate_mean_error(calculate_errors(y_validation, predictions, sample_weight_validation, MSE_LOSS_FUNCTION), sample_weight_validation);
+        return calculate_mean_error(calculate_errors(y_validation, predictions, sample_weight_validation, MSE_LOSS_FUNCTION), sample_weight_validation);
     else if (validation_tuning_metric == "mae")
-        validation_error_steps[boosting_step] = calculate_mean_error(calculate_errors(y_validation, predictions, sample_weight_validation, "mae"), sample_weight_validation);
+        return calculate_mean_error(calculate_errors(y_validation, predictions, sample_weight_validation, "mae"), sample_weight_validation);
     else if (validation_tuning_metric == "negative_gini")
-        validation_error_steps[boosting_step] = -calculate_gini(y_validation, predictions, sample_weight_validation);
+        return -calculate_gini(y_validation, predictions, sample_weight_validation);
     else if (validation_tuning_metric == "rankability")
-        validation_error_steps[boosting_step] = -calculate_rankability(y_validation, predictions, sample_weight_validation, random_state);
+        return -calculate_rankability(y_validation, predictions, sample_weight_validation, random_state);
     else if (validation_tuning_metric == "group_mse")
     {
         bool group_is_not_provided{group_validation.rows() == 0};
         if (group_is_not_provided)
             throw std::runtime_error("When validation_tuning_metric is group_mse then the group argument in fit() must be provided.");
-        validation_error_steps[boosting_step] = calculate_mean_error(calculate_errors(y_validation, predictions, sample_weight_validation, "group_mse", dispersion_parameter, group_validation, unique_groups_validation, quantile), sample_weight_validation);
+        return calculate_mean_error(calculate_errors(y_validation, predictions, sample_weight_validation, "group_mse", dispersion_parameter, group_validation, unique_groups_validation, quantile), sample_weight_validation);
     }
     else if (validation_tuning_metric == "custom_function")
     {
         try
         {
-            validation_error_steps[boosting_step] = calculate_custom_validation_error_function(y_validation, predictions, sample_weight_validation, group_validation, other_data_validation);
+            return calculate_custom_validation_error_function(y_validation, predictions, sample_weight_validation, group_validation, other_data_validation);
         }
         catch (const std::exception &e)
         {
@@ -1665,6 +1667,37 @@ void APLRRegressor::cleanup_after_fit()
     interactions_eligible = 0;
     other_data_train.resize(0, 0);
     other_data_validation.resize(0, 0);
+}
+
+void APLRRegressor::check_term_integrity()
+{
+    for (auto &term : terms)
+    {
+        for (auto &given_term : term.given_terms)
+        {
+            bool same_base_term{term.base_term == given_term.base_term};
+            if (same_base_term)
+            {
+                bool given_term_has_no_split_point{!std::isfinite(given_term.split_point)};
+                bool given_term_has_the_same_direction_right{term.direction_right == given_term.direction_right};
+                bool given_term_has_incorrect_split_point;
+                if (term.direction_right)
+                {
+                    given_term_has_incorrect_split_point = std::islessequal(given_term.split_point, term.split_point);
+                }
+                else
+                {
+                    given_term_has_incorrect_split_point = std::isgreaterequal(given_term.split_point, term.split_point);
+                }
+                if (given_term_has_no_split_point)
+                    throw std::runtime_error("Bug: Interaction in term " + term.name + " has no split point.");
+                if (given_term_has_the_same_direction_right)
+                    throw std::runtime_error("Bug: Interaction in term " + term.name + " has an incorrect direction_right.");
+                if (given_term_has_incorrect_split_point)
+                    throw std::runtime_error("Bug: Interaction in term " + term.name + " has an incorrect split_point.");
+            }
+        }
+    }
 }
 
 VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)
