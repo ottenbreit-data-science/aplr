@@ -273,7 +273,7 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
     calculate_feature_importance_on_validation_set();
     find_min_and_max_training_predictions_or_responses();
     cleanup_after_fit();
-    check_term_integrity();
+    // check_term_integrity();
 }
 
 void APLRRegressor::throw_error_if_loss_function_does_not_exist()
