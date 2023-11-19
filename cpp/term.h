@@ -591,20 +591,23 @@ void Term::estimate_coefficient_and_error(const VectorXd &x, const VectorXd &y, 
     if (std::isfinite(coefficient))
     {
         coefficient *= v;
-        if (coefficient_adheres_to_monotonic_constraint())
+        double error_penalty;
+        bool coefficient_does_not_adhere_to_monotonic_constraint{!coefficient_adheres_to_monotonic_constraint()};
+        if (coefficient_does_not_adhere_to_monotonic_constraint)
         {
-            VectorXd predictions{x * coefficient};
-            split_point_search_errors_sum = calculate_sum_error(calculate_errors(y, predictions, sample_weight, MSE_LOSS_FUNCTION)) + error_added;
+            error_penalty = std::abs(coefficient);
+            coefficient = 0.0;
         }
-        else
+        VectorXd predictions{x * coefficient};
+        split_point_search_errors_sum = calculate_sum_error(calculate_errors(y, predictions, sample_weight, MSE_LOSS_FUNCTION)) + error_added;
+        if (coefficient_does_not_adhere_to_monotonic_constraint)
         {
-            coefficient = 0;
-            split_point_search_errors_sum = std::numeric_limits<double>::infinity();
+            split_point_search_errors_sum += error_penalty;
         }
     }
     else
     {
-        coefficient = 0;
+        coefficient = 0.0;
         split_point_search_errors_sum = std::numeric_limits<double>::infinity();
     }
 }
