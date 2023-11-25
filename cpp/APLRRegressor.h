@@ -66,7 +66,7 @@ private:
                     const std::vector<std::vector<size_t>> &interaction_constraints);
     bool check_if_base_term_has_only_one_unique_value(size_t base_term);
     void add_term_to_terms_eligible_current(Term &term);
-    VectorXd calculate_neg_gradient_current(const VectorXd &sample_weight_train);
+    VectorXd calculate_neg_gradient_current();
     void execute_boosting_steps();
     void execute_boosting_step(size_t boosting_step);
     std::vector<size_t> find_terms_eligible_current_indexes_for_a_base_term(size_t base_term);
@@ -109,7 +109,7 @@ private:
     void throw_error_if_sample_weight_contains_invalid_values(const VectorXd &y, const VectorXd &sample_weight);
     void throw_error_if_response_is_not_between_0_and_1(const VectorXd &y, const std::string &error_message);
     void throw_error_if_vector_contains_negative_values(const VectorXd &y, const std::string &error_message);
-    void throw_error_if_response_is_not_greater_than_zero(const VectorXd &y, const std::string &error_message);
+    void throw_error_if_vector_contains_non_positive_values(const VectorXd &y, const std::string &error_message);
     void throw_error_if_dispersion_parameter_is_invalid();
     VectorXd differentiate_predictions_wrt_linear_predictor();
     void scale_response_if_using_log_link_function();
@@ -366,9 +366,9 @@ void APLRRegressor::validate_input_to_fit(const MatrixXd &X, const VectorXd &y, 
     throw_error_if_interaction_constraints_has_invalid_indexes(X, interaction_constraints);
     throw_error_if_response_contains_invalid_values(y);
     throw_error_if_sample_weight_contains_invalid_values(y, sample_weight);
-    bool group_is_of_incorrect_size{loss_function == "group_mse" && group.rows() != y.rows()};
+    bool group_is_of_incorrect_size{(loss_function == "group_mse" || validation_tuning_metric == "group_mse") && group.rows() != y.rows()};
     if (group_is_of_incorrect_size)
-        throw std::runtime_error("When loss_function is group_mse then y and group must have the same number of rows.");
+        throw std::runtime_error("When loss_function or validation_tuning_metric is group_mse then y and group must have the same number of rows.");
     bool other_data_is_provided{other_data.size() > 0};
     if (other_data_is_provided)
     {
@@ -439,7 +439,7 @@ void APLRRegressor::throw_error_if_response_contains_invalid_values(const Vector
             error_message = "Response values for the " + loss_function + " loss_function when dispersion_parameter>2 must be greater than zero.";
         else
             error_message = "Response values for the " + loss_function + " loss_function must be greater than zero.";
-        throw_error_if_response_is_not_greater_than_zero(y, error_message);
+        throw_error_if_vector_contains_non_positive_values(y, error_message);
     }
     else if (link_function == "log" || loss_function == "poisson" || loss_function == "negative_binomial" || loss_function == "weibull" || (loss_function == "tweedie" && std::isless(dispersion_parameter, 2) && std::isgreater(dispersion_parameter, 1)))
     {
@@ -471,7 +471,7 @@ void APLRRegressor::throw_error_if_vector_contains_negative_values(const VectorX
         throw std::runtime_error(error_message);
 }
 
-void APLRRegressor::throw_error_if_response_is_not_greater_than_zero(const VectorXd &y, const std::string &error_message)
+void APLRRegressor::throw_error_if_vector_contains_non_positive_values(const VectorXd &y, const std::string &error_message)
 {
     bool response_is_not_greater_than_zero{(y.array() <= 0.0).any()};
     if (response_is_not_greater_than_zero)
@@ -485,10 +485,7 @@ void APLRRegressor::throw_error_if_sample_weight_contains_invalid_values(const V
     {
         if (sample_weight.size() != y.size())
             throw std::runtime_error("sample_weight must have 0 or as many rows as X and y.");
-        throw_error_if_vector_contains_negative_values(sample_weight, "sample_weight cannot contain negative values.");
-        bool sum_is_zero{sample_weight.sum() == 0};
-        if (sum_is_zero)
-            throw std::runtime_error("sample_weight cannot sum to zero.");
+        throw_error_if_vector_contains_non_positive_values(sample_weight, "all sample_weight values must be greater than zero.");
     }
 }
 
@@ -705,7 +702,7 @@ void APLRRegressor::add_term_to_terms_eligible_current(Term &term)
     terms_eligible_current.push_back(term);
 }
 
-VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &sample_weight_train)
+VectorXd APLRRegressor::calculate_neg_gradient_current()
 {
     VectorXd output;
     if (loss_function == "mse")
@@ -720,7 +717,8 @@ VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &sample_we
         output = (y_train.array() - predictions_current.array()).array() * predictions_current.array().pow(-dispersion_parameter);
     else if (loss_function == "group_mse")
     {
-        GroupData group_residuals_and_count{calculate_group_errors_and_count(y_train, predictions_current, group_train, unique_groups_train)};
+        GroupData group_residuals_and_count{calculate_group_errors_and_count(y_train, predictions_current, group_train, unique_groups_train,
+                                                                             sample_weight_train)};
 
         for (int unique_group_value : unique_groups_train)
         {
@@ -728,9 +726,20 @@ VectorXd APLRRegressor::calculate_neg_gradient_current(const VectorXd &sample_we
         }
 
         output = VectorXd(y_train.rows());
-        for (Eigen::Index i = 0; i < y_train.size(); ++i)
+        bool sample_weight_is_provided{sample_weight_train.size() > 0};
+        if (sample_weight_is_provided)
         {
-            output[i] = group_residuals_and_count.error[group_train[i]];
+            for (Eigen::Index i = 0; i < y_train.size(); ++i)
+            {
+                output[i] = group_residuals_and_count.error[group_train[i]] * sample_weight_train[i];
+            }
+        }
+        else
+        {
+            for (Eigen::Index i = 0; i < y_train.size(); ++i)
+            {
+                output[i] = group_residuals_and_count.error[group_train[i]];
+            }
         }
     }
     else if (loss_function == "mae")
@@ -892,7 +901,7 @@ void APLRRegressor::update_linear_predictor_and_predictions()
 
 void APLRRegressor::update_gradient_and_errors()
 {
-    neg_gradient_current = calculate_neg_gradient_current(sample_weight_train);
+    neg_gradient_current = calculate_neg_gradient_current();
     neg_gradient_nullmodel_errors_sum = calculate_sum_error(calculate_errors(neg_gradient_current, linear_predictor_null_model, sample_weight_train, MSE_LOSS_FUNCTION));
 }
 

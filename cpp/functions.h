@@ -94,33 +94,53 @@ VectorXd calculate_tweedie_errors(const VectorXd &y, const VectorXd &predicted, 
 struct GroupData
 {
     std::map<int, double> error;
-    std::map<int, size_t> count;
+    std::map<int, double> count;
 };
 
-GroupData calculate_group_errors_and_count(const VectorXd &y, const VectorXd &predicted, const VectorXi &group, const std::set<int> &unique_groups)
+GroupData calculate_group_errors_and_count(const VectorXd &y, const VectorXd &predicted, const VectorXi &group, const std::set<int> &unique_groups,
+                                           const VectorXd &sample_weight)
 {
     GroupData group_data;
     for (int unique_group_value : unique_groups)
     {
         group_data.error[unique_group_value] = 0.0;
-        group_data.count[unique_group_value] = 0;
+        group_data.count[unique_group_value] = 0.0;
     }
-    for (Eigen::Index i = 0; i < group.size(); ++i)
+
+    bool sample_weight_is_provided{sample_weight.size() > 0};
+    if (sample_weight_is_provided)
     {
-        group_data.error[group[i]] += y[i] - predicted[i];
-        group_data.count[group[i]] += 1;
+        for (Eigen::Index i = 0; i < group.size(); ++i)
+        {
+            group_data.error[group[i]] += (y[i] - predicted[i]) * sample_weight[i];
+            group_data.count[group[i]] += sample_weight[i];
+        }
     }
+    else
+    {
+        for (Eigen::Index i = 0; i < group.size(); ++i)
+        {
+            group_data.error[group[i]] += y[i] - predicted[i];
+            group_data.count[group[i]] += 1.0;
+        }
+    }
+
+    for (int unique_group_value : unique_groups)
+    {
+        group_data.error[unique_group_value] = group_data.error[unique_group_value] / group_data.count[unique_group_value];
+    }
+
     return group_data;
 }
 
-VectorXd calculate_group_mse_errors(const VectorXd &y, const VectorXd &predicted, const VectorXi &group, const std::set<int> &unique_groups)
+VectorXd calculate_group_mse_errors(const VectorXd &y, const VectorXd &predicted, const VectorXi &group, const std::set<int> &unique_groups,
+                                    const VectorXd &sample_weight)
 {
-    GroupData group_residuals_and_count{calculate_group_errors_and_count(y, predicted, group, unique_groups)};
+    GroupData group_residuals_and_count{calculate_group_errors_and_count(y, predicted, group, unique_groups, sample_weight)};
 
     for (int unique_group_value : unique_groups)
     {
         group_residuals_and_count.error[unique_group_value] *= group_residuals_and_count.error[unique_group_value];
-        group_residuals_and_count.error[unique_group_value] /= group_residuals_and_count.count[unique_group_value];
     }
 
     VectorXd errors(y.rows());
@@ -191,7 +211,7 @@ VectorXd calculate_errors(const VectorXd &y, const VectorXd &predicted, const Ve
     else if (loss_function == "tweedie")
         errors = calculate_tweedie_errors(y, predicted, dispersion_parameter);
     else if (loss_function == "group_mse")
-        errors = calculate_group_mse_errors(y, predicted, group, unique_groups);
+        errors = calculate_group_mse_errors(y, predicted, group, unique_groups, sample_weight);
     else if (loss_function == "mae")
         errors = calculate_absolute_errors(y, predicted);
     else if (loss_function == "quantile")

@@ -600,7 +600,7 @@ public:
         VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
         VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
 
-        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 0.5)};
 
         VectorXi group{X_train.col(0).cast<int>()};
 
@@ -610,6 +610,7 @@ public:
         // model.fit(X_train,y_train);
         // model.fit(X_train,y_train,sample_weight);
         // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train, y_train, VectorXd(0), {}, {}, {}, {}, group);
         model.fit(X_train, y_train, sample_weight, {}, {}, {}, {}, group);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
@@ -621,7 +622,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.4234, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 20.7268, 0.00001));
     }
 
     void test_aplrregressor_int_constr()
