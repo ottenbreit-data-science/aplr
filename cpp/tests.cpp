@@ -86,6 +86,55 @@ public:
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
         VectorXi group{X_train.col(0).cast<int>()};
+        // VectorXi group{VectorXi::Constant(20,1)};
+
+        std::cout << X_train;
+
+        // Fitting
+        // model.fit(X_train,y_train);
+        // model.fit(X_train,y_train,sample_weight);
+        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        model.fit(X_train, y_train, sample_weight, {}, {}, {}, {}, group);
+        std::cout << "feature importance\n"
+                  << model.feature_importance << "\n\n";
+
+        VectorXd predictions{model.predict(X_test)};
+        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predictions.mean(), 20.4941, 0.00001));
+    }
+
+    void test_aplrregressor_cauchy_group_mse_by_prediction_validation()
+    {
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 1.0;
+        model.bins = 10;
+        model.n_jobs = 1;
+        model.loss_function = "cauchy";
+        model.verbosity = 3;
+        model.max_interaction_level = 100;
+        model.max_interactions = 30;
+        model.min_observations_in_split = 50;
+        model.ineligible_boosting_steps_added = 10;
+        model.max_eligible_terms = 5;
+        model.validation_tuning_metric = "group_mse_by_prediction";
+        model.group_mse_cycle_bins = 7;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 0.5)};
+
+        VectorXi group{X_train.col(0).cast<int>()};
 
         std::cout << X_train;
 
@@ -625,6 +674,49 @@ public:
         tests.push_back(is_approximately_equal(predictions.mean(), 20.7268, 0.00001));
     }
 
+    void test_aplrregressor_group_mse_cycle()
+    {
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 1.0;
+        model.bins = 10;
+        model.n_jobs = 1;
+        model.loss_function = "group_mse_cycle";
+        model.verbosity = 3;
+        model.max_interaction_level = 100;
+        model.max_interactions = 30;
+        model.min_observations_in_split = 50;
+        model.ineligible_boosting_steps_added = 10;
+        model.max_eligible_terms = 5;
+        model.group_mse_cycle_bins = 8;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 0.5)};
+
+        std::cout << X_train;
+
+        // Fitting
+        // model.fit(X_train,y_train);
+        model.fit(X_train, y_train, sample_weight);
+        std::cout << "feature importance\n"
+                  << model.feature_importance << "\n\n";
+
+        VectorXd predictions{model.predict(X_test)};
+        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.3075, 0.00001));
+    }
+
     void test_aplrregressor_int_constr()
     {
         // Model
@@ -781,7 +873,7 @@ public:
         VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
         VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
 
-        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 0.5)};
 
         std::cout << X_train;
 
@@ -1049,7 +1141,7 @@ public:
         VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
         VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
 
-        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 0.5)};
 
         std::cout << X_train;
 
@@ -1739,6 +1831,7 @@ int main()
 {
     Tests tests{Tests()};
     tests.test_aplrregressor_cauchy_group_mse_validation();
+    tests.test_aplrregressor_cauchy_group_mse_by_prediction_validation();
     tests.test_aplrregressor_cauchy();
     tests.test_aplrregressor_custom_loss_and_validation();
     tests.test_aplrregressor_custom_loss();
@@ -1750,6 +1843,7 @@ int main()
     tests.test_aplrregressor_gamma_rank();
     tests.test_aplrregressor_gamma();
     tests.test_aplrregressor_group_mse();
+    tests.test_aplrregressor_group_mse_cycle();
     tests.test_aplrregressor_int_constr();
     tests.test_aplrregressor_inversegaussian();
     tests.test_aplrregressor_logit();

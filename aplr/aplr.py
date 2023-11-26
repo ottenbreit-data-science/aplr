@@ -63,6 +63,7 @@ class APLRRegressor:
         boosting_steps_before_pruning_is_done: int = 0,
         boosting_steps_before_interactions_are_allowed: int = 0,
         monotonic_constraints_ignore_interactions: bool = False,
+        group_mse_cycle_bins: int = 10,
     ):
         self.m = m
         self.v = v
@@ -103,6 +104,7 @@ class APLRRegressor:
         self.monotonic_constraints_ignore_interactions = (
             monotonic_constraints_ignore_interactions
         )
+        self.group_mse_cycle_bins = group_mse_cycle_bins
 
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
@@ -153,6 +155,7 @@ class APLRRegressor:
         self.APLRRegressor.monotonic_constraints_ignore_interactions = (
             self.monotonic_constraints_ignore_interactions
         )
+        self.APLRRegressor.group_mse_cycle_bins = self.group_mse_cycle_bins
 
     def fit(
         self,
@@ -267,6 +270,7 @@ class APLRRegressor:
             "boosting_steps_before_pruning_is_done": self.boosting_steps_before_pruning_is_done,
             "boosting_steps_before_interactions_are_allowed": self.boosting_steps_before_interactions_are_allowed,
             "monotonic_constraints_ignore_interactions": self.monotonic_constraints_ignore_interactions,
+            "group_mse_cycle_bins": self.group_mse_cycle_bins,
         }
 
     # For sklearn

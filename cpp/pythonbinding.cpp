@@ -25,7 +25,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                       std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)> &,
                       std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)> &,
                       std::function<VectorXd(const VectorXd &linear_predictor)> &, std::function<VectorXd(const VectorXd &linear_predictor)> &,
-                      int &, int &, bool &>(),
+                      int &, int &, bool &, int &>(),
              py::arg("m") = 1000, py::arg("v") = 0.1, py::arg("random_state") = 0, py::arg("loss_function") = "mse", py::arg("link_function") = "identity",
              py::arg("n_jobs") = 0, py::arg("validation_ratio") = 0.2,
              py::arg("reserved_terms_times_num_x") = 100, py::arg("bins") = 300, py::arg("verbosity") = 0,
@@ -40,7 +40,8 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("calculate_custom_transform_linear_predictor_to_predictions_function") = empty_calculate_custom_transform_linear_predictor_to_predictions_function,
              py::arg("calculate_custom_differentiate_predictions_wrt_linear_predictor_function") = empty_calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
              py::arg("boosting_steps_before_pruning_is_done") = 0, py::arg("boosting_steps_before_interactions_are_allowed") = 0,
-             py::arg("monotonic_constraints_ignore_interactions") = false)
+             py::arg("monotonic_constraints_ignore_interactions") = false,
+             py::arg("group_mse_cycle_bins") = 10)
         .def("fit", &APLRRegressor::fit, py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("validation_set_indexes") = std::vector<size_t>(), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),
              py::arg("monotonic_constraints") = std::vector<int>(), py::arg("group") = VectorXi(0),
@@ -100,6 +101,7 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def_readwrite("boosting_steps_before_pruning_is_done", &APLRRegressor::boosting_steps_before_pruning_is_done)
         .def_readwrite("boosting_steps_before_interactions_are_allowed", &APLRRegressor::boosting_steps_before_interactions_are_allowed)
         .def_readwrite("monotonic_constraints_ignore_interactions", &APLRRegressor::monotonic_constraints_ignore_interactions)
+        .def_readwrite("group_mse_cycle_bins", &APLRRegressor::group_mse_cycle_bins)
         .def(py::pickle(
             [](const APLRRegressor &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
@@ -109,10 +111,10 @@ PYBIND11_MODULE(aplr_cpp, m)
                                       a.number_of_base_terms, a.feature_importance, a.dispersion_parameter, a.min_training_prediction_or_response,
                                       a.max_training_prediction_or_response, a.validation_tuning_metric, a.validation_indexes, a.quantile, a.m_optimal,
                                       a.intercept_steps, a.boosting_steps_before_pruning_is_done, a.boosting_steps_before_interactions_are_allowed,
-                                      a.monotonic_constraints_ignore_interactions);
+                                      a.monotonic_constraints_ignore_interactions, a.group_mse_cycle_bins);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 33)
+                if (t.size() != 34)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
@@ -149,6 +151,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                 size_t boosting_steps_before_pruning_is_done = t[30].cast<size_t>();
                 size_t boosting_steps_before_interactions_are_allowed = t[31].cast<size_t>();
                 bool monotonic_constraints_ignore_interactions = t[32].cast<bool>();
+                size_t group_mse_cycle_bins = t[33].cast<size_t>();
 
                 APLRRegressor a(m, v, random_state, loss_function, link_function, n_jobs, validation_ratio, 100, bins, verbosity, max_interaction_level,
                                 max_interactions, min_observations_in_split, ineligible_boosting_steps_added, max_eligible_terms, dispersion_parameter,
@@ -169,6 +172,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                 a.boosting_steps_before_pruning_is_done = boosting_steps_before_pruning_is_done;
                 a.boosting_steps_before_interactions_are_allowed = boosting_steps_before_interactions_are_allowed;
                 a.monotonic_constraints_ignore_interactions = monotonic_constraints_ignore_interactions;
+                a.group_mse_cycle_bins = group_mse_cycle_bins;
 
                 return a;
             }));

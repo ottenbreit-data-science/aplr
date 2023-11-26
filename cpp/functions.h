@@ -210,7 +210,7 @@ VectorXd calculate_errors(const VectorXd &y, const VectorXd &predicted, const Ve
         errors = calculate_gamma_errors(y, predicted);
     else if (loss_function == "tweedie")
         errors = calculate_tweedie_errors(y, predicted, dispersion_parameter);
-    else if (loss_function == "group_mse")
+    else if (loss_function == "group_mse" || loss_function == "group_mse_cycle")
         errors = calculate_group_mse_errors(y, predicted, group, unique_groups, sample_weight);
     else if (loss_function == "mae")
         errors = calculate_absolute_errors(y, predicted);
