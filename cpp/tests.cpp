@@ -124,7 +124,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "group_mse_by_prediction";
-        model.group_mse_cycle_bins = 7;
+        model.group_mse_by_prediction_bins = 7;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -689,7 +689,8 @@ public:
         model.min_observations_in_split = 50;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
-        model.group_mse_cycle_bins = 8;
+        model.group_mse_by_prediction_bins = 8;
+        model.group_mse_cycle_min_obs_in_bin = 28;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -714,7 +715,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.3075, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.6325, 0.00001));
     }
 
     void test_aplrregressor_int_constr()

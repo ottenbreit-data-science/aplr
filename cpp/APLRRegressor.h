@@ -52,8 +52,8 @@ private:
     MatrixXd other_data_validation;
     bool model_has_changed_in_this_boosting_step;
     std::set<int> unique_prediction_groups;
+    std::set<int> unique_groups_cycle_train;
     std::vector<VectorXi> group_cycle_train;
-    std::vector<std::set<int>> unique_groups_cycle_train;
     size_t group_cycle_predictor_index;
 
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
@@ -71,11 +71,10 @@ private:
     bool check_if_base_term_has_only_one_unique_value(size_t base_term);
     void add_term_to_terms_eligible_current(Term &term);
     void setup_groups_for_group_mse_cycle();
-    VectorXi create_group_from_term_split_points(Term &term, size_t min_observations_in_group);
+    VectorXi create_groups_for_group_mse_sorted_by_vector(const VectorXd &vector, const std::set<int> &unique_groups_in_vector);
     VectorXd calculate_neg_gradient_current();
     VectorXd calculate_neg_gradient_current_for_group_mse(GroupData &group_residuals_and_count, const VectorXi &group,
                                                           const std::set<int> &unique_groups);
-    VectorXi create_groups_for_group_mse_by_prediction(const VectorXd &predictions);
     void execute_boosting_steps();
     void execute_boosting_step(size_t boosting_step);
     std::vector<size_t> find_terms_eligible_current_indexes_for_a_base_term(size_t base_term);
@@ -169,7 +168,8 @@ public:
     size_t boosting_steps_before_pruning_is_done;
     size_t boosting_steps_before_interactions_are_allowed;
     bool monotonic_constraints_ignore_interactions;
-    size_t group_mse_cycle_bins;
+    size_t group_mse_by_prediction_bins;
+    size_t group_mse_cycle_min_obs_in_bin;
 
     APLRRegressor(size_t m = 1000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, double validation_ratio = 0.2,
@@ -182,7 +182,8 @@ public:
                   const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {},
                   size_t boosting_steps_before_pruning_is_done = 0, size_t boosting_steps_before_interactions_are_allowed = 0,
-                  bool monotonic_constraints_ignore_interactions = false, size_t group_mse_cycle_bins = 10);
+                  bool monotonic_constraints_ignore_interactions = false, size_t group_mse_by_prediction_bins = 10,
+                  size_t group_mse_cycle_min_obs_in_bin = 30);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
@@ -217,7 +218,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function,
                              const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
                              size_t boosting_steps_before_pruning_is_done, size_t boosting_steps_before_interactions_are_allowed,
-                             bool monotonic_constraints_ignore_interactions, size_t group_mse_cycle_bins)
+                             bool monotonic_constraints_ignore_interactions, size_t group_mse_by_prediction_bins,
+                             size_t group_mse_cycle_min_obs_in_bin)
     : reserved_terms_times_num_x{reserved_terms_times_num_x}, intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, validation_ratio{validation_ratio}, n_jobs{n_jobs}, random_state{random_state},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level}, intercept_steps{VectorXd(0)},
@@ -230,7 +232,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
       calculate_custom_transform_linear_predictor_to_predictions_function{calculate_custom_transform_linear_predictor_to_predictions_function},
       calculate_custom_differentiate_predictions_wrt_linear_predictor_function{calculate_custom_differentiate_predictions_wrt_linear_predictor_function},
       boosting_steps_before_pruning_is_done{boosting_steps_before_pruning_is_done}, boosting_steps_before_interactions_are_allowed{boosting_steps_before_interactions_are_allowed},
-      monotonic_constraints_ignore_interactions{monotonic_constraints_ignore_interactions}, group_mse_cycle_bins{group_mse_cycle_bins}
+      monotonic_constraints_ignore_interactions{monotonic_constraints_ignore_interactions}, group_mse_by_prediction_bins{group_mse_by_prediction_bins},
+      group_mse_cycle_min_obs_in_bin{group_mse_cycle_min_obs_in_bin}
 {
 }
 
@@ -252,7 +255,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       calculate_custom_differentiate_predictions_wrt_linear_predictor_function{other.calculate_custom_differentiate_predictions_wrt_linear_predictor_function},
       boosting_steps_before_pruning_is_done{other.boosting_steps_before_pruning_is_done},
       boosting_steps_before_interactions_are_allowed{other.boosting_steps_before_interactions_are_allowed},
-      monotonic_constraints_ignore_interactions{other.monotonic_constraints_ignore_interactions}, group_mse_cycle_bins{other.group_mse_cycle_bins}
+      monotonic_constraints_ignore_interactions{other.monotonic_constraints_ignore_interactions}, group_mse_by_prediction_bins{other.group_mse_by_prediction_bins},
+      group_mse_cycle_min_obs_in_bin{other.group_mse_cycle_min_obs_in_bin}
 {
 }
 
@@ -392,9 +396,12 @@ void APLRRegressor::validate_input_to_fit(const MatrixXd &X, const VectorXd &y, 
     bool group_mse_cycle_is_used{loss_function == "group_mse_cycle" || validation_tuning_metric == "group_mse_cycle"};
     if (group_mse_cycle_is_used)
     {
-        bool group_mse_cycle_bins_is_too_low{group_mse_cycle_bins < 2};
-        if (group_mse_cycle_bins_is_too_low)
-            group_mse_cycle_bins = 2;
+        bool group_mse_by_prediction_bins_is_too_low{group_mse_by_prediction_bins < 2};
+        if (group_mse_by_prediction_bins_is_too_low)
+            group_mse_by_prediction_bins = 2;
+        bool group_mse_cycle_min_obs_in_bin_is_too_low{group_mse_cycle_min_obs_in_bin < 1};
+        if (group_mse_cycle_min_obs_in_bin_is_too_low)
+            group_mse_cycle_min_obs_in_bin = 1;
     }
 }
 
@@ -694,7 +701,7 @@ void APLRRegressor::initialize(const std::vector<size_t> &prioritized_predictors
     if (need_to_initialize_prediction_groups)
     {
         size_t max_groups{static_cast<size_t>(y_validation.rows())};
-        size_t groups_used{std::min(group_mse_cycle_bins, max_groups)};
+        size_t groups_used{std::min(group_mse_by_prediction_bins, max_groups)};
         for (size_t i = 0; i < groups_used; ++i)
         {
             unique_prediction_groups.insert(i);
@@ -742,114 +749,52 @@ void APLRRegressor::add_term_to_terms_eligible_current(Term &term)
 
 void APLRRegressor::setup_groups_for_group_mse_cycle()
 {
-    size_t cycles{terms_eligible_current.size()};
-    group_cycle_train.reserve(cycles);
-    unique_groups_cycle_train.reserve(cycles);
-    size_t min_observations_in_split{y_train.rows() / group_mse_cycle_bins};
-    VectorXd neg_gradient{VectorXd::Constant(y_train.rows(), 0.0)};
-    for (auto &term : terms_eligible_current)
+    size_t max_groups{static_cast<size_t>(y_train.rows())};
+    bool group_mse_cycle_min_obs_in_bin_is_too_high{group_mse_cycle_min_obs_in_bin > max_groups};
+    if (group_mse_cycle_min_obs_in_bin_is_too_high)
+        group_mse_cycle_min_obs_in_bin = max_groups;
+    size_t groups_used{max_groups / group_mse_cycle_min_obs_in_bin};
+    for (size_t i = 0; i < groups_used; ++i)
     {
-        Term term_copy{term};
-        term_copy.estimate_split_point(X_train, neg_gradient, sample_weight_train, group_mse_cycle_bins, v, min_observations_in_split);
-        VectorXi group{create_group_from_term_split_points(term_copy, min_observations_in_split)};
-        std::set<int> unique_group_entries{get_unique_integers(group)};
+        unique_groups_cycle_train.insert(i);
+    }
+    size_t cycles{static_cast<size_t>(X_train.cols())};
+    group_cycle_train.reserve(cycles);
+    for (Eigen::Index i = 0; i < X_train.cols(); ++i)
+    {
+        VectorXi group{create_groups_for_group_mse_sorted_by_vector(X_train.col(i), unique_groups_cycle_train)};
         group_cycle_train.push_back(group);
-        unique_groups_cycle_train.push_back(unique_group_entries);
     }
 }
 
-VectorXi APLRRegressor::create_group_from_term_split_points(Term &term, size_t min_observations_in_group)
+VectorXi APLRRegressor::create_groups_for_group_mse_sorted_by_vector(const VectorXd &vector, const std::set<int> &unique_groups_in_vector)
 {
-    VectorXi group{VectorXi::Constant(y_train.rows(), static_cast<int>(term.bins_split_points_left.size()))};
-    bool split_points_exist{term.bins_split_points_left.size() > 0};
-    if (split_points_exist)
+    VectorXi group{VectorXi(vector.rows())};
+    size_t observations_per_group{vector.size() / unique_groups_in_vector.size()};
+    VectorXi sorted_prediction_index{sort_indexes_ascending(vector)};
+    std::vector<int> unique_groups{unique_groups_in_vector.begin(), unique_groups_in_vector.end()};
+
+    size_t current_group{0};
+    size_t middle_observation{static_cast<size_t>(group.size()) / 2};
+    for (size_t i = 0; i < middle_observation; ++i)
     {
-        for (size_t i = 0; i < y_train.rows(); ++i)
-        {
-            int current_group_value{0};
-            for (auto &left_split_point : term.bins_split_points_left)
-            {
-                bool value_is_smaller{std::isless(X_train.col(term.base_term)[i], left_split_point)};
-                if (value_is_smaller)
-                {
-                    group[i] = current_group_value;
-                    break;
-                }
-                else
-                {
-                    ++current_group_value;
-                    continue;
-                }
-            }
-        }
-
-        // Merging groups with too few observations
-        std::set<int> unique_group_entries{get_unique_integers(group)};
-        std::vector<size_t> group_counts(unique_group_entries.size());
-        std::vector<std::vector<int>> group_indexes(unique_group_entries.size());
-        for (auto &group_indexes_for_one_group : group_indexes)
-        {
-            group_indexes_for_one_group.reserve(y_train.rows());
-        }
-        for (size_t i = 0; i < y_train.rows(); ++i)
-        {
-            for (auto &unique_group_entry : unique_group_entries)
-            {
-                if (group[i] == unique_group_entry)
-                {
-                    group_counts[unique_group_entry] += 1;
-                    group_indexes[unique_group_entry].push_back(i);
-                    break;
-                }
-                else
-                    continue;
-            }
-        }
-
-        for (auto &unique_group_entry : unique_group_entries)
-        {
-            bool too_few_observations_in_group{group_counts[unique_group_entry] < min_observations_in_group - 1};
-            if (too_few_observations_in_group)
-            {
-                bool first_group{unique_group_entry == 0};
-                bool last_group{unique_group_entry == group_counts.size() - 1};
-                if (first_group)
-                {
-                    for (auto &index : group_indexes[unique_group_entry])
-                    {
-                        group[index] += 1;
-                        group_indexes[unique_group_entry + 1].push_back(index);
-                    }
-                }
-                else if (last_group)
-                {
-                    for (auto &index : group_indexes[unique_group_entry])
-                    {
-                        group[index] -= 1;
-                    }
-                }
-                else
-                {
-                    bool reduce_group_entry{group_counts[unique_group_entry - 1] < group_counts[unique_group_entry + 1]};
-                    if (reduce_group_entry)
-                    {
-                        for (auto &index : group_indexes[unique_group_entry])
-                        {
-                            group[index] -= 1;
-                        }
-                    }
-                    else
-                    {
-                        for (auto &index : group_indexes[unique_group_entry])
-                        {
-                            group[index] += 1;
-                            group_indexes[unique_group_entry + 1].push_back(index);
-                        }
-                    }
-                }
-            }
-        }
+        group[sorted_prediction_index[i]] = unique_groups[current_group];
+        bool increment_group{(i + 1) % observations_per_group == 0};
+        bool can_increment_group{current_group < unique_groups.size() - 1};
+        if (increment_group && can_increment_group)
+            ++current_group;
     }
+    size_t minimum_group_in_next_step{current_group};
+    current_group = unique_groups.size() - 1;
+    for (size_t i = vector.size() - 1; i >= middle_observation; --i)
+    {
+        group[sorted_prediction_index[i]] = unique_groups[current_group];
+        bool decrement_group{(vector.size() - i) % observations_per_group == 0};
+        bool can_decrement_group{current_group > minimum_group_in_next_step};
+        if (decrement_group && can_decrement_group)
+            --current_group;
+    }
+
     return group;
 }
 
@@ -876,10 +821,10 @@ VectorXd APLRRegressor::calculate_neg_gradient_current()
     {
         GroupData group_residuals_and_count{calculate_group_errors_and_count(y_train, predictions_current,
                                                                              group_cycle_train[group_cycle_predictor_index],
-                                                                             unique_groups_cycle_train[group_cycle_predictor_index],
+                                                                             unique_groups_cycle_train,
                                                                              sample_weight_train)};
         output = calculate_neg_gradient_current_for_group_mse(group_residuals_and_count, group_cycle_train[group_cycle_predictor_index],
-                                                              unique_groups_cycle_train[group_cycle_predictor_index]);
+                                                              unique_groups_cycle_train);
     }
     else if (loss_function == "mae")
     {
@@ -956,37 +901,6 @@ VectorXd APLRRegressor::calculate_neg_gradient_current_for_group_mse(GroupData &
     }
 
     return output;
-}
-
-VectorXi APLRRegressor::create_groups_for_group_mse_by_prediction(const VectorXd &predictions)
-{
-    VectorXi group{VectorXi(predictions.rows())};
-    size_t observations_per_group{predictions.size() / unique_prediction_groups.size()};
-    VectorXi sorted_prediction_index{sort_indexes_ascending(predictions)};
-    std::vector<int> unique_groups{unique_prediction_groups.begin(), unique_prediction_groups.end()};
-
-    size_t current_group{0};
-    size_t middle_observation{static_cast<size_t>(group.size()) / 2};
-    for (size_t i = 0; i < middle_observation; ++i)
-    {
-        group[sorted_prediction_index[i]] = unique_groups[current_group];
-        bool increment_group{(i + 1) % observations_per_group == 0};
-        bool can_increment_group{current_group < unique_groups.size() - 1};
-        if (increment_group && can_increment_group)
-            ++current_group;
-    }
-    size_t minimum_group_in_next_step{current_group};
-    current_group = unique_groups.size() - 1;
-    for (size_t i = predictions.size() - 1; i >= middle_observation; --i)
-    {
-        group[sorted_prediction_index[i]] = unique_groups[current_group];
-        bool decrement_group{(predictions.size() - i) % observations_per_group == 0};
-        bool can_decrement_group{current_group > minimum_group_in_next_step};
-        if (decrement_group && can_decrement_group)
-            --current_group;
-    }
-
-    return group;
 }
 
 VectorXd APLRRegressor::differentiate_predictions_wrt_linear_predictor()
@@ -1603,7 +1517,7 @@ double APLRRegressor::calculate_validation_error(const VectorXd &predictions)
 
 double APLRRegressor::calculate_group_mse_by_prediction_validation_error(const VectorXd &predictions)
 {
-    VectorXi group{create_groups_for_group_mse_by_prediction(predictions)};
+    VectorXi group{create_groups_for_group_mse_sorted_by_vector(predictions, unique_prediction_groups)};
     return calculate_mean_error(calculate_errors(y_validation, predictions, sample_weight_validation, "group_mse_cycle",
                                                  dispersion_parameter, group, unique_prediction_groups, quantile),
                                 sample_weight_validation);
