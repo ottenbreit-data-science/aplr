@@ -512,7 +512,7 @@ void APLRRegressor::throw_error_if_sample_weight_contains_invalid_values(const V
     {
         if (sample_weight.size() != y.size())
             throw std::runtime_error("sample_weight must have 0 or as many rows as X and y.");
-        throw_error_if_vector_contains_non_positive_values(sample_weight, "all sample_weight values must be greater than zero.");
+        throw_error_if_vector_contains_negative_values(sample_weight, "sample_weight cannot contain negative values.");
     }
 }
 
