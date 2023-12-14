@@ -1452,7 +1452,7 @@ void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step
     if (validation_error_is_invalid)
     {
         abort_boosting = true;
-        std::string warning_message{"Warning: Encountered numerical problems when calculating validation error in the previous boosting step. Not continuing with further boosting steps. One potential reason is if the combination of loss_function and link_function is invalid."};
+        std::string warning_message{"Warning: Encountered numerical problems when calculating validation error in the previous boosting step. Not continuing with further boosting steps. One potential reason is if the combination of loss_function and link_function is invalid. Another potential reason could be that too many observations have zero sample_weight."};
         std::cout << warning_message << "\n";
     }
 }
