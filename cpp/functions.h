@@ -439,66 +439,6 @@ std::vector<size_t> sample_indexes_of_vector(int rows_in_underyling_vector, std:
     return output;
 }
 
-double calculate_rankability(const VectorXd &y_true, const VectorXd &y_pred, const VectorXd &weights = VectorXd(0),
-                             uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), size_t bootstraps = 10000)
-{
-    bool weights_are_provided{weights.size() == y_true.size()};
-    std::mt19937 mersenne{random_state};
-    std::vector<size_t> first_index_in_pair{sample_indexes_of_vector(y_true.size(), mersenne, bootstraps)};
-    std::vector<size_t> second_index_in_pair{sample_indexes_of_vector(y_true.size(), mersenne, bootstraps)};
-    double num_pairs{0.0};
-    double num_ranked_correctly{0.0};
-    if (weights_are_provided)
-    {
-        for (size_t i = 0; i < first_index_in_pair.size(); ++i)
-        {
-            bool first_item_in_pair_has_higher_response_than_second_item{std::isgreater(y_true[first_index_in_pair[i]], y_true[second_index_in_pair[i]])};
-            if (first_item_in_pair_has_higher_response_than_second_item)
-            {
-                double weight = (weights[first_index_in_pair[i]] + weights[second_index_in_pair[i]]) / 2;
-                num_pairs += weight;
-                bool prediction_is_also_higher{std::isgreater(y_pred[first_index_in_pair[i]], y_pred[second_index_in_pair[i]])};
-                bool predictions_are_equal(is_approximately_equal(y_pred[first_index_in_pair[i]], y_pred[second_index_in_pair[i]]));
-                if (prediction_is_also_higher)
-                {
-                    num_ranked_correctly += weight;
-                }
-                else if (predictions_are_equal)
-                {
-                    num_ranked_correctly += weight * 0.5;
-                }
-            }
-        }
-    }
-    else
-    {
-        for (size_t i = 0; i < first_index_in_pair.size(); ++i)
-        {
-            bool first_item_in_pair_has_higher_response_than_second_item{std::isgreater(y_true[first_index_in_pair[i]], y_true[second_index_in_pair[i]])};
-            if (first_item_in_pair_has_higher_response_than_second_item)
-            {
-                num_pairs += 1;
-                bool prediction_is_also_higher{std::isgreater(y_pred[first_index_in_pair[i]], y_pred[second_index_in_pair[i]])};
-                bool predictions_are_equal(is_approximately_equal(y_pred[first_index_in_pair[i]], y_pred[second_index_in_pair[i]]));
-                if (prediction_is_also_higher)
-                {
-                    num_ranked_correctly += 1;
-                }
-                else if (predictions_are_equal)
-                {
-                    num_ranked_correctly += 0.5;
-                }
-            }
-        }
-    }
-    double rankability{num_ranked_correctly / num_pairs};
-    bool rankability_is_invalid{!std::isfinite(rankability)};
-    if (rankability_is_invalid)
-        rankability = 0.5;
-
-    return rankability;
-}
-
 double trapezoidal_integration(const VectorXd &y, const VectorXd &x)
 {
     bool y_is_large_enough{y.rows() > 1};
@@ -570,4 +510,21 @@ std::vector<double> remove_duplicate_elements_from_vector(const std::vector<doub
     it = std::unique(output.begin(), output.end());
     output.resize(distance(output.begin(), it));
     return output;
+}
+
+double calculate_standard_deviation(const VectorXd &vector, const VectorXd &weight = VectorXd(0))
+{
+    bool weight_is_provided{weight.size() > 0};
+    double variance;
+    if (weight_is_provided)
+    {
+        double sum_weight{weight.sum()};
+        double weighted_average_of_vector{(vector.array() * weight.array()).sum() / sum_weight};
+        variance = (weight.array() * (vector.array() - weighted_average_of_vector).pow(2)).sum() / sum_weight;
+    }
+    else
+    {
+        variance = (vector.array() - vector.mean()).pow(2).mean();
+    }
+    return std::pow(variance, 0.5);
 }

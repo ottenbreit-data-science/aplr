@@ -31,7 +31,7 @@ response = "target"
 predicted = "predicted"
 
 # Training model
-validation_results = pd.DataFrame()
+cv_results = pd.DataFrame()
 best_validation_result = np.inf
 param_grid = ParameterGrid(
     {
@@ -55,16 +55,12 @@ for params in param_grid:
     model.fit(
         data_train[predictors].values, data_train[response].values, X_names=predictors
     )
-    validation_error_for_this_model = np.min(model.get_validation_error_steps())
-    validation_results_for_this_model = pd.DataFrame(model.get_params(), index=[0])
-    validation_results_for_this_model[
-        "validation_error"
-    ] = validation_error_for_this_model
-    validation_results = pd.concat(
-        [validation_results, validation_results_for_this_model]
-    )
-    if validation_error_for_this_model < best_validation_result:
-        best_validation_result = validation_error_for_this_model
+    cv_error_for_this_model = model.get_cv_error()
+    cv_results_for_this_model = pd.DataFrame(model.get_params(), index=[0])
+    cv_results_for_this_model["cv_error"] = cv_error_for_this_model
+    cv_results = pd.concat([cv_results, cv_results_for_this_model])
+    if cv_error_for_this_model < best_validation_result:
+        best_validation_result = cv_error_for_this_model
         best_model = model
 print("Done training")
 
@@ -72,9 +68,10 @@ print("Done training")
 joblib.dump(best_model, "best_model.gz")
 
 # Validation results when doing grid search
-validation_results = validation_results.sort_values(by="validation_error")
+cv_results = cv_results.sort_values(by="cv_error")
 
-# Validation errors that occurred during training of the best model. APLR used the boosting step that gave the lowest validation error
+# Validation errors that occurred during training of the best model for each holdout fold.
+# APLR used the boosting steps that gave the lowest validation errors for each fold.
 validation_error_per_boosting_step = best_model.get_validation_error_steps()
 
 # Terms in the best model
@@ -83,12 +80,6 @@ terms = pd.DataFrame(
         "term": best_model.get_term_names(),
         "coefficient": best_model.get_term_coefficients(),
     }
-)
-
-# Coefficients for intercept and the first term per boosting step
-intercept_coefficient_per_boosting_step = best_model.get_intercept_steps()
-first_term_coefficient_per_boosting_step = best_model.get_term_coefficient_steps(
-    term_index=0
 )
 
 # Estimated feature importance was estimated on the validation set when the best model was trained
@@ -123,14 +114,14 @@ goodness_of_fit = pd.DataFrame(
 )
 goodness_of_fit["r_squared"] = goodness_of_fit["correlation"] ** 2
 
-# Local feature importance for each prediction
+# Local feature contribution for each prediction
 term_names_excluding_intercept = best_model.get_term_names()[1:]
-local_feature_importance_of_each_term = pd.DataFrame(
-    best_model.calculate_local_feature_importance_for_terms(data_test[predictors]),
+local_feature_contribution_of_each_term = pd.DataFrame(
+    best_model.calculate_local_feature_contribution_for_terms(data_test[predictors]),
     columns=term_names_excluding_intercept,
 )
-estimated_local_feature_importance_of_each_original_predictor = pd.DataFrame(
-    best_model.calculate_local_feature_importance(data_test[predictors]),
+estimated_local_feature_contribution_of_each_original_predictor = pd.DataFrame(
+    best_model.calculate_local_feature_contribution(data_test[predictors]),
     columns=predictors,
 )
 

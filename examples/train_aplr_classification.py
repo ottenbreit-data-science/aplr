@@ -34,7 +34,7 @@ response = "target"
 predicted = "predicted"
 
 # Training model
-validation_results = pd.DataFrame()
+cv_results = pd.DataFrame()
 best_validation_result = np.inf
 param_grid = ParameterGrid(
     {
@@ -45,32 +45,19 @@ param_grid = ParameterGrid(
 best_model = None
 for params in param_grid:
     model = APLRClassifier(
-        random_state=random_state, verbosity=2, m=9000, v=0.1, **params
+        random_state=random_state, verbosity=2, m=1000, v=0.1, **params
     )
     model.fit(
         data_train[predictors].values, data_train[response].values, X_names=predictors
     )
 
-    validation_error_for_this_model = model.get_validation_error()
-    # Using the average of log loss for each underlying logit model.
-    # An alternative to the above statement is to use an external method for calculating the validation error, such as in the three statements below.
-    data_validation = data_train.reset_index(drop=True).iloc[
-        model.get_validation_indexes()
-    ]
-    data_validation[predicted] = model.predict(data_validation[predictors])
-    validation_error_for_this_model = -balanced_accuracy_score(
-        y_true=data_validation[response], y_pred=data_validation[predicted]
-    )
+    cv_error_for_this_model = model.get_cv_error()  # Based on log loss.
 
-    validation_results_for_this_model = pd.DataFrame(model.get_params(), index=[0])
-    validation_results_for_this_model[
-        "validation_error"
-    ] = validation_error_for_this_model
-    validation_results = pd.concat(
-        [validation_results, validation_results_for_this_model]
-    )
-    if validation_error_for_this_model < best_validation_result:
-        best_validation_result = validation_error_for_this_model
+    cv_results_for_this_model = pd.DataFrame(model.get_params(), index=[0])
+    cv_results_for_this_model["cv_error"] = cv_error_for_this_model
+    cv_results = pd.concat([cv_results, cv_results_for_this_model])
+    if cv_error_for_this_model < best_validation_result:
+        best_validation_result = cv_error_for_this_model
         best_model = model
 print("Done training")
 
@@ -78,9 +65,9 @@ print("Done training")
 joblib.dump(best_model, "best_model.gz")
 
 # Validation results when doing grid search
-validation_results = validation_results.sort_values(by="validation_error")
+cv_results = cv_results.sort_values(by="cv_error")
 
-# Validation error per boosting step (per boosting step, average of log loss for each underlying logit model).
+# Validation errors per boosting step for each holdout fold
 validation_error_per_boosting_step = best_model.get_validation_error_steps()
 
 # Get a list of the categories in the model
@@ -116,10 +103,10 @@ balanced_accuracy = balanced_accuracy_score(
     y_true=data_test[response], y_pred=data_test[predicted]
 )
 
-# Local feature importance for each prediction. For each prediction, uses calculate_local_feature_importance() in the logit APLRRegressor model
-# for the category that corresponds to the prediction. Example in this data: If a prediction is "2" then using calculate_local_feature_importance()
+# Local feature contribution for each prediction. For each prediction, uses calculate_local_feature_contribution() in the logit APLRRegressor model
+# for the category that corresponds to the prediction. Example in this data: If a prediction is "2" then using calculate_local_feature_contribution()
 # in the logit model that predicts whether an observation belongs to class "2" or not.
-estimated_local_feature_importance_of_each_original_predictor = pd.DataFrame(
-    best_model.calculate_local_feature_importance(data_test[predictors]),
+estimated_local_feature_contribution_of_each_original_predictor = pd.DataFrame(
+    best_model.calculate_local_feature_contribution(data_test[predictors]),
     columns=predictors,
 )

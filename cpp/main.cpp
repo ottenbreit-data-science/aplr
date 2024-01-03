@@ -46,10 +46,10 @@ int main()
     // Saving results
     save_as_csv_file("output.csv", predictions);
     std::cout << "min validation_error " << model.validation_error_steps.minCoeff() << "\n\n";
-    std::cout << is_approximately_equal(model.validation_error_steps.minCoeff(), 6.17133, 0.00001) << "\n";
+    std::cout << is_approximately_equal(model.validation_error_steps.minCoeff(), 4.97628, 0.00001) << "\n";
 
     std::cout << "mean prediction " << predictions.mean() << "\n\n";
-    std::cout << is_approximately_equal(predictions.mean(), 23.591, 0.0001) << "\n";
+    std::cout << is_approximately_equal(predictions.mean(), 23.6053, 0.0001) << "\n";
 
     std::cout << "best_m: " << model.m << "\n";
 

@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int=9000, v:float=0.1, random_state:int=0, n_jobs:int=0, validation_ratio:float=0.2, bins:int=300, verbosity:int=0, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, boosting_steps_before_pruning_is_done:int = 0, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False)
+## class aplr.APLRClassifier(m:int=9000, v:float=0.1, random_state:int=0, n_jobs:int=0, cv_folds:int=5, bins:int=300, verbosity:int=0, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False)
 
 ### Constructor parameters
 
@@ -11,13 +11,13 @@ The maximum number of boosting steps. If validation error does not flatten out a
 The learning rate. Must be greater than zero and not more than one. The higher the faster the algorithm learns and the lower ***m*** is required. However, empirical evidence suggests that ***v <= 0.1*** gives better results. If the algorithm learns too fast (requires few boosting steps to converge) then try lowering the learning rate. Computational costs can be reduced by increasing the learning rate while simultaneously decreasing ***m***, potentially at the expense of predictiveness.
 
 #### random_state (default = 0)
-Used to randomly split training observations into training and validation if ***validation_set_indexes*** is not specified when fitting.
+Used to randomly split training observations into cv_folds if ***cv_observations*** is not specified when fitting.
 
 #### n_jobs (default = 0)
 Multi-threading parameter. If ***0*** then uses all available cores for multi-threading. Any other positive integer specifies the number of cores to use (***1*** means single-threading).
 
-#### validation_ratio (default = 0.2)
-The ratio of training observations to use for validation instead of training. The number of boosting steps is automatically tuned to minimize validation error.
+#### cv_folds (default = 5)
+The number of randomly split folds to use in cross validation. The number of boosting steps is automatically tuned to minimize cross validation error.
 
 #### bins (default = 300)
 Specifies the maximum number of bins to discretize the data into when searching for the best split. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs. Must be greater than 1.
@@ -40,9 +40,6 @@ Controls how many boosting steps a term that becomes ineligible has to remain in
 #### max_eligible_terms (default = 5)
 Limits 1) the number of terms already in the model that can be considered as interaction partners in a boosting step and 2) how many terms remain eligible in the next boosting step. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
 
-#### boosting_steps_before_pruning_is_done (default = 0)
-Specifies how many boosting steps to wait before pruning the model. If 0 (default) then pruning is not done. If for example 500 then the model will be pruned in boosting steps 500, 1000, and so on. When pruning, terms are removed as long as this reduces the training error. This can be a computationally costly operation especially if the model gets many terms. Pruning may slightly improve predictiveness.
-
 #### boosting_steps_before_interactions_are_allowed (default = 0)
 Specifies how many boosting steps to wait before searching for interactions. If for example 800, then the algorithm will be forced to only fit main effects in the first 800 boosting steps, after which it is allowed to search for interactions (given that other hyperparameters that control interactions also allow this). The motivation for fitting main effects first may be 1) to get a cleaner looking model that puts more emphasis on main effects and 2) to speed up the algorithm since looking for interactions is computationally more demanding.
 
@@ -50,7 +47,7 @@ Specifies how many boosting steps to wait before searching for interactions. If 
 See ***monotonic_constraints*** in the ***fit*** method.
 
 
-## Method: fit(X:npt.ArrayLike, y:List[str], sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], validation_set_indexes:List[int]=[], prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], interaction_constraints:List[List[int]]=[])
+## Method: fit(X:npt.ArrayLike, y:List[str], sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], cv_observations: npt.ArrayLike = np.empty([0, 0]), prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], interaction_constraints:List[List[int]]=[])
 
 ***This method fits the model to data.***
 
@@ -68,8 +65,8 @@ An optional numpy vector with sample weights. If not specified then the observat
 #### X_names
 An optional list of strings containing names for each predictor in ***X***. Naming predictors may increase model readability because model terms get names based on ***X_names***.
 
-#### validation_set_indexes
-An optional list of integers specifying the indexes of observations to be used for validation instead of training. If this is specified then ***validation_ratio*** is not used. Specifying ***validation_set_indexes*** may be useful for example when modelling time series data (you can place more recent observations in the validation set).
+#### cv_observations
+An optional list of integers specifying how each training observation is used in cross validation. If this is specified then ***cv_folds*** is not used. Specifying ***cv_observations*** may be useful for example when modelling time series data (you can place more recent observations in the holdout folds). ***cv_observations*** must contain a column for each desired fold combination. For a given column, row values equalling 1 specify that these rows will be used for training, while row values equalling -1 specify that these rows will be used for validation. Row values equalling 0 will not be used.
 
 #### prioritized_predictors_indexes
 An optional list of integers specifying the indexes of predictors (columns) in ***X*** that should be prioritized. Terms of the prioritized predictors will enter the model as long as they reduce the training error and do not contain too few effective observations. They will also be updated more often.
@@ -102,7 +99,7 @@ If ***True*** then for each underlying logit model the predictions are capped so
 Parameters are the same as in ***predict_class_probabilities()***.
 
 
-## Method: calculate_local_feature_importance(X:npt.ArrayLike)
+## Method: calculate_local_feature_contribution(X:npt.ArrayLike)
 
 ***Returns a numpy matrix containing local feature importance for new data by each predictor in X.***
 
@@ -127,21 +124,16 @@ A numpy matrix with predictor values.
 A string specifying the label of the category.
 
 
-## Method: get_validation_indexes()
-
-***Returns a list of integers containing the indexes of the training data observations used for validation and not training.***
-
-
 ## Method: get_validation_error_steps()
 
-***Returns a numpy vector containing the validation error by boosting step (average of log loss for each underlying logit model). Use this to determine if the maximum number of boosting steps (m) or learning rate (v) should be changed.***
+***Returns a numpy matrix containing the validation error by boosting step for each cv fold (average of log loss for each underlying logit model). Use this to determine if the maximum number of boosting steps (m) or learning rate (v) should be changed.***
 
 
-## Method: get_validation_error()
+## Method: get_cv_error()
 
-***Returns the validation error measured by the average of log loss for each underlying logit model.***
+***Returns the cv error measured by the average of log loss for each underlying logit model.***
 
 
 ## Method: get_feature_importance()
 
-***Returns a numpy vector containing the feature importance of each predictor, estimated on the validation set as an average of feature importances for the underlying logit models.***
+***Returns a numpy vector containing the feature importance of each predictor, estimated as an average of feature importances for the underlying logit models.***

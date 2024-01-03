@@ -13,7 +13,7 @@ class APLRRegressor:
         loss_function: str = "mse",
         link_function: str = "identity",
         n_jobs: int = 0,
-        validation_ratio: float = 0.2,
+        cv_folds: int = 5,
         bins: int = 300,
         max_interaction_level: int = 1,
         max_interactions: int = 100000,
@@ -60,7 +60,6 @@ class APLRRegressor:
         calculate_custom_differentiate_predictions_wrt_linear_predictor_function: Optional[
             Callable[[npt.ArrayLike], npt.ArrayLike]
         ] = None,
-        boosting_steps_before_pruning_is_done: int = 0,
         boosting_steps_before_interactions_are_allowed: int = 0,
         monotonic_constraints_ignore_interactions: bool = False,
         group_mse_by_prediction_bins: int = 10,
@@ -72,7 +71,7 @@ class APLRRegressor:
         self.loss_function = loss_function
         self.link_function = link_function
         self.n_jobs = n_jobs
-        self.validation_ratio = validation_ratio
+        self.cv_folds = cv_folds
         self.bins = bins
         self.max_interaction_level = max_interaction_level
         self.max_interactions = max_interactions
@@ -96,9 +95,6 @@ class APLRRegressor:
         self.calculate_custom_differentiate_predictions_wrt_linear_predictor_function = (
             calculate_custom_differentiate_predictions_wrt_linear_predictor_function
         )
-        self.boosting_steps_before_pruning_is_done = (
-            boosting_steps_before_pruning_is_done
-        )
         self.boosting_steps_before_interactions_are_allowed = (
             boosting_steps_before_interactions_are_allowed
         )
@@ -120,7 +116,7 @@ class APLRRegressor:
         self.APLRRegressor.loss_function = self.loss_function
         self.APLRRegressor.link_function = self.link_function
         self.APLRRegressor.n_jobs = self.n_jobs
-        self.APLRRegressor.validation_ratio = self.validation_ratio
+        self.APLRRegressor.cv_folds = self.cv_folds
         self.APLRRegressor.bins = self.bins
         self.APLRRegressor.max_interaction_level = self.max_interaction_level
         self.APLRRegressor.max_interactions = self.max_interactions
@@ -148,17 +144,18 @@ class APLRRegressor:
         self.APLRRegressor.calculate_custom_differentiate_predictions_wrt_linear_predictor_function = (
             self.calculate_custom_differentiate_predictions_wrt_linear_predictor_function
         )
-        self.APLRRegressor.boosting_steps_before_pruning_is_done = (
-            self.boosting_steps_before_pruning_is_done
-        )
         self.APLRRegressor.boosting_steps_before_interactions_are_allowed = (
             self.boosting_steps_before_interactions_are_allowed
         )
         self.APLRRegressor.monotonic_constraints_ignore_interactions = (
             self.monotonic_constraints_ignore_interactions
         )
-        self.APLRRegressor.group_mse_by_prediction_bins = self.group_mse_by_prediction_bins
-        self.APLRRegressor.group_mse_cycle_min_obs_in_bin = self.group_mse_cycle_min_obs_in_bin
+        self.APLRRegressor.group_mse_by_prediction_bins = (
+            self.group_mse_by_prediction_bins
+        )
+        self.APLRRegressor.group_mse_cycle_min_obs_in_bin = (
+            self.group_mse_cycle_min_obs_in_bin
+        )
 
     def fit(
         self,
@@ -166,7 +163,7 @@ class APLRRegressor:
         y: npt.ArrayLike,
         sample_weight: npt.ArrayLike = np.empty(0),
         X_names: List[str] = [],
-        validation_set_indexes: List[int] = [],
+        cv_observations: npt.ArrayLike = np.empty([0, 0]),
         prioritized_predictors_indexes: List[int] = [],
         monotonic_constraints: List[int] = [],
         group: npt.ArrayLike = np.empty(0),
@@ -179,7 +176,7 @@ class APLRRegressor:
             y,
             sample_weight,
             X_names,
-            validation_set_indexes,
+            cv_observations,
             prioritized_predictors_indexes,
             monotonic_constraints,
             group,
@@ -199,13 +196,13 @@ class APLRRegressor:
     def set_term_names(self, X_names: List[str]):
         self.APLRRegressor.set_term_names(X_names)
 
-    def calculate_local_feature_importance(self, X: npt.ArrayLike) -> npt.ArrayLike:
-        return self.APLRRegressor.calculate_local_feature_importance(X)
+    def calculate_local_feature_contribution(self, X: npt.ArrayLike) -> npt.ArrayLike:
+        return self.APLRRegressor.calculate_local_feature_contribution(X)
 
-    def calculate_local_feature_importance_for_terms(
+    def calculate_local_feature_contribution_for_terms(
         self, X: npt.ArrayLike
     ) -> npt.ArrayLike:
-        return self.APLRRegressor.calculate_local_feature_importance_for_terms(X)
+        return self.APLRRegressor.calculate_local_feature_contribution_for_terms(X)
 
     def calculate_terms(self, X: npt.ArrayLike) -> npt.ArrayLike:
         return self.APLRRegressor.calculate_terms(X)
@@ -216,9 +213,6 @@ class APLRRegressor:
     def get_term_coefficients(self) -> npt.ArrayLike:
         return self.APLRRegressor.get_term_coefficients()
 
-    def get_term_coefficient_steps(self, term_index: int) -> npt.ArrayLike:
-        return self.APLRRegressor.get_term_coefficient_steps(term_index)
-
     def get_validation_error_steps(self) -> npt.ArrayLike:
         return self.APLRRegressor.get_validation_error_steps()
 
@@ -228,22 +222,19 @@ class APLRRegressor:
     def get_intercept(self) -> float:
         return self.APLRRegressor.get_intercept()
 
-    def get_intercept_steps(self) -> npt.ArrayLike:
-        return self.APLRRegressor.get_intercept_steps()
-
     def get_optimal_m(self) -> int:
         return self.APLRRegressor.get_optimal_m()
 
     def get_validation_tuning_metric(self) -> str:
         return self.APLRRegressor.get_validation_tuning_metric()
 
-    def get_validation_indexes(self) -> List[int]:
-        return self.APLRRegressor.get_validation_indexes()
-
     def get_coefficient_shape_function(
         self, predictor_index: int
     ) -> Dict[float, float]:
         return self.APLRRegressor.get_coefficient_shape_function(predictor_index)
+
+    def get_cv_error(self) -> float:
+        return self.APLRRegressor.get_cv_error()
 
     # For sklearn
     def get_params(self, deep=True):
@@ -254,7 +245,7 @@ class APLRRegressor:
             "loss_function": self.loss_function,
             "link_function": self.link_function,
             "n_jobs": self.n_jobs,
-            "validation_ratio": self.validation_ratio,
+            "cv_folds": self.cv_folds,
             "bins": self.bins,
             "max_interaction_level": self.max_interaction_level,
             "max_interactions": self.max_interactions,
@@ -270,7 +261,6 @@ class APLRRegressor:
             "calculate_custom_negative_gradient_function": self.calculate_custom_negative_gradient_function,
             "calculate_custom_transform_linear_predictor_to_predictions_function": self.calculate_custom_transform_linear_predictor_to_predictions_function,
             "calculate_custom_differentiate_predictions_wrt_linear_predictor_function": self.calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
-            "boosting_steps_before_pruning_is_done": self.boosting_steps_before_pruning_is_done,
             "boosting_steps_before_interactions_are_allowed": self.boosting_steps_before_interactions_are_allowed,
             "monotonic_constraints_ignore_interactions": self.monotonic_constraints_ignore_interactions,
             "group_mse_by_prediction_bins": self.group_mse_by_prediction_bins,
@@ -292,7 +282,7 @@ class APLRClassifier:
         v: float = 0.1,
         random_state: int = 0,
         n_jobs: int = 0,
-        validation_ratio: float = 0.2,
+        cv_folds: int = 5,
         bins: int = 300,
         verbosity: int = 0,
         max_interaction_level: int = 1,
@@ -300,7 +290,6 @@ class APLRClassifier:
         min_observations_in_split: int = 20,
         ineligible_boosting_steps_added: int = 10,
         max_eligible_terms: int = 5,
-        boosting_steps_before_pruning_is_done: int = 0,
         boosting_steps_before_interactions_are_allowed: int = 0,
         monotonic_constraints_ignore_interactions: bool = False,
     ):
@@ -308,7 +297,7 @@ class APLRClassifier:
         self.v = v
         self.random_state = random_state
         self.n_jobs = n_jobs
-        self.validation_ratio = validation_ratio
+        self.cv_folds = cv_folds
         self.bins = bins
         self.verbosity = verbosity
         self.max_interaction_level = max_interaction_level
@@ -316,9 +305,6 @@ class APLRClassifier:
         self.min_observations_in_split = min_observations_in_split
         self.ineligible_boosting_steps_added = ineligible_boosting_steps_added
         self.max_eligible_terms = max_eligible_terms
-        self.boosting_steps_before_pruning_is_done = (
-            boosting_steps_before_pruning_is_done
-        )
         self.boosting_steps_before_interactions_are_allowed = (
             boosting_steps_before_interactions_are_allowed
         )
@@ -336,7 +322,7 @@ class APLRClassifier:
         self.APLRClassifier.v = self.v
         self.APLRClassifier.random_state = self.random_state
         self.APLRClassifier.n_jobs = self.n_jobs
-        self.APLRClassifier.validation_ratio = self.validation_ratio
+        self.APLRClassifier.cv_folds = self.cv_folds
         self.APLRClassifier.bins = self.bins
         self.APLRClassifier.verbosity = self.verbosity
         self.APLRClassifier.max_interaction_level = self.max_interaction_level
@@ -346,9 +332,6 @@ class APLRClassifier:
             self.ineligible_boosting_steps_added
         )
         self.APLRClassifier.max_eligible_terms = self.max_eligible_terms
-        self.APLRClassifier.boosting_steps_before_pruning_is_done = (
-            self.boosting_steps_before_pruning_is_done
-        )
         self.APLRClassifier.boosting_steps_before_interactions_are_allowed = (
             self.boosting_steps_before_interactions_are_allowed
         )
@@ -362,7 +345,7 @@ class APLRClassifier:
         y: List[str],
         sample_weight: npt.ArrayLike = np.empty(0),
         X_names: List[str] = [],
-        validation_set_indexes: List[int] = [],
+        cv_observations: npt.ArrayLike = np.empty([0, 0]),
         prioritized_predictors_indexes: List[int] = [],
         monotonic_constraints: List[int] = [],
         interaction_constraints: List[List[int]] = [],
@@ -373,7 +356,7 @@ class APLRClassifier:
             y,
             sample_weight,
             X_names,
-            validation_set_indexes,
+            cv_observations,
             prioritized_predictors_indexes,
             monotonic_constraints,
             interaction_constraints,
@@ -391,8 +374,8 @@ class APLRClassifier:
     ) -> List[str]:
         return self.APLRClassifier.predict(X, cap_predictions_to_minmax_in_training)
 
-    def calculate_local_feature_importance(self, X: npt.ArrayLike) -> npt.ArrayLike:
-        return self.APLRClassifier.calculate_local_feature_importance(X)
+    def calculate_local_feature_contribution(self, X: npt.ArrayLike) -> npt.ArrayLike:
+        return self.APLRClassifier.calculate_local_feature_contribution(X)
 
     def get_categories(self) -> List[str]:
         return self.APLRClassifier.get_categories()
@@ -400,14 +383,11 @@ class APLRClassifier:
     def get_logit_model(self, category: str) -> APLRRegressor:
         return self.APLRClassifier.get_logit_model(category)
 
-    def get_validation_indexes(self) -> List[int]:
-        return self.APLRClassifier.get_validation_indexes()
-
     def get_validation_error_steps(self) -> npt.ArrayLike:
         return self.APLRClassifier.get_validation_error_steps()
 
-    def get_validation_error(self) -> float:
-        return self.APLRClassifier.get_validation_error()
+    def get_cv_error(self) -> float:
+        return self.APLRClassifier.get_cv_error()
 
     def get_feature_importance(self) -> npt.ArrayLike:
         return self.APLRClassifier.get_feature_importance()
@@ -419,7 +399,7 @@ class APLRClassifier:
             "v": self.v,
             "random_state": self.random_state,
             "n_jobs": self.n_jobs,
-            "validation_ratio": self.validation_ratio,
+            "cv_folds": self.cv_folds,
             "bins": self.bins,
             "verbosity": self.verbosity,
             "max_interaction_level": self.max_interaction_level,
@@ -427,7 +407,6 @@ class APLRClassifier:
             "min_observations_in_split": self.min_observations_in_split,
             "ineligible_boosting_steps_added": self.ineligible_boosting_steps_added,
             "max_eligible_terms": self.max_eligible_terms,
-            "boosting_steps_before_pruning_is_done": self.boosting_steps_before_pruning_is_done,
             "boosting_steps_before_interactions_are_allowed": self.boosting_steps_before_interactions_are_allowed,
             "monotonic_constraints_ignore_interactions": self.monotonic_constraints_ignore_interactions,
         }

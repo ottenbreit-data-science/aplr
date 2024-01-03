@@ -2,7 +2,7 @@
 Automatic Piecewise Linear Regression.
 
 # About
-Build predictive and interpretable parametric regression or classification machine learning models in Python based on the Automatic Piecewise Linear Regression (APLR) methodology developed by Mathias von Ottenbreit. APLR is often able to compete with Random Forest on predictiveness, but unlike Random Forest and other tree-based methods APLR is interpretable. See the ***documentation*** folder for more information. 
+Build predictive and interpretable parametric regression or classification machine learning models in Python based on the Automatic Piecewise Linear Regression (APLR) methodology developed by Mathias von Ottenbreit. APLR is often able to compete with tree-based methods on predictiveness, but unlike tree-based methods APLR is interpretable. See the ***documentation*** folder for more information. 
 
 # How to install
 ***pip install aplr***

@@ -83,29 +83,39 @@ public:
         VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
         VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
 
-        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 0.5)};
+        // VectorXd sample_weight{VectorXd(0)};
 
         VectorXi group{X_train.col(0).cast<int>()};
         // VectorXi group{VectorXi::Constant(20,1)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         // model.fit(X_train,y_train,sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         model.fit(X_train, y_train, sample_weight, {}, {}, {}, {}, group);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 20.4941, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 19.8552, 0.00001));
     }
 
     void test_aplrregressor_cauchy_group_mse_by_prediction_validation()
@@ -136,24 +146,33 @@ public:
 
         VectorXi group{X_train.col(0).cast<int>()};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         // model.fit(X_train,y_train,sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         model.fit(X_train, y_train, sample_weight, {}, {}, {}, {}, group);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 20.4941, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 19.2927, 0.00001));
     }
 
     void test_aplrregressor_cauchy()
@@ -182,23 +201,32 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         model.fit(X_train, y_train, sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train, y_train, sample_weight, {}, cv_observations);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 20.8752, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 20.8771, 0.00001));
     }
 
     void test_aplrregressor_custom_loss_and_validation()
@@ -220,7 +248,6 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "custom_function";
-        model.boosting_steps_before_pruning_is_done = 100;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -230,31 +257,36 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         // model.fit(X_train,y_train,sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
-        std::vector<size_t> validation_indexes{0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)};
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
+
         std::vector<size_t> prioritized_predictor_indexes{1, 8};
-        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes, {}, VectorXi(0), {}, X_train);
-        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes, {}, VectorXi(0), {}, X_train);
+        model.fit(X_train, y_train, sample_weight, {}, cv_observations, prioritized_predictor_indexes, {}, VectorXi(0), {}, X_train);
+        model.fit(X_train, y_train, sample_weight, {}, cv_observations, prioritized_predictor_indexes, {}, VectorXi(0), {}, X_train);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.6854, 0.00001));
-
-        std::vector<size_t> validation_indexes_from_model{model.get_validation_indexes()};
-        bool validation_indexes_from_model_are_correct{validation_indexes_from_model == validation_indexes};
-        tests.push_back(validation_indexes_from_model_are_correct);
+        tests.push_back(is_approximately_equal(predictions.mean(), 30.25, 0.00001));
     }
 
     void test_aplrregressor_custom_loss()
@@ -283,31 +315,36 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         // model.fit(X_train,y_train,sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
-        std::vector<size_t> validation_indexes{0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)};
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
+
         std::vector<size_t> prioritized_predictor_indexes{1, 8};
-        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes, {}, VectorXi(0), {}, X_train);
-        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes, {}, VectorXi(0), {}, X_train);
+        model.fit(X_train, y_train, sample_weight, {}, cv_observations, prioritized_predictor_indexes, {}, VectorXi(0), {}, X_train);
+        model.fit(X_train, y_train, sample_weight, {}, cv_observations, prioritized_predictor_indexes, {}, VectorXi(0), {}, X_train);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.685, 0.00001));
-
-        std::vector<size_t> validation_indexes_from_model{model.get_validation_indexes()};
-        bool validation_indexes_from_model_are_correct{validation_indexes_from_model == validation_indexes};
-        tests.push_back(validation_indexes_from_model_are_correct);
+        tests.push_back(is_approximately_equal(predictions.mean(), 30.25, 0.00001));
     }
 
     void test_aplrregressor_gamma_custom_link()
@@ -337,23 +374,32 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         model.fit(X_train, y_train, sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.6098, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.5068, 0.00001));
     }
 
     void test_aplrregressor_gamma_custom_validation()
@@ -383,23 +429,32 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         model.fit(X_train, y_train, sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.6503, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.5324, 0.00001));
     }
 
     void test_aplrregressor_gamma_gini_weighted()
@@ -428,23 +483,32 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         model.fit(X_train, y_train, sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.6507, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.1358, 0.00001));
     }
 
     void test_aplrregressor_gamma_gini()
@@ -473,113 +537,32 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         model.fit(X_train, y_train);
         // model.fit(X_train,y_train,sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.6507, 0.00001));
-    }
-
-    void test_aplrregressor_gamma_rank_unweighted()
-    {
-        // Model
-        APLRRegressor model{APLRRegressor()};
-        model.m = 100;
-        model.v = 0.1;
-        model.bins = 300;
-        model.n_jobs = 0;
-        model.loss_function = "gamma";
-        model.link_function = "log";
-        model.verbosity = 3;
-        model.max_interaction_level = 0;
-        model.max_interactions = 1000;
-        model.min_observations_in_split = 20;
-        model.ineligible_boosting_steps_added = 10;
-        model.max_eligible_terms = 5;
-        model.validation_tuning_metric = "rankability";
-
-        // Data
-        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
-        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
-        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
-        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
-
-        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
-
-        std::cout << X_train;
-
-        // Fitting
-        model.fit(X_train, y_train);
-        // model.fit(X_train,y_train,sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
-        std::cout << "feature importance\n"
-                  << model.feature_importance << "\n\n";
-
-        VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
-
-        // Saving results
-        save_as_csv_file("data/output.csv", predictions);
-
-        std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.6581, 0.00001));
-    }
-
-    void test_aplrregressor_gamma_rank()
-    {
-        // Model
-        APLRRegressor model{APLRRegressor()};
-        model.m = 100;
-        model.v = 0.1;
-        model.bins = 300;
-        model.n_jobs = 0;
-        model.loss_function = "gamma";
-        model.link_function = "log";
-        model.verbosity = 3;
-        model.max_interaction_level = 0;
-        model.max_interactions = 1000;
-        model.min_observations_in_split = 20;
-        model.ineligible_boosting_steps_added = 10;
-        model.max_eligible_terms = 5;
-        model.validation_tuning_metric = "rankability";
-
-        // Data
-        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
-        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
-        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
-        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
-
-        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
-
-        std::cout << X_train;
-
-        // Fitting
-        // model.fit(X_train,y_train);
-        model.fit(X_train, y_train, sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
-        std::cout << "feature importance\n"
-                  << model.feature_importance << "\n\n";
-
-        VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
-
-        // Saving results
-        save_as_csv_file("data/output.csv", predictions);
-
-        std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.6581, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.1358, 0.00001));
     }
 
     void test_aplrregressor_gamma()
@@ -608,23 +591,32 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         model.fit(X_train, y_train, sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.6503, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.5324, 0.00001));
     }
 
     void test_aplrregressor_group_mse()
@@ -653,25 +645,34 @@ public:
 
         VectorXi group{X_train.col(0).cast<int>()};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         // model.fit(X_train,y_train,sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         // model.fit(X_train, y_train, VectorXd(0), {}, {}, {}, {}, group);
         model.fit(X_train, y_train, sample_weight, {}, {}, {}, {}, group);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 20.7268, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 20.8935, 0.00001));
     }
 
     void test_aplrregressor_group_mse_cycle()
@@ -709,13 +710,13 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.6325, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.5048, 0.00001));
     }
 
     void test_aplrregressor_int_constr()
@@ -742,24 +743,33 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         // model.fit(X_train,y_train,sample_weight);
-        model.fit(X_train, y_train, sample_weight, {}, {0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)}, {1, 8}, {0, 0, 1, -1, 0, 0, 0, 0, 0}, VectorXi(0),
+        model.fit(X_train, y_train, sample_weight, {}, cv_observations, {1, 8}, {0, 0, 1, -1, 0, 0, 0, 0, 0}, VectorXi(0),
                   {{1, 1, 8, 1, 8, 8}, {2, 3, 2}, {4}}, X_train);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.2848, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 30.25, 0.00001));
     }
 
     void test_aplrregressor_inversegaussian()
@@ -789,23 +799,32 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         model.fit(X_train, y_train);
         // model.fit(X_train,y_train,sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.4221, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.3027, 0.00001));
     }
 
     void test_aplrregressor_logit()
@@ -833,23 +852,32 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         model.fit(X_train, y_train, sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 0.0982856, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 0.0849744, 0.00001));
     }
 
     void test_aplrregressor_mae()
@@ -876,24 +904,33 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 0.5)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         model.fit(X_train, y_train, sample_weight);
         model.fit(X_train, y_train, sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.7639, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.5348, 0.00001));
     }
 
     void test_aplrregressor_monotonic()
@@ -920,24 +957,33 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         // model.fit(X_train,y_train,sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
-        model.fit(X_train, y_train, sample_weight, {}, {0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)}, {1, 8}, {1, 0, -1, 1, 1, 1, 1, 1, 1});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
+        model.fit(X_train, y_train, sample_weight, {}, cv_observations, {1, 8}, {1, 0, -1, 1, 1, 1, 1, 1, 1});
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 24.1329, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 30.25, 0.00001));
     }
 
     void test_aplrregressor_monotonic_ignore_interactions()
@@ -965,24 +1011,33 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         // model.fit(X_train,y_train,sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
-        model.fit(X_train, y_train, sample_weight, {}, {0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)}, {1, 8}, {1, 0, -1, 1, 1, 1, 1, 1, 1});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
+        model.fit(X_train, y_train, sample_weight, {}, cv_observations, {1, 8}, {1, 0, -1, 1, 1, 1, 1, 1, 1});
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 24.145, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 30.25, 0.00001));
     }
 
     void test_aplrregressor_negative_binomial()
@@ -1011,23 +1066,32 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         model.fit(X_train, y_train, sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 1.87605, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 1.86873, 0.00001));
     }
 
     void test_aplrregressor_poisson()
@@ -1055,23 +1119,32 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         model.fit(X_train, y_train, sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 1.89175, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 1.89258, 0.00001));
     }
 
     void test_aplrregressor_poissongamma()
@@ -1100,23 +1173,32 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         model.fit(X_train, y_train, sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 1.88766, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 1.88972, 0.00001));
     }
 
     void test_aplrregressor_quantile()
@@ -1144,74 +1226,32 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 0.5)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         model.fit(X_train, y_train, sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.9261, 0.00001));
-    }
-
-    void test_aplrregressor_rank()
-    {
-        // Model
-        APLRRegressor model{APLRRegressor()};
-        model.m = 100;
-        model.v = 1.0;
-        model.bins = 10;
-        model.n_jobs = 1;
-        model.loss_function = "mse";
-        model.verbosity = 3;
-        model.max_interaction_level = 100;
-        model.max_interactions = 30;
-        model.min_observations_in_split = 50;
-        model.ineligible_boosting_steps_added = 10;
-        model.max_eligible_terms = 5;
-        model.validation_tuning_metric = "rankability";
-
-        // Data
-        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
-        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
-        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
-        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
-
-        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
-
-        std::cout << X_train;
-
-        // Fitting
-        // model.fit(X_train,y_train);
-        // model.fit(X_train,y_train,sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
-        std::vector<size_t> validation_indexes{0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)};
-        std::vector<size_t> prioritized_predictor_indexes{1, 8};
-        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes);
-        std::cout << "feature importance\n"
-                  << model.feature_importance << "\n\n";
-
-        VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
-
-        // Saving results
-        save_as_csv_file("data/output.csv", predictions);
-
-        std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.3404, 0.00001));
-
-        std::vector<size_t> validation_indexes_from_model{model.get_validation_indexes()};
-        bool validation_indexes_from_model_are_correct{validation_indexes_from_model == validation_indexes};
-        tests.push_back(validation_indexes_from_model_are_correct);
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.6396, 0.00001));
     }
 
     void test_aplrregressor_weibull()
@@ -1240,23 +1280,32 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         model.fit(X_train, y_train, sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.6979, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.6046, 0.00001));
     }
 
     void test_aplrregressor()
@@ -1283,35 +1332,40 @@ public:
 
         VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train);
         // model.fit(X_train,y_train,sample_weight);
-        // model.fit(X_train,y_train,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
-        std::vector<size_t> validation_indexes{0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)};
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
+
         std::vector<size_t> prioritized_predictor_indexes{1, 8};
-        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes);
-        model.fit(X_train, y_train, sample_weight, {}, validation_indexes, prioritized_predictor_indexes);
+        model.fit(X_train, y_train, sample_weight, {}, cv_observations, prioritized_predictor_indexes);
+        model.fit(X_train, y_train, sample_weight, {}, cv_observations, prioritized_predictor_indexes);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_importance(X_test)};
+        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.685, 0.00001));
-
-        std::vector<size_t> validation_indexes_from_model{model.get_validation_indexes()};
-        bool validation_indexes_from_model_are_correct{validation_indexes_from_model == validation_indexes};
-        tests.push_back(validation_indexes_from_model_are_correct);
+        tests.push_back(is_approximately_equal(predictions.mean(), 30.25, 0.00001));
 
         std::map<double, double> coefficient_shape_function = model.get_coefficient_shape_function(1);
-        bool coefficient_shape_function_has_correct_length{coefficient_shape_function.size() == 24};
-        bool coefficient_shape_function_value_test{is_approximately_equal(coefficient_shape_function.begin()->second, 0.12057, 0.00001)};
+        bool coefficient_shape_function_has_correct_length{coefficient_shape_function.size() == 27};
+        bool coefficient_shape_function_value_test{is_approximately_equal(coefficient_shape_function.begin()->second, 0.04175, 0.00001)};
         tests.push_back(coefficient_shape_function_has_correct_length);
         tests.push_back(coefficient_shape_function_value_test);
     }
@@ -1350,22 +1404,31 @@ public:
             y_test_str[i] = std::to_string(y_test[i]);
         }
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
-        model.fit(X_train, y_train_str, sample_weight, {}, {0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)}, {1, 8}, {0, 0, 1, -1, 0, 0, 0, 0, 0},
+        model.fit(X_train, y_train_str, sample_weight, {}, cv_observations, {1, 8}, {0, 0, 1, -1, 0, 0, 0, 0, 0},
                   {{1, 1, 8, 1, 8, 8}, {2, 3}, {4}});
-        model.fit(X_train, y_train_str, sample_weight, {}, {0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)}, {1, 8}, {0, 0, 1, -1, 0, 0, 0, 0, 0},
+        model.fit(X_train, y_train_str, sample_weight, {}, cv_observations, {1, 8}, {0, 0, 1, -1, 0, 0, 0, 0, 0},
                   {{1, 1, 8, 1, 8, 8}, {2, 3}, {4}});
         MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
         std::vector<std::string> predictions{model.predict(X_test, false)};
 
-        MatrixXd local_feature_importance{model.calculate_local_feature_importance(X_test)};
-        MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_importance(X_test)};
-        MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_importance(X_test)};
-        MatrixXd lfi_model3{model.get_logit_model("2.000000").calculate_local_feature_importance(X_test)};
-        MatrixXd lfi_model4{model.get_logit_model("3.000000").calculate_local_feature_importance(X_test)};
-        MatrixXd lfi_model5{model.get_logit_model("4.000000").calculate_local_feature_importance(X_test)};
+        MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
+        MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
+        MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
+        MatrixXd lfi_model3{model.get_logit_model("2.000000").calculate_local_feature_contribution(X_test)};
+        MatrixXd lfi_model4{model.get_logit_model("3.000000").calculate_local_feature_contribution(X_test)};
+        MatrixXd lfi_model5{model.get_logit_model("4.000000").calculate_local_feature_contribution(X_test)};
 
         VectorXd feature_importance{model.get_feature_importance()};
         VectorXd feature_importance_model1{model.get_logit_model("0.000000").get_feature_importance()};
@@ -1377,9 +1440,9 @@ public:
         double feature_importance_mae = (feature_importance - feature_importance_correct).cwiseAbs().mean();
         tests.push_back(is_approximately_zero(feature_importance_mae));
 
-        std::cout << "validation_error\n"
-                  << model.get_validation_error() << "\n\n";
-        tests.push_back(is_approximately_equal(model.get_validation_error(), 0.111216, 0.000001));
+        std::cout << "cv_error\n"
+                  << model.get_cv_error() << "\n\n";
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.246476719, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -1387,7 +1450,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.160147, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.15805047, 0.00001));
     }
 
     void test_aplrclassifier_multi_class()
@@ -1423,23 +1486,32 @@ public:
             y_test_str[i] = std::to_string(y_test[i]);
         }
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train_str);
         model.fit(X_train, y_train_str, sample_weight);
         model.fit(X_train, y_train_str, sample_weight);
         // model.fit(X_train,y_train_str,sample_weight);
-        // model.fit(X_train,y_train_str,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train,y_train_str,sample_weight,{},cv_observations);
         MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
         std::vector<std::string> predictions{model.predict(X_test, false)};
 
-        MatrixXd local_feature_importance{model.calculate_local_feature_importance(X_test)};
-        MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_importance(X_test)};
-        MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_importance(X_test)};
-        MatrixXd lfi_model3{model.get_logit_model("2.000000").calculate_local_feature_importance(X_test)};
-        MatrixXd lfi_model4{model.get_logit_model("3.000000").calculate_local_feature_importance(X_test)};
-        MatrixXd lfi_model5{model.get_logit_model("4.000000").calculate_local_feature_importance(X_test)};
+        MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
+        MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
+        MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
+        MatrixXd lfi_model3{model.get_logit_model("2.000000").calculate_local_feature_contribution(X_test)};
+        MatrixXd lfi_model4{model.get_logit_model("3.000000").calculate_local_feature_contribution(X_test)};
+        MatrixXd lfi_model5{model.get_logit_model("4.000000").calculate_local_feature_contribution(X_test)};
 
         VectorXd feature_importance{model.get_feature_importance()};
         VectorXd feature_importance_model1{model.get_logit_model("0.000000").get_feature_importance()};
@@ -1452,8 +1524,8 @@ public:
         tests.push_back(is_approximately_zero(feature_importance_mae));
 
         std::cout << "validation_error\n"
-                  << model.get_validation_error() << "\n\n";
-        tests.push_back(is_approximately_equal(model.get_validation_error(), 0.200986, 0.000001));
+                  << model.get_cv_error() << "\n\n";
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.22771659413507309, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -1461,7 +1533,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.171638, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.15462763289863407, 0.00001));
     }
 
     void test_aplrclassifier_two_class_other_params()
@@ -1498,23 +1570,32 @@ public:
             y_test_str[i] = std::to_string(y_test[i]);
         }
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train_str);
-        model.fit(X_train, y_train_str, sample_weight, {}, {0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)}, {1, 8}, {0, 0, 1, -1, 0, 0, 0, 0, 0},
+        model.fit(X_train, y_train_str, sample_weight, {}, cv_observations, {1, 8}, {0, 0, 1, -1, 0, 0, 0, 0, 0},
                   {{1, 1, 8, 1, 8, 8}, {2, 3}, {4}});
-        model.fit(X_train, y_train_str, sample_weight, {}, {0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)}, {1, 8}, {0, 0, 1, -1, 0, 0, 0, 0, 0},
+        model.fit(X_train, y_train_str, sample_weight, {}, cv_observations, {1, 8}, {0, 0, 1, -1, 0, 0, 0, 0, 0},
                   {{1, 1, 8, 1, 8, 8}, {2, 3}, {4}});
         MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
         std::vector<std::string> predictions{model.predict(X_test, false)};
-        MatrixXd local_feature_importance{model.calculate_local_feature_importance(X_test)};
-        // MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_importance(X_test)};
-        // MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_importance(X_test)};
+        MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
 
-        std::cout << "validation_error\n"
-                  << model.get_validation_error() << "\n\n";
-        tests.push_back(is_approximately_equal(model.get_validation_error(), 0.022242, 0.000001));
+        std::cout << "cv_error\n"
+                  << model.get_cv_error() << "\n\n";
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.29875044672505785, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -1522,7 +1603,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.205557, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.15288015457447063, 0.00001));
     }
 
     void test_aplrclassifier_two_class_val_index()
@@ -1539,7 +1620,6 @@ public:
         model.min_observations_in_split = 20;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
-        model.boosting_steps_before_pruning_is_done = 30;
         model.boosting_steps_before_interactions_are_allowed = 50;
 
         // Data
@@ -1560,22 +1640,31 @@ public:
             y_test_str[i] = std::to_string(y_test[i]);
         }
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train_str);
         // model.fit(X_train,y_train_str,sample_weight);
-        model.fit(X_train, y_train_str, sample_weight, {}, {0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)});
-        model.fit(X_train, y_train_str, sample_weight, {}, {0, 1, 2, 3, 4, 5, 10, static_cast<size_t>(y_train.size() - 1)});
+        model.fit(X_train, y_train_str, sample_weight, {}, cv_observations);
+        model.fit(X_train, y_train_str, sample_weight, {}, cv_observations);
         MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
         std::vector<std::string> predictions{model.predict(X_test, false)};
-        MatrixXd local_feature_importance{model.calculate_local_feature_importance(X_test)};
-        // MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_importance(X_test)};
-        // MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_importance(X_test)};
+        MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
 
-        std::cout << "validation_error\n"
-                  << model.get_validation_error() << "\n\n";
-        tests.push_back(is_approximately_equal(model.get_validation_error(), 0.0192955, 0.000001));
+        std::cout << "cv_error\n"
+                  << model.get_cv_error() << "\n\n";
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.27830802806385846, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -1583,7 +1672,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.141068, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.12155125799010527, 0.00001));
     }
 
     void test_aplrclassifier_two_class()
@@ -1619,22 +1708,31 @@ public:
             y_test_str[i] = std::to_string(y_test[i]);
         }
 
-        std::cout << X_train;
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
 
         // Fitting
         // model.fit(X_train,y_train_str);
         model.fit(X_train, y_train_str, sample_weight);
         model.fit(X_train, y_train_str, sample_weight);
-        // model.fit(X_train,y_train_str,sample_weight,{},{0,1,2,3,4,5,10,static_cast<size_t>(y_train.size()-1)});
+        // model.fit(X_train, y_train_str, sample_weight, {}, cv_observations);
         MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
         std::vector<std::string> predictions{model.predict(X_test, false)};
-        MatrixXd local_feature_importance{model.calculate_local_feature_importance(X_test)};
-        // MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_importance(X_test)};
-        // MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_importance(X_test)};
+        MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
 
-        std::cout << "validation_error\n"
-                  << model.get_validation_error() << "\n\n";
-        tests.push_back(is_approximately_equal(model.get_validation_error(), 0.128396, 0.000001));
+        std::cout << "cv_error\n"
+                  << model.get_cv_error() << "\n\n";
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.16491496201017047, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -1642,7 +1740,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.130206, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.12567194593990993, 0.00001));
     }
 
     void test_functions()
@@ -1700,21 +1798,9 @@ public:
         VectorXd y_true(3);
         VectorXd weights_equal(3);
         VectorXd weights_different(3);
-        VectorXd y_pred_good(3);
-        VectorXd y_pred_bad(3);
         y_true << 1.0, 2.0, 3.0;
         weights_equal << 1, 1, 1;
         weights_different << 0, 0.5, 0.75;
-        y_pred_good << -1.0, 2.0, 4.0;
-        y_pred_bad << 4.0, 3.0, -1.0;
-        double rankability_good_ew{calculate_rankability(y_true, y_pred_good, weights_equal)};
-        double rankability_bad_ew{calculate_rankability(y_true, y_pred_bad, weights_equal)};
-        double rankability_good_dw{calculate_rankability(y_true, y_pred_good, weights_different)};
-        double rankability_bad_dw{calculate_rankability(y_true, y_pred_bad, weights_different)};
-        tests.push_back(is_approximately_equal(rankability_good_ew, 1.0));
-        tests.push_back(is_approximately_equal(rankability_bad_ew, 0.0));
-        tests.push_back(is_approximately_equal(rankability_good_dw, 1.0));
-        tests.push_back(is_approximately_equal(rankability_bad_dw, 0.0));
 
         VectorXd y_integration(3);
         VectorXd x_integration(3);
@@ -1840,8 +1926,6 @@ int main()
     tests.test_aplrregressor_gamma_custom_validation();
     tests.test_aplrregressor_gamma_gini_weighted();
     tests.test_aplrregressor_gamma_gini();
-    tests.test_aplrregressor_gamma_rank_unweighted();
-    tests.test_aplrregressor_gamma_rank();
     tests.test_aplrregressor_gamma();
     tests.test_aplrregressor_group_mse();
     tests.test_aplrregressor_group_mse_cycle();
@@ -1855,7 +1939,6 @@ int main()
     tests.test_aplrregressor_poisson();
     tests.test_aplrregressor_poissongamma();
     tests.test_aplrregressor_quantile();
-    tests.test_aplrregressor_rank();
     tests.test_aplrregressor_weibull();
     tests.test_aplrregressor();
     tests.test_aplr_classifier_multi_class_other_params();
