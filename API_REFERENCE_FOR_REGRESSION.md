@@ -175,9 +175,9 @@ If ***True*** then predictions are capped so that they are not less than the min
 A list of strings containing names for each predictor in the ***X*** matrix that the model was trained on.
 
 
-## Method: calculate_local_feature_contribution(X:npt.ArrayLike)
+## Method: calculate_feature_importance(X:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0))
 
-***Returns a numpy matrix containing local feature importance for new data by each predictor in X.***
+***Returns a numpy matrix containing estimated feature importance in X for each predictor.***
 
 ### Parameters
 
@@ -185,9 +185,29 @@ A list of strings containing names for each predictor in the ***X*** matrix that
 A numpy matrix with predictor values.
 
 
-## Method: calculate_local_feature_contribution_for_terms(X:npt.ArrayLike)
+## Method: calculate_term_importance(X:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0))
 
-***Returns a numpy matrix containing local feature importance for new data by each term in the model.***
+***Returns a numpy matrix containing estimated term importance in X for each term in the model.***
+
+### Parameters
+
+#### X
+A numpy matrix with predictor values.
+
+
+## Method: calculate_local_feature_contribution(X:npt.ArrayLike)
+
+***Returns a numpy matrix containing estimated feature contribution to the linear predictor in X for each predictor.***
+
+### Parameters
+
+#### X
+A numpy matrix with predictor values.
+
+
+## Method: calculate_local_term_contribution(X:npt.ArrayLike)
+
+***Returns a numpy matrix containing term contribution to the linear predictor in X for each term in the model.***
 
 ### Parameters
 
@@ -232,17 +252,16 @@ The index of the term selected. So ***0*** is the first term, ***1*** is the sec
 
 ## Method: get_feature_importance()
 
-***Returns a numpy vector containing the feature importance of each predictor.***
+***Returns a numpy vector containing the estimated feature importance in the training data for each predictor.***
+
+## Method: get_term_importance()
+
+***Returns a numpy vector containing the estimated feature importance in the training data for each term.***
 
 
 ## Method: get_intercept()
 
 ***Returns the regression coefficient of the intercept term.***
-
-
-## Method: get_intercept_steps()
-
-***Returns a numpy vector containing the regression coefficients of the intercept term by boosting step.***
 
 
 ## Method: get_optimal_m()

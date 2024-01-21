@@ -79,7 +79,7 @@ categories = (
 # for example to inspect which terms are in the model.
 logit_model_for_class_1 = best_model.get_logit_model(category="1")
 
-# Estimated feature importance on the validation set, average of the underlying logit models.
+# Estimated feature importance in the training data, average of the underlying logit models.
 estimated_feature_importance = pd.DataFrame(
     {"predictor": predictors, "importance": best_model.get_feature_importance()}
 )

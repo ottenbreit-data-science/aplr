@@ -116,6 +116,19 @@ public:
 
         std::cout << predictions.mean() << "\n\n";
         tests.push_back(is_approximately_equal(predictions.mean(), 19.8552, 0.00001));
+
+        double feature_importance_mean{model.get_feature_importance().mean()};
+        double term_importance_mean{model.get_term_importance().mean()};
+        double feature_importance_first{model.get_feature_importance()[0]};
+        double term_importance_first{model.get_term_importance()[0]};
+        std::cout << feature_importance_mean << "\n\n";
+        std::cout << term_importance_mean << "\n\n";
+        std::cout << feature_importance_first << "\n\n";
+        std::cout << term_importance_first << "\n\n";
+        tests.push_back(is_approximately_equal(feature_importance_mean, 0.378205, 0.00001));
+        tests.push_back(is_approximately_equal(term_importance_mean, 0.128432, 0.00001));
+        tests.push_back(is_approximately_equal(feature_importance_first, 0.737975, 0.00001));
+        tests.push_back(is_approximately_equal(term_importance_first, 1.04316, 0.00001));
     }
 
     void test_aplrregressor_cauchy_group_mse_by_prediction_validation()

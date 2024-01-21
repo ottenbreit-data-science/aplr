@@ -196,13 +196,21 @@ class APLRRegressor:
     def set_term_names(self, X_names: List[str]):
         self.APLRRegressor.set_term_names(X_names)
 
+    def calculate_feature_importance(
+        self, X: npt.ArrayLike, sample_weight: npt.ArrayLike = np.empty(0)
+    ) -> npt.ArrayLike:
+        return self.APLRRegressor.calculate_feature_importance(X, sample_weight)
+
+    def calculate_term_importance(
+        self, X: npt.ArrayLike, sample_weight: npt.ArrayLike = np.empty(0)
+    ) -> npt.ArrayLike:
+        return self.APLRRegressor.calculate_term_importance(X, sample_weight)
+
     def calculate_local_feature_contribution(self, X: npt.ArrayLike) -> npt.ArrayLike:
         return self.APLRRegressor.calculate_local_feature_contribution(X)
 
-    def calculate_local_feature_contribution_for_terms(
-        self, X: npt.ArrayLike
-    ) -> npt.ArrayLike:
-        return self.APLRRegressor.calculate_local_feature_contribution_for_terms(X)
+    def calculate_local_term_contribution(self, X: npt.ArrayLike) -> npt.ArrayLike:
+        return self.APLRRegressor.calculate_local_term_contribution(X)
 
     def calculate_terms(self, X: npt.ArrayLike) -> npt.ArrayLike:
         return self.APLRRegressor.calculate_terms(X)
@@ -218,6 +226,9 @@ class APLRRegressor:
 
     def get_feature_importance(self) -> npt.ArrayLike:
         return self.APLRRegressor.get_feature_importance()
+
+    def get_term_importance(self) -> npt.ArrayLike:
+        return self.APLRRegressor.get_term_importance()
 
     def get_intercept(self) -> float:
         return self.APLRRegressor.get_intercept()

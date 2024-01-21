@@ -40,14 +40,16 @@ param_grid = ParameterGrid(
     }
 )
 best_model = None
-loss_function = "mse"  # other available families are binomial, poisson, gamma, tweedie, group_mse, mae, quantile, negative_binomial, cauchy and weibull.
-link_function = "identity"  # other available link functions are logit and log.
+loss_function = "mse"  # other available loss functions are binomial, poisson, gamma, tweedie, group_mse, mae, quantile, negative_binomial, cauchy, weibull and custom_function.
+link_function = (
+    "identity"  # other available link functions are logit, log and custom_function.
+)
 for params in param_grid:
     model = APLRRegressor(
         random_state=random_state,
         verbosity=2,
         m=1000,
-        v=0.01,
+        v=0.1,
         loss_function=loss_function,
         link_function=link_function,
         **params
@@ -82,12 +84,21 @@ terms = pd.DataFrame(
     }
 )
 
-# Estimated feature importance was estimated on the validation set when the best model was trained
+# Estimated feature importance in the training data
 estimated_feature_importance = pd.DataFrame(
     {"predictor": predictors, "importance": best_model.get_feature_importance()}
 )
 estimated_feature_importance = estimated_feature_importance.sort_values(
     by="importance", ascending=False
+)
+
+# Estimated term importance in the training data
+term_names_excluding_intercept = best_model.get_term_names()[1:]
+estimated_term_importance = pd.DataFrame(
+    {
+        "term": term_names_excluding_intercept,
+        "importance": best_model.get_term_importance(),
+    }
 )
 
 # Coefficient shape for the third predictor. Will be empty if the third predictor is not used as a main effect in the model
@@ -114,16 +125,41 @@ goodness_of_fit = pd.DataFrame(
 )
 goodness_of_fit["r_squared"] = goodness_of_fit["correlation"] ** 2
 
-# Local feature contribution for each prediction
-term_names_excluding_intercept = best_model.get_term_names()[1:]
-local_feature_contribution_of_each_term = pd.DataFrame(
-    best_model.calculate_local_feature_contribution_for_terms(data_test[predictors]),
-    columns=term_names_excluding_intercept,
+# Estimated feature importance in the test set
+estimated_feature_importance_in_test_set = pd.DataFrame(
+    {
+        "predictor": predictors,
+        "importance": best_model.calculate_feature_importance(data_test[predictors]),
+    }
 )
-estimated_local_feature_contribution_of_each_original_predictor = pd.DataFrame(
+estimated_feature_importance_in_test_set = (
+    estimated_feature_importance_in_test_set.sort_values(
+        by="importance", ascending=False
+    )
+)
+
+# Estimated term importance in the test set
+estimated_term_importance_in_test_set = pd.DataFrame(
+    {
+        "term": term_names_excluding_intercept,
+        "importance": best_model.calculate_term_importance(data_test[predictors]),
+    }
+)
+estimated_term_importance_in_test_set = (
+    estimated_term_importance_in_test_set.sort_values(by="importance", ascending=False)
+)
+
+
+# Local contribution for each prediction in the test set
+estimated_local_feature_contribution = pd.DataFrame(
     best_model.calculate_local_feature_contribution(data_test[predictors]),
     columns=predictors,
 )
+local_term_contribution = pd.DataFrame(
+    best_model.calculate_local_term_contribution(data_test[predictors]),
+    columns=term_names_excluding_intercept,
+)
+
 
 # Calculate terms on test data
 calculated_terms = pd.DataFrame(

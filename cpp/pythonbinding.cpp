@@ -49,13 +49,16 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::call_guard<py::scoped_ostream_redirect, py::scoped_estream_redirect>())
         .def("predict", &APLRRegressor::predict, py::arg("X"), py::arg("bool cap_predictions_to_minmax_in_training") = true)
         .def("set_term_names", &APLRRegressor::set_term_names, py::arg("X_names"))
+        .def("calculate_feature_importance", &APLRRegressor::calculate_feature_importance, py::arg("X"), py::arg("sample_weight") = VectorXd(0))
+        .def("calculate_term_importance", &APLRRegressor::calculate_term_importance, py::arg("X"), py::arg("sample_weight") = VectorXd(0))
         .def("calculate_local_feature_contribution", &APLRRegressor::calculate_local_feature_contribution, py::arg("X"))
-        .def("calculate_local_feature_contribution_for_terms", &APLRRegressor::calculate_local_feature_contribution_for_terms, py::arg("X"))
+        .def("calculate_local_term_contribution", &APLRRegressor::calculate_local_term_contribution, py::arg("X"))
         .def("calculate_terms", &APLRRegressor::calculate_terms, py::arg("X"))
         .def("get_term_names", &APLRRegressor::get_term_names)
         .def("get_term_coefficients", &APLRRegressor::get_term_coefficients)
         .def("get_validation_error_steps", &APLRRegressor::get_validation_error_steps)
         .def("get_feature_importance", &APLRRegressor::get_feature_importance)
+        .def("get_term_importance", &APLRRegressor::get_term_importance)
         .def("get_intercept", &APLRRegressor::get_intercept)
         .def("get_optimal_m", &APLRRegressor::get_optimal_m)
         .def("get_validation_tuning_metric", &APLRRegressor::get_validation_tuning_metric)
@@ -84,6 +87,7 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def_readwrite("max_eligible_terms", &APLRRegressor::max_eligible_terms)
         .def_readwrite("number_of_base_terms", &APLRRegressor::number_of_base_terms)
         .def_readwrite("feature_importance", &APLRRegressor::feature_importance)
+        .def_readwrite("term_importance", &APLRRegressor::term_importance)
         .def_readwrite("dispersion_parameter", &APLRRegressor::dispersion_parameter)
         .def_readwrite("min_training_prediction_or_response", &APLRRegressor::min_training_prediction_or_response)
         .def_readwrite("max_training_prediction_or_response", &APLRRegressor::max_training_prediction_or_response)
@@ -107,9 +111,9 @@ PYBIND11_MODULE(aplr_cpp, m)
                                       a.interactions_eligible, a.min_observations_in_split, a.ineligible_boosting_steps_added, a.max_eligible_terms,
                                       a.number_of_base_terms, a.feature_importance, a.dispersion_parameter, a.min_training_prediction_or_response,
                                       a.max_training_prediction_or_response, a.validation_tuning_metric, a.quantile, a.m_optimal,
-                                      a.intercept_steps, a.boosting_steps_before_interactions_are_allowed,
+                                      a.boosting_steps_before_interactions_are_allowed,
                                       a.monotonic_constraints_ignore_interactions, a.group_mse_by_prediction_bins,
-                                      a.group_mse_cycle_min_obs_in_bin, a.cv_error);
+                                      a.group_mse_cycle_min_obs_in_bin, a.cv_error, a.term_importance);
             },
             [](py::tuple t) { // __setstate__
                 if (t.size() != 34)
@@ -144,12 +148,12 @@ PYBIND11_MODULE(aplr_cpp, m)
                 std::string validation_tuning_metric = t[25].cast<std::string>();
                 double quantile = t[26].cast<double>();
                 size_t m_optimal = t[27].cast<size_t>();
-                VectorXd intercept_steps = t[28].cast<VectorXd>();
-                size_t boosting_steps_before_interactions_are_allowed = t[29].cast<size_t>();
-                bool monotonic_constraints_ignore_interactions = t[30].cast<bool>();
-                size_t group_mse_by_prediction_bins = t[31].cast<size_t>();
-                size_t group_mse_cycle_min_obs_in_bin = t[32].cast<size_t>();
-                double cv_error = t[33].cast<double>();
+                size_t boosting_steps_before_interactions_are_allowed = t[28].cast<size_t>();
+                bool monotonic_constraints_ignore_interactions = t[29].cast<bool>();
+                size_t group_mse_by_prediction_bins = t[30].cast<size_t>();
+                size_t group_mse_cycle_min_obs_in_bin = t[31].cast<size_t>();
+                double cv_error = t[32].cast<double>();
+                VectorXd term_importance = t[33].cast<VectorXd>();
 
                 APLRRegressor a(m, v, random_state, loss_function, link_function, n_jobs, cv_folds, 100, bins, verbosity, max_interaction_level,
                                 max_interactions, min_observations_in_split, ineligible_boosting_steps_added, max_eligible_terms, dispersion_parameter,
@@ -165,12 +169,12 @@ PYBIND11_MODULE(aplr_cpp, m)
                 a.min_training_prediction_or_response = min_training_prediction_or_response;
                 a.max_training_prediction_or_response = max_training_prediction_or_response;
                 a.m_optimal = m_optimal;
-                a.intercept_steps = intercept_steps;
                 a.boosting_steps_before_interactions_are_allowed = boosting_steps_before_interactions_are_allowed;
                 a.monotonic_constraints_ignore_interactions = monotonic_constraints_ignore_interactions;
                 a.group_mse_by_prediction_bins = group_mse_by_prediction_bins;
                 a.group_mse_cycle_min_obs_in_bin = group_mse_cycle_min_obs_in_bin;
                 a.cv_error = cv_error;
+                a.term_importance = term_importance;
 
                 return a;
             }));
@@ -183,14 +187,15 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def_readwrite("direction_right", &Term::direction_right)
         .def_readwrite("coefficient", &Term::coefficient)
         .def_readwrite("coefficient_steps", &Term::coefficient_steps)
+        .def_readwrite("estimated_term_importance", &Term::estimated_term_importance)
         .def(py::pickle(
             [](const Term &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
                 return py::make_tuple(a.name, a.base_term, a.given_terms, a.split_point, a.direction_right, a.coefficient, a.coefficient_steps,
-                                      a.split_point_search_errors_sum);
+                                      a.split_point_search_errors_sum, a.estimated_term_importance);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 8)
+                if (t.size() != 9)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
@@ -202,11 +207,13 @@ PYBIND11_MODULE(aplr_cpp, m)
                 double coefficient = t[5].cast<double>();
                 VectorXd coefficient_steps = t[6].cast<VectorXd>();
                 double split_point_search_errors_sum = t[7].cast<double>();
+                double estimated_term_importance = t[8].cast<double>();
 
                 Term a(base_term, given_terms, split_point, direction_right, coefficient);
                 a.name = name;
                 a.coefficient_steps = coefficient_steps;
                 a.split_point_search_errors_sum = split_point_search_errors_sum;
+                a.estimated_term_importance = estimated_term_importance;
 
                 return a;
             }));

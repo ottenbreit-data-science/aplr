@@ -101,7 +101,7 @@ Parameters are the same as in ***predict_class_probabilities()***.
 
 ## Method: calculate_local_feature_contribution(X:npt.ArrayLike)
 
-***Returns a numpy matrix containing local feature importance for new data by each predictor in X.***
+***Returns a numpy matrix containing estimated feature contribution to the linear predictor in X for each predictor.***
 
 ### Parameters
 

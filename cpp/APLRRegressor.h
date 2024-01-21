@@ -21,7 +21,6 @@ struct ModelForCVFold
     size_t m_optimal;
     double sample_weight_train_sum;
     double fold_weight;
-    VectorXd feature_importance;
     Eigen::Index fold_index;
     double min_training_prediction_or_response;
     double max_training_prediction_or_response;
@@ -70,6 +69,7 @@ private:
     std::vector<VectorXi> group_cycle_train;
     size_t group_cycle_predictor_index;
     std::vector<ModelForCVFold> cv_fold_models;
+    VectorXd intercept_steps;
 
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
@@ -125,16 +125,16 @@ private:
     void merge_similar_terms(const MatrixXd &X);
     void remove_unused_terms();
     void name_terms(const MatrixXd &X, const std::vector<std::string> &X_names);
-    void calculate_feature_importance(const MatrixXd &X, const MatrixXd &sample_weight);
     void find_min_and_max_training_predictions_or_responses();
     void write_output_to_cv_fold_models(Eigen::Index fold_index);
     void cleanup_after_fit();
     void check_term_integrity();
-    void create_final_model(const MatrixXd &X);
+    void create_final_model(const MatrixXd &X, const VectorXd &sample_weight);
     void compute_fold_weights();
     void update_intercept_and_term_weights();
     void create_terms(const MatrixXd &X);
-    void calculate_final_feature_importance();
+    void estimate_feature_and_term_importances(const MatrixXd &X, const VectorXd &sample_weight);
+    void sort_terms();
     void compute_cv_error();
     void concatenate_validation_error_steps();
     void find_final_min_and_max_training_predictions_or_responses();
@@ -160,6 +160,7 @@ private:
     void throw_error_if_m_is_invalid();
     bool model_has_not_been_trained();
     std::vector<size_t> compute_relevant_term_indexes(size_t predictor_index);
+    void validate_sample_weight(const MatrixXd &X, const VectorXd &sample_weight);
 
 public:
     double intercept;
@@ -177,7 +178,6 @@ public:
     std::vector<std::string> term_names;
     VectorXd term_coefficients;
     size_t max_interaction_level;
-    VectorXd intercept_steps;
     size_t max_interactions;
     size_t interactions_eligible;
     MatrixXd validation_error_steps;
@@ -186,6 +186,7 @@ public:
     size_t max_eligible_terms;
     size_t number_of_base_terms;
     VectorXd feature_importance;
+    VectorXd term_importance;
     double dispersion_parameter;
     double min_training_prediction_or_response;
     double max_training_prediction_or_response;
@@ -222,13 +223,16 @@ public:
              const MatrixXd &other_data = MatrixXd(0, 0));
     VectorXd predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = true);
     void set_term_names(const std::vector<std::string> &X_names);
+    VectorXd calculate_feature_importance(const MatrixXd &X, const VectorXd &sample_weight);
+    VectorXd calculate_term_importance(const MatrixXd &X, const VectorXd &sample_weight);
     MatrixXd calculate_local_feature_contribution(const MatrixXd &X);
-    MatrixXd calculate_local_feature_contribution_for_terms(const MatrixXd &X);
+    MatrixXd calculate_local_term_contribution(const MatrixXd &X);
     MatrixXd calculate_terms(const MatrixXd &X);
     std::vector<std::string> get_term_names();
     VectorXd get_term_coefficients();
     MatrixXd get_validation_error_steps();
     VectorXd get_feature_importance();
+    VectorXd get_term_importance();
     double get_intercept();
     size_t get_optimal_m();
     std::string get_validation_tuning_metric();
@@ -251,7 +255,7 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              size_t group_mse_by_prediction_bins, size_t group_mse_cycle_min_obs_in_bin)
     : reserved_terms_times_num_x{reserved_terms_times_num_x}, intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, cv_folds{cv_folds}, n_jobs{n_jobs}, random_state{random_state},
-      bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level}, intercept_steps{VectorXd(0)},
+      bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
       max_interactions{max_interactions}, interactions_eligible{0}, validation_error_steps{MatrixXd(0, 0)},
       min_observations_in_split{min_observations_in_split}, ineligible_boosting_steps_added{ineligible_boosting_steps_added},
       max_eligible_terms{max_eligible_terms}, number_of_base_terms{0}, dispersion_parameter{dispersion_parameter}, min_training_prediction_or_response{NAN_DOUBLE},
@@ -271,11 +275,12 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       loss_function{other.loss_function}, link_function{other.link_function}, cv_folds{other.cv_folds},
       n_jobs{other.n_jobs}, random_state{other.random_state}, bins{other.bins},
       verbosity{other.verbosity}, term_names{other.term_names}, term_coefficients{other.term_coefficients},
-      max_interaction_level{other.max_interaction_level}, intercept_steps{other.intercept_steps}, max_interactions{other.max_interactions},
+      max_interaction_level{other.max_interaction_level}, max_interactions{other.max_interactions},
       interactions_eligible{other.interactions_eligible}, validation_error_steps{other.validation_error_steps},
       min_observations_in_split{other.min_observations_in_split}, ineligible_boosting_steps_added{other.ineligible_boosting_steps_added},
       max_eligible_terms{other.max_eligible_terms}, number_of_base_terms{other.number_of_base_terms},
-      feature_importance{other.feature_importance}, dispersion_parameter{other.dispersion_parameter}, min_training_prediction_or_response{other.min_training_prediction_or_response},
+      feature_importance{other.feature_importance}, term_importance{other.term_importance}, dispersion_parameter{other.dispersion_parameter},
+      min_training_prediction_or_response{other.min_training_prediction_or_response},
       max_training_prediction_or_response{other.max_training_prediction_or_response}, validation_tuning_metric{other.validation_tuning_metric},
       quantile{other.quantile}, m_optimal{other.m_optimal},
       calculate_custom_validation_error_function{other.calculate_custom_validation_error_function},
@@ -310,7 +315,7 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
     {
         fit_model_for_cv_fold(X, y, sample_weight, X_names, cv_observations_used.col(i), monotonic_constraints, group, other_data, i);
     }
-    create_final_model(X);
+    create_final_model(X, sample_weight);
 }
 
 void APLRRegressor::preprocess_prioritized_predictors_and_interaction_constraints(
@@ -347,7 +352,6 @@ void APLRRegressor::fit_model_for_cv_fold(const MatrixXd &X, const VectorXd &y, 
     remove_unused_terms();
     revert_scaling_if_using_log_link_function();
     name_terms(X, X_names);
-    calculate_feature_importance(X_validation, sample_weight_validation);
     find_min_and_max_training_predictions_or_responses();
     write_output_to_cv_fold_models(fold_index);
     cleanup_after_fit();
@@ -1732,14 +1736,42 @@ std::string APLRRegressor::compute_raw_base_term_name(const Term &term, const st
     return name;
 }
 
-void APLRRegressor::calculate_feature_importance(const MatrixXd &X, const MatrixXd &sample_weight)
+VectorXd APLRRegressor::calculate_feature_importance(const MatrixXd &X, const VectorXd &sample_weight)
 {
-    feature_importance = VectorXd::Constant(number_of_base_terms, 0);
+    validate_that_model_can_be_used(X);
+    validate_sample_weight(X, sample_weight);
+    VectorXd feature_importance = VectorXd::Constant(number_of_base_terms, 0);
     MatrixXd li{calculate_local_feature_contribution(X)};
     for (Eigen::Index i = 0; i < li.cols(); ++i) // For each column calculate standard deviation of contribution to linear predictor
     {
         feature_importance[i] = calculate_standard_deviation(li.col(i), sample_weight);
     }
+    return feature_importance;
+}
+
+void APLRRegressor::validate_sample_weight(const MatrixXd &X, const VectorXd &sample_weight)
+{
+    bool sample_weight_is_provided{sample_weight.size() > 0};
+    if (sample_weight_is_provided)
+    {
+        bool sample_weight_is_invalid{sample_weight.rows() != X.rows()};
+        if (sample_weight_is_invalid)
+            throw std::runtime_error("If sample_weight is provided then it needs to contain as many rows as X does.");
+    }
+}
+
+VectorXd APLRRegressor::calculate_term_importance(const MatrixXd &X, const VectorXd &sample_weight)
+{
+    validate_that_model_can_be_used(X);
+    validate_sample_weight(X, sample_weight);
+    VectorXd term_importance = VectorXd::Constant(terms.size(), 0);
+    for (size_t i = 0; i < terms.size(); ++i)
+    {
+        VectorXd contrib{terms[i].calculate_contribution_to_linear_predictor(X)};
+        double std_dev_of_contribution(calculate_standard_deviation(contrib, sample_weight));
+        term_importance[i] = std_dev_of_contribution;
+    }
+    return term_importance;
 }
 
 MatrixXd APLRRegressor::calculate_local_feature_contribution(const MatrixXd &X)
@@ -1783,7 +1815,6 @@ void APLRRegressor::write_output_to_cv_fold_models(Eigen::Index fold_index)
     cv_fold_models[fold_index].validation_error_steps = validation_error_steps;
     cv_fold_models[fold_index].validation_error = validation_error_steps.col(0).minCoeff();
     cv_fold_models[fold_index].m_optimal = get_optimal_m();
-    cv_fold_models[fold_index].feature_importance = get_feature_importance();
     cv_fold_models[fold_index].fold_index = fold_index;
     cv_fold_models[fold_index].min_training_prediction_or_response = min_training_prediction_or_response;
     cv_fold_models[fold_index].max_training_prediction_or_response = max_training_prediction_or_response;
@@ -1867,12 +1898,13 @@ void APLRRegressor::check_term_integrity()
     }
 }
 
-void APLRRegressor::create_final_model(const MatrixXd &X)
+void APLRRegressor::create_final_model(const MatrixXd &X, const VectorXd &sample_weight)
 {
     compute_fold_weights();
     update_intercept_and_term_weights();
     create_terms(X);
-    calculate_final_feature_importance();
+    estimate_feature_and_term_importances(X, sample_weight);
+    sort_terms();
     compute_cv_error();
     concatenate_validation_error_steps();
     find_final_min_and_max_training_predictions_or_responses();
@@ -1919,22 +1951,30 @@ void APLRRegressor::create_terms(const MatrixXd &X)
     }
     merge_similar_terms(X);
     remove_unused_terms();
-    std::sort(terms.begin(), terms.end(),
-              [](const Term &a, const Term &b)
-              { return a.base_term < b.base_term ||
-                       (a.base_term == b.base_term && std::isless(a.coefficient, b.coefficient)); });
 }
 
-void APLRRegressor::calculate_final_feature_importance()
+void APLRRegressor::estimate_feature_and_term_importances(const MatrixXd &X, const VectorXd &sample_weight)
 {
-    for (auto &cv_fold_model : cv_fold_models)
+    feature_importance = calculate_feature_importance(X, sample_weight);
+    term_importance = calculate_term_importance(X, sample_weight);
+    for (size_t i = 0; i < terms.size(); ++i)
     {
-        cv_fold_model.feature_importance *= cv_fold_model.fold_weight;
+        terms[i].estimated_term_importance = term_importance[i];
     }
-    feature_importance = VectorXd::Constant(feature_importance.rows(), 0.0);
-    for (auto &cv_fold_model : cv_fold_models)
+}
+
+void APLRRegressor::sort_terms()
+{
+    std::sort(terms.begin(), terms.end(),
+              [](const Term &a, const Term &b)
+              { return a.estimated_term_importance > b.estimated_term_importance ||
+                       (is_approximately_equal(a.estimated_term_importance, b.estimated_term_importance) && (a.base_term < b.base_term)) ||
+                       (is_approximately_equal(a.estimated_term_importance, b.estimated_term_importance) && (a.base_term == b.base_term) &&
+                        std::isless(a.coefficient, b.coefficient)); });
+
+    for (size_t i = 0; i < terms.size(); ++i)
     {
-        feature_importance += cv_fold_model.feature_importance;
+        term_importance[i] = terms[i].estimated_term_importance;
     }
 }
 
@@ -2038,7 +2078,7 @@ void APLRRegressor::cap_predictions_to_minmax_in_training(VectorXd &predictions)
     }
 }
 
-MatrixXd APLRRegressor::calculate_local_feature_contribution_for_terms(const MatrixXd &X)
+MatrixXd APLRRegressor::calculate_local_term_contribution(const MatrixXd &X)
 {
     validate_that_model_can_be_used(X);
 
@@ -2086,6 +2126,11 @@ MatrixXd APLRRegressor::get_validation_error_steps()
 VectorXd APLRRegressor::get_feature_importance()
 {
     return feature_importance;
+}
+
+VectorXd APLRRegressor::get_term_importance()
+{
+    return term_importance;
 }
 
 double APLRRegressor::get_intercept()
