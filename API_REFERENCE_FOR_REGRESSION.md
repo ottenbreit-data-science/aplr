@@ -256,7 +256,7 @@ The index of the term selected. So ***0*** is the first term, ***1*** is the sec
 
 ## Method: get_term_importance()
 
-***Returns a numpy vector containing the estimated feature importance in the training data for each term.***
+***Returns a numpy vector containing the estimated term importance in the training data for each term.***
 
 
 ## Method: get_intercept()
