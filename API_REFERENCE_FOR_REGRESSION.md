@@ -235,16 +235,6 @@ A numpy matrix with predictor values.
 ***Returns a numpy vector containing term regression coefficients.***
 
 
-## Method: get_term_coefficient_steps(term_index:int)
-
-***Returns a numpy vector containing regression coefficients by each boosting step for the term selected.***
-
-### Parameters
-
-#### term_index
-The index of the term selected. So ***0*** is the first term, ***1*** is the second term and so on.
-
-
 ## Method: get_validation_error_steps()
 
 ***Returns a numpy matrix containing the validation error by boosting step for each cv fold. Use this to determine if the maximum number of boosting steps (m) or learning rate (v) should be changed.***
@@ -254,9 +244,20 @@ The index of the term selected. So ***0*** is the first term, ***1*** is the sec
 
 ***Returns a numpy vector containing the estimated feature importance in the training data for each predictor.***
 
+
 ## Method: get_term_importance()
 
 ***Returns a numpy vector containing the estimated term importance in the training data for each term.***
+
+
+## Method: get_term_main_predictor_indexes()
+
+***Returns a numpy vector containing the main predictor index for each term.***
+
+
+## Method: get_term_interaction_levels()
+
+***Returns a numpy vector containing the interaction level for each term.***
 
 
 ## Method: get_intercept()

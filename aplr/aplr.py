@@ -230,6 +230,12 @@ class APLRRegressor:
     def get_term_importance(self) -> npt.ArrayLike:
         return self.APLRRegressor.get_term_importance()
 
+    def get_term_main_predictor_indexes(self) -> npt.ArrayLike:
+        return self.APLRRegressor.get_term_main_predictor_indexes()
+
+    def get_term_interaction_levels(self) -> npt.ArrayLike:
+        return self.APLRRegressor.get_term_interaction_levels()
+
     def get_intercept(self) -> float:
         return self.APLRRegressor.get_intercept()
 

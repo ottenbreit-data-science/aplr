@@ -59,6 +59,8 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def("get_validation_error_steps", &APLRRegressor::get_validation_error_steps)
         .def("get_feature_importance", &APLRRegressor::get_feature_importance)
         .def("get_term_importance", &APLRRegressor::get_term_importance)
+        .def("get_term_main_predictor_indexes", &APLRRegressor::get_term_main_predictor_indexes)
+        .def("get_term_interaction_levels", &APLRRegressor::get_term_interaction_levels)
         .def("get_intercept", &APLRRegressor::get_intercept)
         .def("get_optimal_m", &APLRRegressor::get_optimal_m)
         .def("get_validation_tuning_metric", &APLRRegressor::get_validation_tuning_metric)
@@ -88,6 +90,8 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def_readwrite("number_of_base_terms", &APLRRegressor::number_of_base_terms)
         .def_readwrite("feature_importance", &APLRRegressor::feature_importance)
         .def_readwrite("term_importance", &APLRRegressor::term_importance)
+        .def_readwrite("term_main_predictor_indexes", &APLRRegressor::term_main_predictor_indexes)
+        .def_readwrite("term_interaction_levels", &APLRRegressor::term_interaction_levels)
         .def_readwrite("dispersion_parameter", &APLRRegressor::dispersion_parameter)
         .def_readwrite("min_training_prediction_or_response", &APLRRegressor::min_training_prediction_or_response)
         .def_readwrite("max_training_prediction_or_response", &APLRRegressor::max_training_prediction_or_response)
@@ -113,10 +117,11 @@ PYBIND11_MODULE(aplr_cpp, m)
                                       a.max_training_prediction_or_response, a.validation_tuning_metric, a.quantile, a.m_optimal,
                                       a.boosting_steps_before_interactions_are_allowed,
                                       a.monotonic_constraints_ignore_interactions, a.group_mse_by_prediction_bins,
-                                      a.group_mse_cycle_min_obs_in_bin, a.cv_error, a.term_importance);
+                                      a.group_mse_cycle_min_obs_in_bin, a.cv_error, a.term_importance, a.term_main_predictor_indexes,
+                                      a.term_interaction_levels);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 34)
+                if (t.size() != 36)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
@@ -154,6 +159,8 @@ PYBIND11_MODULE(aplr_cpp, m)
                 size_t group_mse_cycle_min_obs_in_bin = t[31].cast<size_t>();
                 double cv_error = t[32].cast<double>();
                 VectorXd term_importance = t[33].cast<VectorXd>();
+                VectorXi term_main_predictor_indexes = t[34].cast<VectorXi>();
+                VectorXi term_interaction_levels = t[35].cast<VectorXi>();
 
                 APLRRegressor a(m, v, random_state, loss_function, link_function, n_jobs, cv_folds, 100, bins, verbosity, max_interaction_level,
                                 max_interactions, min_observations_in_split, ineligible_boosting_steps_added, max_eligible_terms, dispersion_parameter,
@@ -175,6 +182,8 @@ PYBIND11_MODULE(aplr_cpp, m)
                 a.group_mse_cycle_min_obs_in_bin = group_mse_cycle_min_obs_in_bin;
                 a.cv_error = cv_error;
                 a.term_importance = term_importance;
+                a.term_main_predictor_indexes = term_main_predictor_indexes;
+                a.term_interaction_levels = term_interaction_levels;
 
                 return a;
             }));

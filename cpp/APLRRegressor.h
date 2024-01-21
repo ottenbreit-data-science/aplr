@@ -135,6 +135,7 @@ private:
     void create_terms(const MatrixXd &X);
     void estimate_feature_and_term_importances(const MatrixXd &X, const VectorXd &sample_weight);
     void sort_terms();
+    void calculate_other_term_vectors();
     void compute_cv_error();
     void concatenate_validation_error_steps();
     void find_final_min_and_max_training_predictions_or_responses();
@@ -202,6 +203,8 @@ public:
     size_t group_mse_by_prediction_bins;
     size_t group_mse_cycle_min_obs_in_bin;
     double cv_error;
+    VectorXi term_main_predictor_indexes;
+    VectorXi term_interaction_levels;
 
     APLRRegressor(size_t m = 1000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, size_t cv_folds = 5,
@@ -233,6 +236,8 @@ public:
     MatrixXd get_validation_error_steps();
     VectorXd get_feature_importance();
     VectorXd get_term_importance();
+    VectorXi get_term_main_predictor_indexes();
+    VectorXi get_term_interaction_levels();
     double get_intercept();
     size_t get_optimal_m();
     std::string get_validation_tuning_metric();
@@ -289,7 +294,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       calculate_custom_differentiate_predictions_wrt_linear_predictor_function{other.calculate_custom_differentiate_predictions_wrt_linear_predictor_function},
       boosting_steps_before_interactions_are_allowed{other.boosting_steps_before_interactions_are_allowed},
       monotonic_constraints_ignore_interactions{other.monotonic_constraints_ignore_interactions}, group_mse_by_prediction_bins{other.group_mse_by_prediction_bins},
-      group_mse_cycle_min_obs_in_bin{other.group_mse_cycle_min_obs_in_bin}, cv_error{other.cv_error}
+      group_mse_cycle_min_obs_in_bin{other.group_mse_cycle_min_obs_in_bin}, cv_error{other.cv_error},
+      term_main_predictor_indexes{other.term_main_predictor_indexes}, term_interaction_levels{other.term_interaction_levels}
 {
 }
 
@@ -1905,6 +1911,7 @@ void APLRRegressor::create_final_model(const MatrixXd &X, const VectorXd &sample
     create_terms(X);
     estimate_feature_and_term_importances(X, sample_weight);
     sort_terms();
+    calculate_other_term_vectors();
     compute_cv_error();
     concatenate_validation_error_steps();
     find_final_min_and_max_training_predictions_or_responses();
@@ -1975,6 +1982,17 @@ void APLRRegressor::sort_terms()
     for (size_t i = 0; i < terms.size(); ++i)
     {
         term_importance[i] = terms[i].estimated_term_importance;
+    }
+}
+
+void APLRRegressor::calculate_other_term_vectors()
+{
+    term_main_predictor_indexes = VectorXi(terms.size());
+    term_interaction_levels = VectorXi(terms.size());
+    for (size_t i = 0; i < terms.size(); ++i)
+    {
+        term_main_predictor_indexes[i] = terms[i].base_term;
+        term_interaction_levels[i] = terms[i].get_interaction_level();
     }
 }
 
@@ -2131,6 +2149,16 @@ VectorXd APLRRegressor::get_feature_importance()
 VectorXd APLRRegressor::get_term_importance()
 {
     return term_importance;
+}
+
+VectorXi APLRRegressor::get_term_main_predictor_indexes()
+{
+    return term_main_predictor_indexes;
+}
+
+VectorXi APLRRegressor::get_term_interaction_levels()
+{
+    return term_interaction_levels;
 }
 
 double APLRRegressor::get_intercept()
