@@ -1133,7 +1133,7 @@ std::vector<size_t> APLRRegressor::find_terms_eligible_current_indexes_for_a_bas
 void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms, std::vector<size_t> &terms_indexes)
 {
     bool multithreading{n_jobs != 1 && terms_indexes.size() > 1};
-#pragma omp parallel for schedule(auto) if (multithreading)
+#pragma omp parallel for schedule(guided) if (multithreading)
     for (size_t i = 0; i < terms_indexes.size(); ++i)
     {
         terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins, v, min_observations_in_split);
