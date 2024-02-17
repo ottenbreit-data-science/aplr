@@ -793,46 +793,6 @@ double Term::get_estimated_term_importance()
     return estimated_term_importance;
 }
 
-std::vector<std::vector<size_t>> distribute_terms_indexes_to_cores(std::vector<size_t> &term_indexes, size_t n_jobs)
-{
-    size_t num_eligible_terms{term_indexes.size()};
-
-    size_t available_cores{static_cast<size_t>(std::thread::hardware_concurrency())};
-    if (n_jobs > 1)
-        available_cores = std::min(n_jobs, available_cores);
-    size_t units_per_core{std::max(num_eligible_terms / available_cores, static_cast<size_t>(1))};
-
-    std::vector<std::vector<size_t>> output(available_cores);
-    for (size_t i = 0; i < available_cores; ++i)
-    {
-        output[i] = std::vector<size_t>();
-        output[i].reserve(num_eligible_terms);
-    }
-
-    size_t core{0};
-    size_t count{0};
-    for (size_t i = 0; i < term_indexes.size(); ++i)
-    {
-        output[core].push_back(i);
-        ++count;
-        if (count >= units_per_core)
-        {
-            if (core < available_cores - 1)
-                ++core;
-            else
-                core = 0;
-            count = 0;
-        }
-    }
-
-    for (size_t i = 0; i < available_cores; ++i)
-    {
-        output[i].shrink_to_fit();
-    }
-
-    return output;
-}
-
 std::vector<size_t> create_term_indexes(std::vector<Term> &terms)
 {
     std::vector<size_t> term_indexes;

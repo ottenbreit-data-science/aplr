@@ -5,8 +5,6 @@
 #include <vector>
 #include <fstream>
 #include <iostream>
-#include <thread>
-#include <future>
 #include <random>
 #include <set>
 #include <map>
@@ -369,12 +367,6 @@ void save_as_csv_file(std::string fileName, MatrixXd matrix)
         file.close();
     }
 }
-
-struct DistributedIndices
-{
-    std::vector<size_t> index_lowest;
-    std::vector<size_t> index_highest;
-};
 
 template <typename T> // Type must implement a size() method
 size_t calculate_max_index_in_vector(T &vector)

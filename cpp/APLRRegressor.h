@@ -1,10 +1,10 @@
 #pragma once
 #include <string>
 #include <limits>
-#include <thread>
 #include <future>
 #include <random>
 #include <vector>
+#include <omp.h>
 #include "../dependencies/eigen-3.4.0/Eigen/Dense"
 #include "functions.h"
 #include "term.h"
@@ -82,6 +82,7 @@ private:
     MatrixXi preprocess_cv_observations(const MatrixXi &cv_observations, const VectorXd &y);
     void preprocess_prioritized_predictors_and_interaction_constraints(const MatrixXd &X, const std::vector<size_t> &prioritized_predictors_indexes,
                                                                        const std::vector<std::vector<size_t>> &interaction_constraints);
+    void initialize_multithreading();
     void fit_model_for_cv_fold(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight,
                                const std::vector<std::string> &X_names, const VectorXi &cv_observations_in_fold,
                                const std::vector<int> &monotonic_constraints, const VectorXi &group, const MatrixXd &other_data,
@@ -96,8 +97,8 @@ private:
     VectorXd calculate_neg_gradient_current();
     VectorXd calculate_neg_gradient_current_for_group_mse(GroupData &group_residuals_and_count, const VectorXi &group,
                                                           const std::set<int> &unique_groups);
-    void execute_boosting_steps();
-    void execute_boosting_step(size_t boosting_step);
+    void execute_boosting_steps(Eigen::Index fold_index);
+    void execute_boosting_step(size_t boosting_step, Eigen::Index fold_index);
     std::vector<size_t> find_terms_eligible_current_indexes_for_a_base_term(size_t base_term);
     void estimate_split_point_for_each_term(std::vector<Term> &terms, std::vector<size_t> &terms_indexes);
     size_t find_best_term_index(std::vector<Term> &terms, std::vector<size_t> &terms_indexes);
@@ -119,7 +120,7 @@ private:
     double calculate_validation_error(const VectorXd &predictions);
     double calculate_group_mse_by_prediction_validation_error(const VectorXd &predictions);
     void update_term_eligibility();
-    void print_summary_after_boosting_step(size_t boosting_step);
+    void print_summary_after_boosting_step(size_t boosting_step, Eigen::Index fold_index);
     void print_final_summary();
     void find_optimal_m_and_update_model_accordingly();
     void merge_similar_terms(const MatrixXd &X);
@@ -316,6 +317,7 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
                           interaction_constraints, other_data);
     MatrixXi cv_observations_used{preprocess_cv_observations(cv_observations, y)};
     preprocess_prioritized_predictors_and_interaction_constraints(X, prioritized_predictors_indexes, interaction_constraints);
+    initialize_multithreading();
     cv_fold_models.resize(cv_observations_used.cols());
     for (Eigen::Index i = 0; i < cv_observations_used.cols(); ++i)
     {
@@ -343,6 +345,17 @@ void APLRRegressor::preprocess_prioritized_predictors_and_interaction_constraint
     }
 }
 
+void APLRRegressor::initialize_multithreading()
+{
+    size_t available_cores{static_cast<size_t>(std::thread::hardware_concurrency())};
+    size_t cores_to_use;
+    if (n_jobs == 0)
+        cores_to_use = available_cores;
+    else
+        cores_to_use = std::min(n_jobs, available_cores);
+    omp_set_num_threads(cores_to_use);
+}
+
 void APLRRegressor::fit_model_for_cv_fold(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight,
                                           const std::vector<std::string> &X_names, const VectorXi &cv_observations_in_fold,
                                           const std::vector<int> &monotonic_constraints, const VectorXi &group, const MatrixXd &other_data,
@@ -351,7 +364,7 @@ void APLRRegressor::fit_model_for_cv_fold(const MatrixXd &X, const VectorXd &y, 
     define_training_and_validation_sets(X, y, sample_weight, cv_observations_in_fold, group, other_data);
     scale_response_if_using_log_link_function();
     initialize(monotonic_constraints);
-    execute_boosting_steps();
+    execute_boosting_steps(fold_index);
     print_final_summary();
     find_optimal_m_and_update_model_accordingly();
     merge_similar_terms(X_train);
@@ -1005,12 +1018,12 @@ VectorXd APLRRegressor::differentiate_predictions_wrt_linear_predictor()
     return VectorXd(0);
 }
 
-void APLRRegressor::execute_boosting_steps()
+void APLRRegressor::execute_boosting_steps(Eigen::Index fold_index)
 {
     abort_boosting = false;
     for (size_t boosting_step = 0; boosting_step < m; ++boosting_step)
     {
-        execute_boosting_step(boosting_step);
+        execute_boosting_step(boosting_step, fold_index);
         if (abort_boosting)
             break;
         if (loss_function == "group_mse_cycle")
@@ -1024,7 +1037,7 @@ void APLRRegressor::execute_boosting_steps()
     }
 }
 
-void APLRRegressor::execute_boosting_step(size_t boosting_step)
+void APLRRegressor::execute_boosting_step(size_t boosting_step, Eigen::Index fold_index)
 {
     model_has_changed_in_this_boosting_step = false;
     update_intercept(boosting_step);
@@ -1065,7 +1078,7 @@ void APLRRegressor::execute_boosting_step(size_t boosting_step)
     if (abort_boosting)
         return;
     update_term_eligibility();
-    print_summary_after_boosting_step(boosting_step);
+    print_summary_after_boosting_step(boosting_step, fold_index);
 }
 
 void APLRRegressor::update_intercept(size_t boosting_step)
@@ -1120,35 +1133,10 @@ std::vector<size_t> APLRRegressor::find_terms_eligible_current_indexes_for_a_bas
 void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms, std::vector<size_t> &terms_indexes)
 {
     bool multithreading{n_jobs != 1 && terms_indexes.size() > 1};
-    if (multithreading)
+#pragma omp parallel for schedule(auto) if (multithreading)
+    for (size_t i = 0; i < terms_indexes.size(); ++i)
     {
-        distributed_terms = distribute_terms_indexes_to_cores(terms_indexes, n_jobs);
-
-        std::vector<std::thread> threads(distributed_terms.size());
-
-        auto estimate_split_point_for_distributed_terms_in_one_thread = [this, &terms, &terms_indexes](size_t thread_index)
-        {
-            for (size_t i = 0; i < distributed_terms[thread_index].size(); ++i)
-            {
-                terms[terms_indexes[distributed_terms[thread_index][i]]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins, v, min_observations_in_split);
-            }
-        };
-
-        for (size_t i = 0; i < threads.size(); ++i)
-        {
-            threads[i] = std::thread(estimate_split_point_for_distributed_terms_in_one_thread, i);
-        }
-        for (size_t i = 0; i < threads.size(); ++i)
-        {
-            threads[i].join();
-        }
-    }
-    else
-    {
-        for (size_t i = 0; i < terms_indexes.size(); ++i)
-        {
-            terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins, v, min_observations_in_split);
-        }
+        terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins, v, min_observations_in_split);
     }
 }
 
@@ -1571,11 +1559,11 @@ void APLRRegressor::update_term_eligibility()
     }
 }
 
-void APLRRegressor::print_summary_after_boosting_step(size_t boosting_step)
+void APLRRegressor::print_summary_after_boosting_step(size_t boosting_step, Eigen::Index fold_index)
 {
     if (verbosity >= 2)
     {
-        std::cout << "Boosting step: " << boosting_step + 1 << ". Model terms: " << terms.size() << ". Terms eligible: " << number_of_eligible_terms << ". Validation error: " << validation_error_steps.col(0)[boosting_step] << ".\n";
+        std::cout << "Fold: " << fold_index << ". Boosting step: " << boosting_step + 1 << ". Model terms: " << terms.size() << ". Terms eligible: " << number_of_eligible_terms << ". Validation error: " << validation_error_steps.col(0)[boosting_step] << ".\n";
     }
 }
 
@@ -1700,7 +1688,6 @@ void APLRRegressor::set_term_names(const std::vector<std::string> &X_names)
             terms[i].name.pop_back();
             terms[i].name += "!=0)";
         }
-        terms[i].name = "Interaction level: " + std::to_string(terms[i].get_interaction_level()) + ". " + terms[i].name;
     }
 
     term_names.resize(terms.size() + 1);

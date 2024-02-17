@@ -2,8 +2,11 @@ import setuptools, sys
 
 extra_compile_args = []
 if "win" not in sys.platform:
+    extra_compile_args.append("-fopenmp")
     extra_compile_args.append("-std=c++17")
     extra_compile_args.append("-pthread")
+else:
+    extra_compile_args.append("/openmp:llvm")
 
 sfc_module = setuptools.Extension(
     name="aplr_cpp",
@@ -15,7 +18,7 @@ sfc_module = setuptools.Extension(
 
 setuptools.setup(
     name="aplr",
-    version="9.1.0",
+    version="9.2.0",
     description="Automatic Piecewise Linear Regression",
     ext_modules=[sfc_module],
     author="Mathias von Ottenbreit",
