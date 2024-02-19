@@ -1,10 +1,12 @@
 import setuptools, sys
 
 extra_compile_args = []
+extra_link_args = []
 if "win" not in sys.platform:
     extra_compile_args.append("-fopenmp")
     extra_compile_args.append("-std=c++17")
     extra_compile_args.append("-pthread")
+    extra_link_args.append("-fopenmp")
 else:
     extra_compile_args.append("/openmp:llvm")
 
@@ -14,11 +16,12 @@ sfc_module = setuptools.Extension(
     include_dirs=["cpp", "dependencies/eigen-3.4.0", "dependencies/pybind11/include"],
     language="c++",
     extra_compile_args=extra_compile_args,
+    extra_link_args=extra_link_args,
 )
 
 setuptools.setup(
     name="aplr",
-    version="9.2.0",
+    version="9.2.1",
     description="Automatic Piecewise Linear Regression",
     ext_modules=[sfc_module],
     author="Mathias von Ottenbreit",
