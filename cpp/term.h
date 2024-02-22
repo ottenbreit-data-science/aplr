@@ -544,12 +544,12 @@ void Term::estimate_split_point_on_discretized_data()
 
     double split_point_left{NAN_DOUBLE};
     double error_min_left{error_split_point_nan};
-    for (auto &bin : bins_split_points_left)
+    for (auto bin = bins_split_points_left.rbegin(); bin != bins_split_points_left.rend(); ++bin)
     {
-        split_point = bin;
+        split_point = *bin;
         direction_right = false;
         estimate_coefficient_and_error(calculate_without_interactions(values_discretized), negative_gradient_discretized, sample_weight_discretized);
-        if (std::islessequal(split_point_search_errors_sum, error_min_left))
+        if (std::isless(split_point_search_errors_sum, error_min_left))
         {
             error_min_left = split_point_search_errors_sum;
             split_point_left = split_point;
@@ -563,7 +563,7 @@ void Term::estimate_split_point_on_discretized_data()
         split_point = bin;
         direction_right = true;
         estimate_coefficient_and_error(calculate_without_interactions(values_discretized), negative_gradient_discretized, sample_weight_discretized);
-        if (std::islessequal(split_point_search_errors_sum, error_min_right))
+        if (std::isless(split_point_search_errors_sum, error_min_right))
         {
             error_min_right = split_point_search_errors_sum;
             split_point_right = split_point;
