@@ -2005,8 +2005,8 @@ void APLRRegressor::find_final_min_and_max_training_predictions_or_responses()
 {
     for (auto &cv_fold_model : cv_fold_models)
     {
-        min_training_prediction_or_response = std::max(min_training_prediction_or_response, cv_fold_model.min_training_prediction_or_response);
-        max_training_prediction_or_response = std::min(max_training_prediction_or_response, cv_fold_model.max_training_prediction_or_response);
+        min_training_prediction_or_response = std::min(min_training_prediction_or_response, cv_fold_model.min_training_prediction_or_response);
+        max_training_prediction_or_response = std::max(max_training_prediction_or_response, cv_fold_model.max_training_prediction_or_response);
     }
 }
 
