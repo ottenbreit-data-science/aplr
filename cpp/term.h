@@ -488,21 +488,21 @@ void Term::setup_bins()
 void Term::discretize_data_by_bin()
 {
     bool calculate_if_it_has_not_been_done_before{values_discretized.size() == 0};
+    bool sample_weights_were_provided_by_user{sorted_vectors.sample_weight_sorted.size() > 0};
     if (calculate_if_it_has_not_been_done_before)
     {
         values_discretized.resize(bins_start_index.size());
-        for (size_t i = 0; i < bins_start_index.size(); ++i)
-        {
-            values_discretized[i] = sorted_vectors.values_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).mean();
-        }
-
         sample_weight_discretized.resize(bins_start_index.size());
-        bool sample_weights_were_provided_by_user{sorted_vectors.sample_weight_sorted.size() > 0};
         if (sample_weights_were_provided_by_user)
         {
             for (size_t i = 0; i < bins_start_index.size(); ++i)
             {
                 sample_weight_discretized[i] = sorted_vectors.sample_weight_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).sum();
+                bool sample_weight_for_bin_is_positive{std::isgreater(sample_weight_discretized[i], 0)};
+                if (sample_weight_for_bin_is_positive)
+                    values_discretized[i] = (sorted_vectors.values_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array() * sorted_vectors.sample_weight_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array()).sum() / sample_weight_discretized[i];
+                else
+                    values_discretized[i] = sorted_vectors.values_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).mean();
             }
         }
         else
@@ -510,13 +510,28 @@ void Term::discretize_data_by_bin()
             for (size_t i = 0; i < bins_start_index.size(); ++i)
             {
                 sample_weight_discretized[i] = static_cast<double>(observations_in_bins[i]);
+                values_discretized[i] = sorted_vectors.values_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).mean();
             }
         }
     }
     negative_gradient_discretized.resize(bins_start_index.size());
-    for (size_t i = 0; i < bins_start_index.size(); ++i)
+    if (sample_weights_were_provided_by_user)
     {
-        negative_gradient_discretized[i] = sorted_vectors.negative_gradient_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).mean();
+        for (size_t i = 0; i < bins_start_index.size(); ++i)
+        {
+            bool sample_weight_for_bin_is_positive{std::isgreater(sample_weight_discretized[i], 0)};
+            if (sample_weight_for_bin_is_positive)
+                negative_gradient_discretized[i] = (sorted_vectors.negative_gradient_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array() * sorted_vectors.sample_weight_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array()).sum() / sample_weight_discretized[i];
+            else
+                negative_gradient_discretized[i] = sorted_vectors.negative_gradient_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).mean();
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < bins_start_index.size(); ++i)
+        {
+            negative_gradient_discretized[i] = sorted_vectors.negative_gradient_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).mean();
+        }
     }
 
     max_index_discretized = calculate_max_index_in_vector(values_discretized);
