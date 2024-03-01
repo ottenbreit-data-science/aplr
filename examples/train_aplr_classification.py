@@ -45,14 +45,12 @@ param_grid = ParameterGrid(
 best_model = None
 for params in param_grid:
     model = APLRClassifier(
-        random_state=random_state, verbosity=2, m=1000, v=0.1, **params
+        random_state=random_state, verbosity=2, m=1000, v=0.3, **params
     )
     model.fit(
         data_train[predictors].values, data_train[response].values, X_names=predictors
     )
-
     cv_error_for_this_model = model.get_cv_error()  # Based on log loss.
-
     cv_results_for_this_model = pd.DataFrame(model.get_params(), index=[0])
     cv_results_for_this_model["cv_error"] = cv_error_for_this_model
     cv_results = pd.concat([cv_results, cv_results_for_this_model])

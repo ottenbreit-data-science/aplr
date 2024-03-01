@@ -70,6 +70,8 @@ private:
     size_t group_cycle_predictor_index;
     std::vector<ModelForCVFold> cv_fold_models;
     VectorXd intercept_steps;
+    double best_validation_error_so_far;
+    size_t best_m_so_far;
 
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
@@ -121,6 +123,7 @@ private:
     double calculate_group_mse_by_prediction_validation_error(const VectorXd &predictions);
     void update_term_eligibility();
     void print_summary_after_boosting_step(size_t boosting_step, Eigen::Index fold_index);
+    void abort_boosting_when_no_validation_error_improvement_in_the_last_early_stopping_rounds(size_t boosting_step);
     void print_final_summary();
     void find_optimal_m_and_update_model_accordingly();
     void merge_similar_terms(const MatrixXd &X);
@@ -206,8 +209,9 @@ public:
     double cv_error;
     VectorXi term_main_predictor_indexes;
     VectorXi term_interaction_levels;
+    size_t early_stopping_rounds;
 
-    APLRRegressor(size_t m = 1000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
+    APLRRegressor(size_t m = 3000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, size_t cv_folds = 5,
                   size_t reserved_terms_times_num_x = 100, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1, size_t max_interactions = 100000,
                   size_t min_observations_in_split = 20, size_t ineligible_boosting_steps_added = 10, size_t max_eligible_terms = 5, double dispersion_parameter = 1.5,
@@ -218,7 +222,7 @@ public:
                   const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {},
                   size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
-                  size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30);
+                  size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30, size_t early_stopping_rounds = 500);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
@@ -258,7 +262,7 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function,
                              const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
                              size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
-                             size_t group_mse_by_prediction_bins, size_t group_mse_cycle_min_obs_in_bin)
+                             size_t group_mse_by_prediction_bins, size_t group_mse_cycle_min_obs_in_bin, size_t early_stopping_rounds)
     : reserved_terms_times_num_x{reserved_terms_times_num_x}, intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, cv_folds{cv_folds}, n_jobs{n_jobs}, random_state{random_state},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
@@ -272,7 +276,7 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
       calculate_custom_differentiate_predictions_wrt_linear_predictor_function{calculate_custom_differentiate_predictions_wrt_linear_predictor_function},
       boosting_steps_before_interactions_are_allowed{boosting_steps_before_interactions_are_allowed},
       monotonic_constraints_ignore_interactions{monotonic_constraints_ignore_interactions}, group_mse_by_prediction_bins{group_mse_by_prediction_bins},
-      group_mse_cycle_min_obs_in_bin{group_mse_cycle_min_obs_in_bin}, cv_error{NAN_DOUBLE}
+      group_mse_cycle_min_obs_in_bin{group_mse_cycle_min_obs_in_bin}, cv_error{NAN_DOUBLE}, early_stopping_rounds{early_stopping_rounds}
 {
 }
 
@@ -296,7 +300,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       boosting_steps_before_interactions_are_allowed{other.boosting_steps_before_interactions_are_allowed},
       monotonic_constraints_ignore_interactions{other.monotonic_constraints_ignore_interactions}, group_mse_by_prediction_bins{other.group_mse_by_prediction_bins},
       group_mse_cycle_min_obs_in_bin{other.group_mse_cycle_min_obs_in_bin}, cv_error{other.cv_error},
-      term_main_predictor_indexes{other.term_main_predictor_indexes}, term_interaction_levels{other.term_interaction_levels}
+      term_main_predictor_indexes{other.term_main_predictor_indexes}, term_interaction_levels{other.term_interaction_levels},
+      early_stopping_rounds{other.early_stopping_rounds}
 {
 }
 
@@ -812,6 +817,9 @@ void APLRRegressor::initialize(const std::vector<int> &monotonic_constraints)
     validation_error_steps.setConstant(std::numeric_limits<double>::infinity());
 
     update_gradient_and_errors();
+
+    best_validation_error_so_far = std::numeric_limits<double>::infinity();
+    best_m_so_far = 0;
 }
 
 bool APLRRegressor::check_if_base_term_has_only_one_unique_value(size_t base_term)
@@ -1075,6 +1083,7 @@ void APLRRegressor::execute_boosting_step(size_t boosting_step, Eigen::Index fol
             std::cout << "No further reduction in training loss was possible. Terminating the boosting procedure.\n";
         }
     }
+    abort_boosting_when_no_validation_error_improvement_in_the_last_early_stopping_rounds(boosting_step);
     if (abort_boosting)
         return;
     update_term_eligibility();
@@ -1564,6 +1573,25 @@ void APLRRegressor::print_summary_after_boosting_step(size_t boosting_step, Eige
     if (verbosity >= 2)
     {
         std::cout << "Fold: " << fold_index << ". Boosting step: " << boosting_step + 1 << ". Model terms: " << terms.size() << ". Terms eligible: " << number_of_eligible_terms << ". Validation error: " << validation_error_steps.col(0)[boosting_step] << ".\n";
+    }
+}
+
+void APLRRegressor::abort_boosting_when_no_validation_error_improvement_in_the_last_early_stopping_rounds(size_t boosting_step)
+{
+    bool validation_error_is_better{std::isless(validation_error_steps.col(0)[boosting_step], best_validation_error_so_far)};
+    if (validation_error_is_better)
+    {
+        best_validation_error_so_far = validation_error_steps.col(0)[boosting_step];
+        best_m_so_far = boosting_step;
+    }
+    else
+    {
+        bool no_improvement_for_too_long{boosting_step > best_m_so_far + early_stopping_rounds};
+        if (no_improvement_for_too_long)
+        {
+            abort_boosting = true;
+            std::cout << "Aborting boosting because of no validation error improvement in the last " << std::to_string(early_stopping_rounds) << " steps.\n";
+        }
     }
 }
 

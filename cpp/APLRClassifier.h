@@ -44,11 +44,13 @@ public:
     std::map<std::string, APLRRegressor> logit_models; // Key is category and value is logit model
     size_t boosting_steps_before_interactions_are_allowed;
     bool monotonic_constraints_ignore_interactions;
+    size_t early_stopping_rounds;
 
-    APLRClassifier(size_t m = 9000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), size_t n_jobs = 0,
+    APLRClassifier(size_t m = 3000, double v = 0.3, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), size_t n_jobs = 0,
                    size_t cv_folds = 5, size_t reserved_terms_times_num_x = 100, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1,
                    size_t max_interactions = 100000, size_t min_observations_in_split = 20, size_t ineligible_boosting_steps_added = 10, size_t max_eligible_terms = 5,
-                   size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false);
+                   size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
+                   size_t early_stopping_rounds = 500);
     APLRClassifier(const APLRClassifier &other);
     ~APLRClassifier();
     void fit(const MatrixXd &X, const std::vector<std::string> &y, const VectorXd &sample_weight = VectorXd(0),
@@ -68,13 +70,14 @@ public:
 APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, size_t n_jobs, size_t cv_folds,
                                size_t reserved_terms_times_num_x, size_t bins, size_t verbosity, size_t max_interaction_level, size_t max_interactions,
                                size_t min_observations_in_split, size_t ineligible_boosting_steps_added, size_t max_eligible_terms,
-                               size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions)
+                               size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
+                               size_t early_stopping_rounds)
     : m{m}, v{v}, random_state{random_state}, n_jobs{n_jobs}, cv_folds{cv_folds},
       reserved_terms_times_num_x{reserved_terms_times_num_x}, bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
       max_interactions{max_interactions}, min_observations_in_split{min_observations_in_split},
       ineligible_boosting_steps_added{ineligible_boosting_steps_added}, max_eligible_terms{max_eligible_terms},
       boosting_steps_before_interactions_are_allowed{boosting_steps_before_interactions_are_allowed},
-      monotonic_constraints_ignore_interactions{monotonic_constraints_ignore_interactions}
+      monotonic_constraints_ignore_interactions{monotonic_constraints_ignore_interactions}, early_stopping_rounds{early_stopping_rounds}
 {
 }
 
@@ -87,7 +90,8 @@ APLRClassifier::APLRClassifier(const APLRClassifier &other)
       cv_observations{other.cv_observations}, validation_error_steps{other.validation_error_steps}, cv_error{other.cv_error},
       feature_importance{other.feature_importance},
       boosting_steps_before_interactions_are_allowed{other.boosting_steps_before_interactions_are_allowed},
-      monotonic_constraints_ignore_interactions{other.monotonic_constraints_ignore_interactions}
+      monotonic_constraints_ignore_interactions{other.monotonic_constraints_ignore_interactions},
+      early_stopping_rounds{other.early_stopping_rounds}
 {
 }
 
@@ -112,6 +116,7 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
                                                     max_eligible_terms, 1.5, "default", 0.5);
         logit_models[categories[0]].boosting_steps_before_interactions_are_allowed = boosting_steps_before_interactions_are_allowed;
         logit_models[categories[0]].monotonic_constraints_ignore_interactions = monotonic_constraints_ignore_interactions;
+        logit_models[categories[0]].early_stopping_rounds = early_stopping_rounds;
         logit_models[categories[0]].fit(X, response_values[categories[0]], sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
                                         monotonic_constraints, VectorXi(0), interaction_constraints);
 
@@ -127,6 +132,7 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
                                                    max_eligible_terms, 1.5, "default", 0.5);
             logit_models[category].boosting_steps_before_interactions_are_allowed = boosting_steps_before_interactions_are_allowed;
             logit_models[category].monotonic_constraints_ignore_interactions = monotonic_constraints_ignore_interactions;
+            logit_models[category].early_stopping_rounds = early_stopping_rounds;
             logit_models[category].fit(X, response_values[category], sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
                                        monotonic_constraints, VectorXi(0), interaction_constraints);
         }
@@ -205,7 +211,7 @@ void APLRClassifier::calculate_validation_metrics()
     for (std::string &category : categories)
     {
         cv_error += logit_models[category].get_cv_error() * category_weight;
-        validation_error_steps += logit_models[category].get_validation_error_steps()*category_weight;
+        validation_error_steps += logit_models[category].get_validation_error_steps() * category_weight;
         feature_importance += logit_models[category].get_feature_importance() * category_weight;
     }
 }

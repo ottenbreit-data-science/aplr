@@ -7,7 +7,7 @@ import aplr_cpp
 class APLRRegressor:
     def __init__(
         self,
-        m: int = 1000,
+        m: int = 3000,
         v: float = 0.1,
         random_state: int = 0,
         loss_function: str = "mse",
@@ -64,6 +64,7 @@ class APLRRegressor:
         monotonic_constraints_ignore_interactions: bool = False,
         group_mse_by_prediction_bins: int = 10,
         group_mse_cycle_min_obs_in_bin: int = 30,
+        early_stopping_rounds: int = 500,
     ):
         self.m = m
         self.v = v
@@ -103,6 +104,7 @@ class APLRRegressor:
         )
         self.group_mse_by_prediction_bins = group_mse_by_prediction_bins
         self.group_mse_cycle_min_obs_in_bin = group_mse_cycle_min_obs_in_bin
+        self.early_stopping_rounds = early_stopping_rounds
 
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
@@ -156,6 +158,7 @@ class APLRRegressor:
         self.APLRRegressor.group_mse_cycle_min_obs_in_bin = (
             self.group_mse_cycle_min_obs_in_bin
         )
+        self.APLRRegressor.early_stopping_rounds = self.early_stopping_rounds
 
     def fit(
         self,
@@ -282,6 +285,7 @@ class APLRRegressor:
             "monotonic_constraints_ignore_interactions": self.monotonic_constraints_ignore_interactions,
             "group_mse_by_prediction_bins": self.group_mse_by_prediction_bins,
             "group_mse_cycle_min_obs_in_bin": self.group_mse_cycle_min_obs_in_bin,
+            "early_stopping_rounds": self.early_stopping_rounds,
         }
 
     # For sklearn
@@ -295,8 +299,8 @@ class APLRRegressor:
 class APLRClassifier:
     def __init__(
         self,
-        m: int = 9000,
-        v: float = 0.1,
+        m: int = 3000,
+        v: float = 0.3,
         random_state: int = 0,
         n_jobs: int = 0,
         cv_folds: int = 5,
@@ -309,6 +313,7 @@ class APLRClassifier:
         max_eligible_terms: int = 5,
         boosting_steps_before_interactions_are_allowed: int = 0,
         monotonic_constraints_ignore_interactions: bool = False,
+        early_stopping_rounds: int = 500,
     ):
         self.m = m
         self.v = v
@@ -328,6 +333,7 @@ class APLRClassifier:
         self.monotonic_constraints_ignore_interactions = (
             monotonic_constraints_ignore_interactions
         )
+        self.early_stopping_rounds = early_stopping_rounds
 
         # Creating aplr_cpp and setting parameters
         self.APLRClassifier = aplr_cpp.APLRClassifier()
@@ -355,6 +361,7 @@ class APLRClassifier:
         self.APLRClassifier.monotonic_constraints_ignore_interactions = (
             self.monotonic_constraints_ignore_interactions
         )
+        self.APLRClassifier.early_stopping_rounds = self.early_stopping_rounds
 
     def fit(
         self,
@@ -426,6 +433,7 @@ class APLRClassifier:
             "max_eligible_terms": self.max_eligible_terms,
             "boosting_steps_before_interactions_are_allowed": self.boosting_steps_before_interactions_are_allowed,
             "monotonic_constraints_ignore_interactions": self.monotonic_constraints_ignore_interactions,
+            "early_stopping_rounds": self.early_stopping_rounds,
         }
 
     # For sklearn

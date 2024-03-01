@@ -48,7 +48,7 @@ for params in param_grid:
     model = APLRRegressor(
         random_state=random_state,
         verbosity=2,
-        m=1000,
+        m=3000,
         v=0.1,
         loss_function=loss_function,
         link_function=link_function,

@@ -325,6 +325,7 @@ public:
         model.min_observations_in_split = 50;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.early_stopping_rounds = 10;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
