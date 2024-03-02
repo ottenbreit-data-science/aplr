@@ -1,0 +1,2 @@
+# Model interpretation example
+For an example on how to interpret an APLR model, please see ***Section 5.1.3*** in the published article about APLR. You can find this article on [https://link.springer.com/article/10.1007/s00180-024-01475-4](https://link.springer.com/article/10.1007/s00180-024-01475-4) and [https://rdcu.be/dz7bF](https://rdcu.be/dz7bF).
