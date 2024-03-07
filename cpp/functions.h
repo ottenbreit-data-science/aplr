@@ -13,28 +13,44 @@
 
 using namespace Eigen;
 
-template <typename TReal>
-static bool is_approximately_equal(TReal a, TReal b, TReal tolerance = std::numeric_limits<TReal>::epsilon())
+bool is_approximately_equal(double a, double b, double tolerance = std::numeric_limits<double>::epsilon())
 {
-    if (std::isinf(a) && std::isinf(b) && std::signbit(a) == std::signbit(b))
-        return true;
+    if (std::isinf(a) && std::isinf(b))
+    {
+        if (std::signbit(a) == std::signbit(b))
+            return true;
+        else
+            return false;
+    }
 
-    TReal diff = std::fabs(a - b);
-    if (diff <= tolerance)
-        return true;
-
-    if (diff < std::fmax(std::fabs(a), std::fabs(b)) * tolerance)
-        return true;
-
-    return false;
+    double relative_tolerance{(fabs(a) < fabs(b) ? fabs(b) : fabs(a)) * tolerance};
+    double absolute_tolerance{std::fmax(relative_tolerance, tolerance)};
+    return fabs(a - b) <= absolute_tolerance;
 }
 
-template <typename TReal>
-static bool is_approximately_zero(TReal a, TReal tolerance = std::numeric_limits<TReal>::epsilon())
+bool is_approximately_zero(double a, double tolerance = std::numeric_limits<double>::epsilon())
 {
-    if (std::fabs(a) <= tolerance)
-        return true;
-    return false;
+    return is_approximately_equal(a, 0.0, tolerance);
+}
+
+bool is_greater(double a, double b, double tolerance = std::numeric_limits<double>::epsilon())
+{
+    return std::isgreater(a, b) && !is_approximately_equal(a, b, tolerance);
+}
+
+bool is_greater_equal(double a, double b, double tolerance = std::numeric_limits<double>::epsilon())
+{
+    return std::isgreater(a, b) || is_approximately_equal(a, b, tolerance);
+}
+
+bool is_less(double a, double b, double tolerance = std::numeric_limits<double>::epsilon())
+{
+    return std::isless(a, b) && !is_approximately_equal(a, b, tolerance);
+}
+
+bool is_less_equal(double a, double b, double tolerance = std::numeric_limits<double>::epsilon())
+{
+    return std::isless(a, b) || is_approximately_equal(a, b, tolerance);
 }
 
 std::set<std::string> get_unique_strings(const std::vector<std::string> &string_vector)
@@ -272,14 +288,14 @@ VectorXd calculate_exp_of_linear_predictor_adjusted_for_numerical_problems(const
     double max_exp_of_linear_predictor{std::exp(max_exponent)};
     for (Eigen::Index i = 0; i < linear_predictor.rows(); ++i)
     {
-        bool linear_predictor_is_too_small{std::isless(linear_predictor[i], min_exponent)};
+        bool linear_predictor_is_too_small{is_less(linear_predictor[i], min_exponent)};
         if (linear_predictor_is_too_small)
         {
             exp_of_linear_predictor[i] = min_exp_of_linear_predictor;
             continue;
         }
 
-        bool linear_predictor_is_too_large{std::isgreater(linear_predictor[i], max_exponent)};
+        bool linear_predictor_is_too_large{is_greater(linear_predictor[i], max_exponent)};
         if (linear_predictor_is_too_large)
         {
             exp_of_linear_predictor[i] = max_exp_of_linear_predictor;
