@@ -435,14 +435,14 @@ void APLRRegressor::throw_error_if_dispersion_parameter_is_invalid()
     if (loss_function == "tweedie")
     {
         bool dispersion_parameter_equals_invalid_poits{is_approximately_equal(dispersion_parameter, 1.0) || is_approximately_equal(dispersion_parameter, 2.0)};
-        bool dispersion_parameter_is_in_invalid_range{is_less(dispersion_parameter, 1.0)};
+        bool dispersion_parameter_is_in_invalid_range{std::isless(dispersion_parameter, 1.0)};
         bool dispersion_parameter_is_invalid{dispersion_parameter_equals_invalid_poits || dispersion_parameter_is_in_invalid_range};
         if (dispersion_parameter_is_invalid)
             throw std::runtime_error("Invalid dispersion_parameter (variance power). It must not equal 1.0 or 2.0 and cannot be below 1.0.");
     }
     else if (loss_function == "negative_binomial" || loss_function == "cauchy" || loss_function == "weibull")
     {
-        bool dispersion_parameter_is_in_invalid{is_less_equal(dispersion_parameter, 0.0)};
+        bool dispersion_parameter_is_in_invalid{std::islessequal(dispersion_parameter, 0.0)};
         if (dispersion_parameter_is_in_invalid)
             throw std::runtime_error("Invalid dispersion_parameter. It must be greater than zero.");
     }
@@ -551,7 +551,7 @@ void APLRRegressor::throw_error_if_response_contains_invalid_values(const Vector
         std::string error_message{"Response values for the logit link function or binomial loss_function cannot be less than zero or greater than one."};
         throw_error_if_response_is_not_between_0_and_1(y, error_message);
     }
-    else if (loss_function == "gamma" || (loss_function == "tweedie" && is_greater(dispersion_parameter, 2.0)))
+    else if (loss_function == "gamma" || (loss_function == "tweedie" && std::isgreater(dispersion_parameter, 2)))
     {
         std::string error_message;
         if (loss_function == "tweedie")
@@ -560,7 +560,7 @@ void APLRRegressor::throw_error_if_response_contains_invalid_values(const Vector
             error_message = "Response values for the " + loss_function + " loss_function must be greater than zero.";
         throw_error_if_vector_contains_non_positive_values(y, error_message);
     }
-    else if (link_function == "log" || loss_function == "poisson" || loss_function == "negative_binomial" || loss_function == "weibull" || (loss_function == "tweedie" && is_less(dispersion_parameter, 2.0) && is_greater(dispersion_parameter, 1.0)))
+    else if (link_function == "log" || loss_function == "poisson" || loss_function == "negative_binomial" || loss_function == "weibull" || (loss_function == "tweedie" && std::isless(dispersion_parameter, 2) && std::isgreater(dispersion_parameter, 1)))
     {
         std::string error_message{"Response values for the log link function or poisson loss_function or negative binomial loss function or weibull loss function or tweedie loss_function when dispersion_parameter<2 cannot be less than zero."};
         throw_error_if_vector_contains_negative_values(y, error_message);
@@ -1098,7 +1098,7 @@ void APLRRegressor::update_intercept(size_t boosting_step)
     else
         intercept_update = v * (neg_gradient_current.array() * sample_weight_train.array()).sum() / sample_weight_train.array().sum();
     if (model_has_changed_in_this_boosting_step == false)
-        model_has_changed_in_this_boosting_step = !is_approximately_zero(intercept_update);
+        model_has_changed_in_this_boosting_step = !is_approximately_equal(intercept_update, 0.0);
     linear_predictor_update = VectorXd::Constant(neg_gradient_current.size(), intercept_update);
     linear_predictor_update_validation = VectorXd::Constant(y_validation.size(), intercept_update);
     update_linear_predictor_and_predictions();
@@ -1159,7 +1159,7 @@ size_t APLRRegressor::find_best_term_index(std::vector<Term> &terms, std::vector
         bool term_is_eligible{terms[term_index].ineligible_boosting_steps == 0};
         if (term_is_eligible)
         {
-            if (is_less(terms[term_index].split_point_search_errors_sum, lowest_errors_sum))
+            if (std::isless(terms[term_index].split_point_search_errors_sum, lowest_errors_sum))
             {
                 best_term_index = term_index;
                 lowest_errors_sum = terms[term_index].split_point_search_errors_sum;
@@ -1365,9 +1365,9 @@ void APLRRegressor::add_promising_interactions_and_select_the_best_one()
         if (allowed_to_add_one_interaction)
         {
             if (best_term_before_interactions_was_not_selected)
-                error_is_less_than_for_best_term_before_interactions = is_less(interactions_to_consider[sorted_indexes_of_errors_for_interactions_to_consider[j]].split_point_search_errors_sum, neg_gradient_nullmodel_errors_sum);
+                error_is_less_than_for_best_term_before_interactions = std::isless(interactions_to_consider[sorted_indexes_of_errors_for_interactions_to_consider[j]].split_point_search_errors_sum, neg_gradient_nullmodel_errors_sum);
             else
-                error_is_less_than_for_best_term_before_interactions = is_less(interactions_to_consider[sorted_indexes_of_errors_for_interactions_to_consider[j]].split_point_search_errors_sum, terms_eligible_current[best_term_before_interactions].split_point_search_errors_sum);
+                error_is_less_than_for_best_term_before_interactions = std::isless(interactions_to_consider[sorted_indexes_of_errors_for_interactions_to_consider[j]].split_point_search_errors_sum, terms_eligible_current[best_term_before_interactions].split_point_search_errors_sum);
 
             if (error_is_less_than_for_best_term_before_interactions)
             {
@@ -1390,7 +1390,7 @@ void APLRRegressor::select_the_best_term_and_update_errors(size_t boosting_step)
         return;
 
     if (model_has_changed_in_this_boosting_step == false)
-        model_has_changed_in_this_boosting_step = !is_approximately_zero(terms_eligible_current[best_term_index].coefficient);
+        model_has_changed_in_this_boosting_step = !is_approximately_equal(terms_eligible_current[best_term_index].coefficient, 0.0);
     linear_predictor_update = terms_eligible_current[best_term_index].calculate_contribution_to_linear_predictor(X_train);
     linear_predictor_update_validation = terms_eligible_current[best_term_index].calculate_contribution_to_linear_predictor(X_validation);
     update_linear_predictor_and_predictions();
@@ -1578,7 +1578,7 @@ void APLRRegressor::print_summary_after_boosting_step(size_t boosting_step, Eige
 
 void APLRRegressor::abort_boosting_when_no_validation_error_improvement_in_the_last_early_stopping_rounds(size_t boosting_step)
 {
-    bool validation_error_is_better{is_less(validation_error_steps.col(0)[boosting_step], best_validation_error_so_far)};
+    bool validation_error_is_better{std::isless(validation_error_steps.col(0)[boosting_step], best_validation_error_so_far)};
     if (validation_error_is_better)
     {
         best_validation_error_so_far = validation_error_steps.col(0)[boosting_step];
@@ -1744,7 +1744,7 @@ std::string APLRRegressor::compute_raw_base_term_name(const Term &term, const st
     {
         double temp_split_point{term.split_point};
         std::string sign{"-"};
-        if (is_less(temp_split_point, 0.0))
+        if (std::isless(temp_split_point, 0))
         {
             temp_split_point = -temp_split_point;
             sign = "+";
@@ -1902,11 +1902,11 @@ void APLRRegressor::check_term_integrity()
                 bool given_term_has_incorrect_split_point;
                 if (term.direction_right)
                 {
-                    given_term_has_incorrect_split_point = is_less_equal(given_term.split_point, term.split_point);
+                    given_term_has_incorrect_split_point = std::islessequal(given_term.split_point, term.split_point);
                 }
                 else
                 {
-                    given_term_has_incorrect_split_point = is_greater_equal(given_term.split_point, term.split_point);
+                    given_term_has_incorrect_split_point = std::isgreaterequal(given_term.split_point, term.split_point);
                 }
                 if (given_term_has_no_split_point)
                     throw std::runtime_error("Bug: Interaction in term " + term.name + " has no split point.");
@@ -1992,7 +1992,7 @@ void APLRRegressor::sort_terms()
               { return a.estimated_term_importance > b.estimated_term_importance ||
                        (is_approximately_equal(a.estimated_term_importance, b.estimated_term_importance) && (a.base_term < b.base_term)) ||
                        (is_approximately_equal(a.estimated_term_importance, b.estimated_term_importance) && (a.base_term == b.base_term) &&
-                        is_less(a.coefficient, b.coefficient)); });
+                        std::isless(a.coefficient, b.coefficient)); });
 
     for (size_t i = 0; i < terms.size(); ++i)
     {
@@ -2104,9 +2104,9 @@ void APLRRegressor::cap_predictions_to_minmax_in_training(VectorXd &predictions)
 {
     for (Eigen::Index i = 0; i < predictions.rows(); ++i)
     {
-        if (is_greater(predictions[i], max_training_prediction_or_response))
+        if (std::isgreater(predictions[i], max_training_prediction_or_response))
             predictions[i] = max_training_prediction_or_response;
-        else if (is_less(predictions[i], min_training_prediction_or_response))
+        else if (std::isless(predictions[i], min_training_prediction_or_response))
             predictions[i] = min_training_prediction_or_response;
     }
 }
@@ -2265,13 +2265,13 @@ std::map<double, double> APLRRegressor::get_coefficient_shape_function(size_t pr
             {
                 for (auto &key : coefficient_shape_function)
                 {
-                    bool key_split_point_is_higher{is_greater(key.first, terms[relevant_term_indexes[i]].split_point)};
+                    bool key_split_point_is_higher{std::isgreater(key.first, terms[relevant_term_indexes[i]].split_point)};
                     bool key_split_point_is_not_too_high{true};
                     for (auto &given_term : terms[relevant_term_indexes[i]].given_terms)
                     {
                         if (given_term.direction_right != terms[relevant_term_indexes[i]].direction_right)
                         {
-                            if (is_greater(key.first, given_term.split_point))
+                            if (std::isgreater(key.first, given_term.split_point))
                             {
                                 key_split_point_is_not_too_high = false;
                                 break;
@@ -2288,13 +2288,13 @@ std::map<double, double> APLRRegressor::get_coefficient_shape_function(size_t pr
             {
                 for (auto &key : coefficient_shape_function)
                 {
-                    bool key_split_point_is_lower{is_less(key.first, terms[relevant_term_indexes[i]].split_point)};
+                    bool key_split_point_is_lower{std::isless(key.first, terms[relevant_term_indexes[i]].split_point)};
                     bool key_split_point_is_not_too_low{true};
                     for (auto &given_term : terms[relevant_term_indexes[i]].given_terms)
                     {
                         if (given_term.direction_right != terms[relevant_term_indexes[i]].direction_right)
                         {
-                            if (is_less(key.first, given_term.split_point))
+                            if (std::isless(key.first, given_term.split_point))
                             {
                                 key_split_point_is_not_too_low = false;
                                 break;

@@ -300,7 +300,7 @@ class APLRClassifier:
     def __init__(
         self,
         m: int = 3000,
-        v: float = 0.1,
+        v: float = 0.3,
         random_state: int = 0,
         n_jobs: int = 0,
         cv_folds: int = 5,

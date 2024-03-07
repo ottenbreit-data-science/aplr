@@ -45,7 +45,7 @@ param_grid = ParameterGrid(
 best_model = None
 for params in param_grid:
     model = APLRClassifier(
-        random_state=random_state, verbosity=2, m=3000, v=0.1, **params
+        random_state=random_state, verbosity=2, m=1000, v=0.3, **params
     )
     model.fit(
         data_train[predictors].values, data_train[response].values, X_names=predictors

@@ -4,7 +4,6 @@ project(APLR VERSION 0.1.0)
 include(CTest)
 enable_testing()
 set(CMAKE_CXX_FLAGS -pthread)
-set(CMAKE_CXX_FLAGS -fopenmp)
 
 add_executable(APLR main.cpp)
 

@@ -498,7 +498,7 @@ void Term::discretize_data_by_bin()
             for (size_t i = 0; i < bins_start_index.size(); ++i)
             {
                 sample_weight_discretized[i] = sorted_vectors.sample_weight_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).sum();
-                bool sample_weight_for_bin_is_positive{is_greater(sample_weight_discretized[i], 0.0)};
+                bool sample_weight_for_bin_is_positive{std::isgreater(sample_weight_discretized[i], 0)};
                 if (sample_weight_for_bin_is_positive)
                     values_discretized[i] = (sorted_vectors.values_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array() * sorted_vectors.sample_weight_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array()).sum() / sample_weight_discretized[i];
                 else
@@ -519,7 +519,7 @@ void Term::discretize_data_by_bin()
     {
         for (size_t i = 0; i < bins_start_index.size(); ++i)
         {
-            bool sample_weight_for_bin_is_positive{is_greater(sample_weight_discretized[i], 0.0)};
+            bool sample_weight_for_bin_is_positive{std::isgreater(sample_weight_discretized[i], 0)};
             if (sample_weight_for_bin_is_positive)
                 negative_gradient_discretized[i] = (sorted_vectors.negative_gradient_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array() * sorted_vectors.sample_weight_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array()).sum() / sample_weight_discretized[i];
             else
@@ -564,7 +564,7 @@ void Term::estimate_split_point_on_discretized_data()
         split_point = *bin;
         direction_right = false;
         estimate_coefficient_and_error(calculate_without_interactions(values_discretized), negative_gradient_discretized, sample_weight_discretized);
-        if (is_less(split_point_search_errors_sum, error_min_left))
+        if (std::isless(split_point_search_errors_sum, error_min_left))
         {
             error_min_left = split_point_search_errors_sum;
             split_point_left = split_point;
@@ -578,14 +578,14 @@ void Term::estimate_split_point_on_discretized_data()
         split_point = bin;
         direction_right = true;
         estimate_coefficient_and_error(calculate_without_interactions(values_discretized), negative_gradient_discretized, sample_weight_discretized);
-        if (is_less(split_point_search_errors_sum, error_min_right))
+        if (std::isless(split_point_search_errors_sum, error_min_right))
         {
             error_min_right = split_point_search_errors_sum;
             split_point_right = split_point;
         }
     }
 
-    bool use_left_direction{is_less(error_min_left, error_min_right)};
+    bool use_left_direction{std::islessequal(error_min_left, error_min_right)};
     if (use_left_direction)
     {
         direction_right = false;
@@ -655,8 +655,8 @@ double Term::estimate_coefficient(const VectorXd &x, const VectorXd &y, const Ve
 
 bool Term::coefficient_adheres_to_monotonic_constraint()
 {
-    bool coefficient_does_not_adhere_to_increasing_monotonic_constraint{monotonic_constraint > 0 && is_less(coefficient, 0.0)};
-    bool coefficient_does_not_adhere_to_decreasing_monotonic_constraint{monotonic_constraint < 0 && is_greater(coefficient, 0.0)};
+    bool coefficient_does_not_adhere_to_increasing_monotonic_constraint{monotonic_constraint > 0 && std::isless(coefficient, 0.0)};
+    bool coefficient_does_not_adhere_to_decreasing_monotonic_constraint{monotonic_constraint < 0 && std::isgreater(coefficient, 0.0)};
 
     bool coefficient_adheres{true};
     if (coefficient_does_not_adhere_to_increasing_monotonic_constraint || coefficient_does_not_adhere_to_decreasing_monotonic_constraint)
