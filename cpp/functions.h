@@ -13,28 +13,46 @@
 
 using namespace Eigen;
 
-template <typename TReal>
-static bool is_approximately_equal(TReal a, TReal b, TReal tolerance = std::numeric_limits<TReal>::epsilon())
+bool is_approximately_equal(double a, double b, double tolerance = std::numeric_limits<double>::epsilon())
 {
-    if (std::isinf(a) && std::isinf(b) && std::signbit(a) == std::signbit(b))
-        return true;
+    if (std::isinf(a) && std::isinf(b))
+    {
+        if (std::signbit(a) == std::signbit(b))
+            return true;
+        else
+            return false;
+    }
 
-    TReal diff = std::fabs(a - b);
-    if (diff <= tolerance)
-        return true;
+    double relative_tolerance;
+    if (std::isinf(a) || std::isinf(b))
+        relative_tolerance = (fabs(a) > fabs(b) ? fabs(b) : fabs(a)) * tolerance;
+    else
+        relative_tolerance = (fabs(a) < fabs(b) ? fabs(b) : fabs(a)) * tolerance;
+    double absolute_tolerance{std::fmax(relative_tolerance, tolerance)};
+    bool equal{fabs(a - b) <= absolute_tolerance};
 
-    if (diff < std::fmax(std::fabs(a), std::fabs(b)) * tolerance)
-        return true;
-
-    return false;
+    return equal;
 }
 
-template <typename TReal>
-static bool is_approximately_zero(TReal a, TReal tolerance = std::numeric_limits<TReal>::epsilon())
+bool is_approximately_zero(double a, double tolerance = std::numeric_limits<double>::epsilon())
 {
-    if (std::fabs(a) <= tolerance)
-        return true;
-    return false;
+    return is_approximately_equal(a, 0.0, tolerance);
+}
+
+bool all_are_equal(VectorXd &v1, VectorXd &v2)
+{
+    if (v1.rows() != v2.rows())
+        return false;
+
+    for (Eigen::Index i = 0; i < v1.size(); ++i)
+    {
+        if (!is_approximately_equal(v1[i], v2[i]))
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 std::set<std::string> get_unique_strings(const std::vector<std::string> &string_vector)
@@ -105,22 +123,10 @@ GroupData calculate_group_errors_and_count(const VectorXd &y, const VectorXd &pr
         group_data.count[unique_group_value] = 0.0;
     }
 
-    bool sample_weight_is_provided{sample_weight.size() > 0};
-    if (sample_weight_is_provided)
+    for (Eigen::Index i = 0; i < group.size(); ++i)
     {
-        for (Eigen::Index i = 0; i < group.size(); ++i)
-        {
-            group_data.error[group[i]] += (y[i] - predicted[i]) * sample_weight[i];
-            group_data.count[group[i]] += sample_weight[i];
-        }
-    }
-    else
-    {
-        for (Eigen::Index i = 0; i < group.size(); ++i)
-        {
-            group_data.error[group[i]] += y[i] - predicted[i];
-            group_data.count[group[i]] += 1.0;
-        }
+        group_data.error[group[i]] += (y[i] - predicted[i]) * sample_weight[i];
+        group_data.count[group[i]] += sample_weight[i];
     }
 
     for (int unique_group_value : unique_groups)
@@ -194,7 +200,7 @@ VectorXd calculate_weibull_errors(const VectorXd &y, const VectorXd &predicted, 
     return errors;
 }
 
-VectorXd calculate_errors(const VectorXd &y, const VectorXd &predicted, const VectorXd &sample_weight = VectorXd(0), const std::string &loss_function = "mse",
+VectorXd calculate_errors(const VectorXd &y, const VectorXd &predicted, const VectorXd &sample_weight, const std::string &loss_function = "mse",
                           double dispersion_parameter = 1.5, const VectorXi &group = VectorXi(0), const std::set<int> &unique_groups = {}, double quantile = 0.5)
 {
     VectorXd errors;
@@ -221,8 +227,7 @@ VectorXd calculate_errors(const VectorXd &y, const VectorXd &predicted, const Ve
     else if (loss_function == "weibull")
         errors = calculate_weibull_errors(y, predicted, dispersion_parameter);
 
-    if (sample_weight.size() > 0)
-        errors = errors.array() * sample_weight.array();
+    errors = errors.array() * sample_weight.array();
 
     return errors;
 }
@@ -234,7 +239,7 @@ double calculate_mse_error_one_observation(double y, double predicted)
     return error;
 }
 
-double calculate_error_one_observation(double y, double predicted, double sample_weight = NAN_DOUBLE)
+double calculate_error_one_observation(double y, double predicted, double sample_weight)
 {
     double error{calculate_mse_error_one_observation(y, predicted)};
 
@@ -244,7 +249,7 @@ double calculate_error_one_observation(double y, double predicted, double sample
     return error;
 }
 
-double calculate_mean_error(const VectorXd &errors, const VectorXd &sample_weight = VectorXd(0))
+double calculate_mean_error(const VectorXd &errors, const VectorXd &sample_weight)
 {
     double error{std::numeric_limits<double>::infinity()};
 

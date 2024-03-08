@@ -187,11 +187,6 @@ void Term::estimate_split_point(const MatrixXd &X, const VectorXd &negative_grad
     }
     discretize_data_by_bin();
     estimate_split_point_on_discretized_data();
-    if (!std::isfinite(split_point_search_errors_sum))
-    {
-        make_term_ineligible();
-        return;
-    }
     estimate_coefficient_and_error(calculate_without_interactions(sorted_vectors.values_sorted), sorted_vectors.negative_gradient_sorted,
                                    sorted_vectors.sample_weight_sorted, error_where_given_terms_are_zero);
     cleanup_after_estimate_split_point();
@@ -293,19 +288,9 @@ void Term::calculate_error_where_given_terms_are_zero(const VectorXd &negative_g
     bool rows_need_to_be_zeroed_due_to_given_terms{rows_to_zero_out_and_not_due_to_given_terms.zeroed.size() > 0};
     if (rows_need_to_be_zeroed_due_to_given_terms)
     {
-        if (sample_weight.size() == 0)
+        for (Eigen::Index i = 0; i < rows_to_zero_out_and_not_due_to_given_terms.zeroed.size(); ++i)
         {
-            for (Eigen::Index i = 0; i < rows_to_zero_out_and_not_due_to_given_terms.zeroed.size(); ++i)
-            {
-                error_where_given_terms_are_zero += calculate_error_one_observation(negative_gradient[rows_to_zero_out_and_not_due_to_given_terms.zeroed[i]], 0.0, NAN_DOUBLE);
-            }
-        }
-        else
-        {
-            for (Eigen::Index i = 0; i < rows_to_zero_out_and_not_due_to_given_terms.zeroed.size(); ++i)
-            {
-                error_where_given_terms_are_zero += calculate_error_one_observation(negative_gradient[rows_to_zero_out_and_not_due_to_given_terms.zeroed[i]], 0.0, sample_weight[rows_to_zero_out_and_not_due_to_given_terms.zeroed[i]]);
-            }
+            error_where_given_terms_are_zero += calculate_error_one_observation(negative_gradient[rows_to_zero_out_and_not_due_to_given_terms.zeroed[i]], 0.0, sample_weight[rows_to_zero_out_and_not_due_to_given_terms.zeroed[i]]);
         }
     }
 }
@@ -331,23 +316,14 @@ void Term::sort_vectors_ascending_by_base_term(const MatrixXd &X, const VectorXd
     {
         VectorXd values_subset(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.size());
         VectorXd negative_gradient_subset(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.size());
+        VectorXd sample_weight_subset(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.size());
         size_t count{0};
         for (size_t i = 0; i <= max_index; ++i)
         {
             values_subset[count] = X.col(base_term)[rows_to_zero_out_and_not_due_to_given_terms.not_zeroed[i]];
             negative_gradient_subset[count] = negative_gradient[rows_to_zero_out_and_not_due_to_given_terms.not_zeroed[i]];
+            sample_weight_subset[count] = sample_weight[rows_to_zero_out_and_not_due_to_given_terms.not_zeroed[i]];
             ++count;
-        }
-        VectorXd sample_weight_subset(0);
-        if (sample_weight.size() > 0)
-        {
-            count = 0;
-            sample_weight_subset.resize(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.size());
-            for (size_t i = 0; i <= max_index; ++i)
-            {
-                sample_weight_subset[count] = sample_weight[rows_to_zero_out_and_not_due_to_given_terms.not_zeroed[i]];
-                ++count;
-            }
         }
         sorted_vectors = sort_data(values_subset, negative_gradient_subset, sample_weight_subset);
     }
@@ -361,22 +337,14 @@ SortedData Term::sort_data(const VectorXd &values_to_sort, const VectorXd &negat
     SortedData output;
     output.values_sorted.resize(values_sorted_index.size());
     output.negative_gradient_sorted.resize(values_sorted_index.size());
+    output.sample_weight_sorted.resize(values_sorted_index.size());
     size_t max_index{values_sorted_index.size() - static_cast<size_t>(1)};
     for (size_t i = 0; i <= max_index; ++i)
     {
         output.values_sorted[i] = values_to_sort[values_sorted_index[i]];
         output.negative_gradient_sorted[i] = negative_gradient_to_sort[values_sorted_index[i]];
+        output.sample_weight_sorted[i] = sample_weight_to_sort[values_sorted_index[i]];
     }
-    bool sample_weight_exist{sample_weight_to_sort.size() > 0};
-    if (sample_weight_exist)
-    {
-        output.sample_weight_sorted.resize(values_sorted_index.size());
-        for (size_t i = 0; i <= max_index; ++i)
-        {
-            output.sample_weight_sorted[i] = sample_weight_to_sort[values_sorted_index[i]];
-        }
-    }
-
     return output;
 }
 
@@ -493,47 +461,25 @@ void Term::discretize_data_by_bin()
     {
         values_discretized.resize(bins_start_index.size());
         sample_weight_discretized.resize(bins_start_index.size());
-        if (sample_weights_were_provided_by_user)
+        for (size_t i = 0; i < bins_start_index.size(); ++i)
         {
-            for (size_t i = 0; i < bins_start_index.size(); ++i)
-            {
-                sample_weight_discretized[i] = sorted_vectors.sample_weight_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).sum();
-                bool sample_weight_for_bin_is_positive{std::isgreater(sample_weight_discretized[i], 0)};
-                if (sample_weight_for_bin_is_positive)
-                    values_discretized[i] = (sorted_vectors.values_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array() * sorted_vectors.sample_weight_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array()).sum() / sample_weight_discretized[i];
-                else
-                    values_discretized[i] = sorted_vectors.values_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).mean();
-            }
-        }
-        else
-        {
-            for (size_t i = 0; i < bins_start_index.size(); ++i)
-            {
-                sample_weight_discretized[i] = static_cast<double>(observations_in_bins[i]);
+            sample_weight_discretized[i] = sorted_vectors.sample_weight_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).sum();
+            bool sample_weight_for_bin_is_positive{std::isgreater(sample_weight_discretized[i], 0.0)};
+            if (sample_weight_for_bin_is_positive)
+                values_discretized[i] = (sorted_vectors.values_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array() * sorted_vectors.sample_weight_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array()).sum() / sample_weight_discretized[i];
+            else
                 values_discretized[i] = sorted_vectors.values_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).mean();
-            }
         }
     }
     negative_gradient_discretized.resize(bins_start_index.size());
-    if (sample_weights_were_provided_by_user)
+    for (size_t i = 0; i < bins_start_index.size(); ++i)
     {
-        for (size_t i = 0; i < bins_start_index.size(); ++i)
-        {
-            bool sample_weight_for_bin_is_positive{std::isgreater(sample_weight_discretized[i], 0)};
-            if (sample_weight_for_bin_is_positive)
-                negative_gradient_discretized[i] = (sorted_vectors.negative_gradient_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array() * sorted_vectors.sample_weight_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array()).sum() / sample_weight_discretized[i];
-            else
-                negative_gradient_discretized[i] = sorted_vectors.negative_gradient_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).mean();
-        }
-    }
-    else
-    {
-        for (size_t i = 0; i < bins_start_index.size(); ++i)
-        {
+        bool sample_weight_for_bin_is_positive{std::isgreater(sample_weight_discretized[i], 0.0)};
+        if (sample_weight_for_bin_is_positive)
+            negative_gradient_discretized[i] = (sorted_vectors.negative_gradient_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array() * sorted_vectors.sample_weight_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).array()).sum() / sample_weight_discretized[i];
+        else
             negative_gradient_discretized[i] = sorted_vectors.negative_gradient_sorted.block(bins_start_index[i], 0, observations_in_bins[i], 1).mean();
-        }
     }
-
     max_index_discretized = calculate_max_index_in_vector(values_discretized);
 }
 
@@ -585,7 +531,7 @@ void Term::estimate_split_point_on_discretized_data()
         }
     }
 
-    bool use_left_direction{std::islessequal(error_min_left, error_min_right)};
+    bool use_left_direction{std::isless(error_min_left, error_min_right)};
     if (use_left_direction)
     {
         direction_right = false;
@@ -608,18 +554,16 @@ void Term::estimate_coefficient_and_error(const VectorXd &x, const VectorXd &y, 
     if (std::isfinite(coefficient))
     {
         coefficient *= v;
-        double error_penalty;
         bool coefficient_does_not_adhere_to_monotonic_constraint{!coefficient_adheres_to_monotonic_constraint()};
         if (coefficient_does_not_adhere_to_monotonic_constraint)
         {
-            error_penalty = std::abs(coefficient);
             coefficient = 0.0;
+            split_point_search_errors_sum = std::numeric_limits<double>::infinity();
         }
-        VectorXd predictions{x * coefficient};
-        split_point_search_errors_sum = calculate_sum_error(calculate_errors(y, predictions, sample_weight, MSE_LOSS_FUNCTION)) + error_added;
-        if (coefficient_does_not_adhere_to_monotonic_constraint)
+        else
         {
-            split_point_search_errors_sum += error_penalty;
+            VectorXd predictions{x * coefficient};
+            split_point_search_errors_sum = calculate_sum_error(calculate_errors(y, predictions, sample_weight, MSE_LOSS_FUNCTION)) + error_added;
         }
     }
     else
@@ -633,22 +577,10 @@ double Term::estimate_coefficient(const VectorXd &x, const VectorXd &y, const Ve
 {
     double numerator{0};
     double denominator{0};
-    bool sample_weight_is_provided{sample_weight.size() > 0};
-    if (sample_weight_is_provided)
+    for (Eigen::Index i = 0; i < y.size(); ++i)
     {
-        for (Eigen::Index i = 0; i < y.size(); ++i)
-        {
-            numerator += x[i] * y[i] * sample_weight[i];
-            denominator += x[i] * x[i] * sample_weight[i];
-        }
-    }
-    else
-    {
-        for (Eigen::Index i = 0; i < y.size(); ++i)
-        {
-            numerator += x[i] * y[i];
-            denominator += x[i] * x[i];
-        }
+        numerator += x[i] * y[i] * sample_weight[i];
+        denominator += x[i] * x[i] * sample_weight[i];
     }
     return numerator / denominator;
 }

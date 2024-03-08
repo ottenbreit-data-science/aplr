@@ -115,7 +115,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 20.0962, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 20.170939369337834));
 
         double feature_importance_mean{model.get_feature_importance().mean()};
         double term_importance_mean{model.get_term_importance().mean()};
@@ -129,11 +129,11 @@ public:
         std::cout << term_importance_first << "\n\n";
         std::cout << term_base_predictor_index_max << "\n\n";
         std::cout << term_interaction_level_max << "\n\n";
-        tests.push_back(is_approximately_equal(feature_importance_mean, 0.378205, 0.00001));
-        tests.push_back(is_approximately_equal(term_importance_mean, 0.128432, 0.00001));
-        tests.push_back(is_approximately_equal(feature_importance_first, 0.737975, 0.00001));
-        tests.push_back(is_approximately_equal(term_importance_first, 1.04316, 0.00001));
-        tests.push_back(term_base_predictor_index_max == 6);
+        tests.push_back(is_approximately_equal(feature_importance_mean, 0.37558643075803277));
+        tests.push_back(is_approximately_equal(term_importance_mean, 0.12150899891033366));
+        tests.push_back(is_approximately_equal(feature_importance_first, 0.74048121167747938));
+        tests.push_back(is_approximately_equal(term_importance_first, 0.85496610382351568));
+        tests.push_back(term_base_predictor_index_max == 5);
         tests.push_back(term_interaction_level_max == 1);
     }
 
@@ -191,7 +191,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 19.8044, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 20.104856610039558));
     }
 
     void test_aplrregressor_cauchy()
@@ -245,7 +245,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 20.8736, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 20.850035037781723));
     }
 
     void test_aplrregressor_custom_loss_and_validation()
@@ -305,7 +305,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.7554, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.944797684016745));
     }
 
     void test_aplrregressor_custom_loss()
@@ -692,7 +692,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 20.8243, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 20.82771158964184));
     }
 
     void test_aplrregressor_group_mse_cycle()
@@ -736,7 +736,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.5148, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.533140818895273));
     }
 
     void test_aplrregressor_int_constr()
@@ -789,7 +789,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.5768, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.606326522845816));
     }
 
     void test_aplrregressor_inversegaussian()
@@ -950,7 +950,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.5419, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.557834093496929));
     }
 
     void test_aplrregressor_monotonic()
@@ -1003,7 +1003,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.476, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.337125831228487));
     }
 
     void test_aplrregressor_monotonic_ignore_interactions()
@@ -1271,7 +1271,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.649, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.65630148869738));
     }
 
     void test_aplrregressor_weibull()
@@ -1684,7 +1684,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.278308, 0.000001));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.27679347379315716));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -1692,7 +1692,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.121551, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.12248183904866403));
     }
 
     void test_aplrclassifier_two_class()
@@ -1765,20 +1765,24 @@ public:
 
     void test_functions()
     {
-        // isapproximatelyequal
+        // floating point comparisons
         double inf_left{-std::numeric_limits<double>::infinity()};
         double inf_right{std::numeric_limits<double>::infinity()};
-        bool equal_inf_left{is_approximately_equal(inf_left, inf_left)};
-        bool equal_inf_right{is_approximately_equal(inf_right, inf_right)};
-        bool equal_inf_diff{!is_approximately_equal(inf_left, inf_right)};
-        bool equal_inf_diff2{!is_approximately_equal(inf_right, inf_left)};
-        tests.push_back(equal_inf_left);
-        tests.push_back(equal_inf_right);
-        tests.push_back(equal_inf_diff);
-        tests.push_back(equal_inf_diff2);
+        tests.push_back(is_approximately_equal(inf_left, inf_left));
+        tests.push_back(is_approximately_equal(inf_right, inf_right));
+        tests.push_back(!is_approximately_equal(inf_left, inf_right));
+        tests.push_back(!is_approximately_equal(inf_right, inf_left));
+        tests.push_back(!is_approximately_equal(inf_left, 2.0));
+        tests.push_back(!is_approximately_equal(inf_right, 2.0));
+        tests.push_back(is_approximately_zero(0.0));
+        tests.push_back(!is_approximately_zero(0.0000001));
+        tests.push_back(!is_approximately_zero(-0.0000001));
+        tests.push_back(!is_approximately_zero(inf_left));
+        tests.push_back(!is_approximately_zero(inf_right));
 
         // compute_errors
         VectorXd y(5), pred(5), sample_weight(5);
+        VectorXd sample_weight_equal{VectorXd::Constant(5, 1.0)};
         y << 1, 3.3, 2, 4, 0;
         pred << 1.4, 3.3, 1.5, 0, 1;
         sample_weight << 0.5, 0.5, 1, 0, 1;
@@ -1788,12 +1792,12 @@ public:
                   << pred << "\n\n";
         std::cout << "sample_weight\n"
                   << sample_weight << "\n\n";
-        VectorXd errors_mse{calculate_errors(y, pred)};
+        VectorXd errors_mse{calculate_errors(y, pred, sample_weight_equal)};
         VectorXd errors_mse_sw{calculate_errors(y, pred, sample_weight)};
 
         // compute_error
         // calculating errors
-        double error_mse{calculate_mean_error(errors_mse)};
+        double error_mse{calculate_mean_error(errors_mse, sample_weight_equal)};
         std::cout << "error_mse: " << error_mse << "\n\n";
         tests.push_back((is_approximately_equal(error_mse, 3.482) ? true : false));
         double error_mse_sw{calculate_mean_error(errors_mse_sw, sample_weight)};

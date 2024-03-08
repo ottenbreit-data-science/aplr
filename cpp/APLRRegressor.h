@@ -551,7 +551,7 @@ void APLRRegressor::throw_error_if_response_contains_invalid_values(const Vector
         std::string error_message{"Response values for the logit link function or binomial loss_function cannot be less than zero or greater than one."};
         throw_error_if_response_is_not_between_0_and_1(y, error_message);
     }
-    else if (loss_function == "gamma" || (loss_function == "tweedie" && std::isgreater(dispersion_parameter, 2)))
+    else if (loss_function == "gamma" || (loss_function == "tweedie" && std::isgreater(dispersion_parameter, 2.0)))
     {
         std::string error_message;
         if (loss_function == "tweedie")
@@ -560,7 +560,7 @@ void APLRRegressor::throw_error_if_response_contains_invalid_values(const Vector
             error_message = "Response values for the " + loss_function + " loss_function must be greater than zero.";
         throw_error_if_vector_contains_non_positive_values(y, error_message);
     }
-    else if (link_function == "log" || loss_function == "poisson" || loss_function == "negative_binomial" || loss_function == "weibull" || (loss_function == "tweedie" && std::isless(dispersion_parameter, 2) && std::isgreater(dispersion_parameter, 1)))
+    else if (link_function == "log" || loss_function == "poisson" || loss_function == "negative_binomial" || loss_function == "weibull" || (loss_function == "tweedie" && std::isless(dispersion_parameter, 2.0) && std::isgreater(dispersion_parameter, 1.0)))
     {
         std::string error_message{"Response values for the log link function or poisson loss_function or negative binomial loss function or weibull loss function or tweedie loss_function when dispersion_parameter<2 cannot be less than zero."};
         throw_error_if_vector_contains_negative_values(y, error_message);
@@ -569,7 +569,7 @@ void APLRRegressor::throw_error_if_response_contains_invalid_values(const Vector
     {
         std::string error_message{"Response values cannot be negative when using the negative_gini validation_tuning_metric."};
         throw_error_if_vector_contains_negative_values(y, error_message);
-        bool sum_is_zero{y.sum() == 0};
+        bool sum_is_zero{is_approximately_zero(y.sum())};
         if (sum_is_zero)
             throw std::runtime_error("Response values cannot sum to zero when using the negative_gini validation_tuning_metric.");
     }
@@ -687,7 +687,10 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X, const
         {
             sample_weight_train[i] = sample_weight[train_indexes[i]];
         }
+        sample_weight_train /= sample_weight_train.mean();
     }
+    else
+        sample_weight_train = VectorXd::Constant(y_train.rows(), 1.0);
     bool groups_are_provided{group.size() > 0};
     if (groups_are_provided)
     {
@@ -720,7 +723,10 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X, const
         {
             sample_weight_validation[i] = sample_weight[validation_indexes[i]];
         }
+        sample_weight_validation /= sample_weight_validation.mean();
     }
+    else
+        sample_weight_validation = VectorXd::Constant(y_validation.rows(), 1.0);
     if (groups_are_provided)
     {
         group_validation.resize(validation_indexes.size());
@@ -937,7 +943,7 @@ VectorXd APLRRegressor::calculate_neg_gradient_current()
         output = (y_train.array() - predictions_current.array()).sign() * mae;
         for (Eigen::Index i = 0; i < y_train.size(); ++i)
         {
-            if (y_train[i] < predictions_current[i])
+            if (std::isless(y_train[i], predictions_current[i]))
                 output[i] *= 1 - quantile;
             else
                 output[i] *= quantile;
@@ -984,20 +990,9 @@ VectorXd APLRRegressor::calculate_neg_gradient_current_for_group_mse(GroupData &
     }
 
     VectorXd output{VectorXd(y_train.rows())};
-    bool sample_weight_is_provided{sample_weight_train.size() > 0};
-    if (sample_weight_is_provided)
+    for (Eigen::Index i = 0; i < y_train.size(); ++i)
     {
-        for (Eigen::Index i = 0; i < y_train.size(); ++i)
-        {
-            output[i] = group_residuals_and_count.error[group[i]] * sample_weight_train[i];
-        }
-    }
-    else
-    {
-        for (Eigen::Index i = 0; i < y_train.size(); ++i)
-        {
-            output[i] = group_residuals_and_count.error[group[i]];
-        }
+        output[i] = group_residuals_and_count.error[group[i]] * sample_weight_train[i];
     }
 
     return output;
@@ -1093,10 +1088,7 @@ void APLRRegressor::execute_boosting_step(size_t boosting_step, Eigen::Index fol
 void APLRRegressor::update_intercept(size_t boosting_step)
 {
     double intercept_update;
-    if (sample_weight_train.size() == 0)
-        intercept_update = v * neg_gradient_current.mean();
-    else
-        intercept_update = v * (neg_gradient_current.array() * sample_weight_train.array()).sum() / sample_weight_train.array().sum();
+    intercept_update = v * (neg_gradient_current.array() * sample_weight_train.array()).sum() / sample_weight_train.array().sum();
     if (model_has_changed_in_this_boosting_step == false)
         model_has_changed_in_this_boosting_step = !is_approximately_equal(intercept_update, 0.0);
     linear_predictor_update = VectorXd::Constant(neg_gradient_current.size(), intercept_update);
@@ -1630,7 +1622,7 @@ void APLRRegressor::merge_similar_terms(const MatrixXd &X)
                 {
                     VectorXd values_i{terms[i].calculate(X)};
                     VectorXd values_j{terms[j].calculate(X)};
-                    bool terms_are_similar{values_i == values_j};
+                    bool terms_are_similar{all_are_equal(values_i, values_j)};
                     if (terms_are_similar)
                     {
                         if (terms[i].get_interaction_level() > terms[j].get_interaction_level())
@@ -1744,7 +1736,7 @@ std::string APLRRegressor::compute_raw_base_term_name(const Term &term, const st
     {
         double temp_split_point{term.split_point};
         std::string sign{"-"};
-        if (std::isless(temp_split_point, 0))
+        if (std::isless(temp_split_point, 0.0))
         {
             temp_split_point = -temp_split_point;
             sign = "+";
@@ -1839,15 +1831,7 @@ void APLRRegressor::write_output_to_cv_fold_models(Eigen::Index fold_index)
     cv_fold_models[fold_index].fold_index = fold_index;
     cv_fold_models[fold_index].min_training_prediction_or_response = min_training_prediction_or_response;
     cv_fold_models[fold_index].max_training_prediction_or_response = max_training_prediction_or_response;
-    bool sample_weight_is_provided{sample_weight_train.size() > 0};
-    if (sample_weight_is_provided)
-    {
-        cv_fold_models[fold_index].sample_weight_train_sum = sample_weight_train.sum();
-    }
-    else
-    {
-        cv_fold_models[fold_index].sample_weight_train_sum = static_cast<double>(y_train.rows());
-    }
+    cv_fold_models[fold_index].sample_weight_train_sum = sample_weight_train.sum();
 }
 
 void APLRRegressor::cleanup_after_fit()
@@ -1989,7 +1973,7 @@ void APLRRegressor::sort_terms()
 {
     std::sort(terms.begin(), terms.end(),
               [](const Term &a, const Term &b)
-              { return a.estimated_term_importance > b.estimated_term_importance ||
+              { return std::isgreater(a.estimated_term_importance, b.estimated_term_importance) ||
                        (is_approximately_equal(a.estimated_term_importance, b.estimated_term_importance) && (a.base_term < b.base_term)) ||
                        (is_approximately_equal(a.estimated_term_importance, b.estimated_term_importance) && (a.base_term == b.base_term) &&
                         std::isless(a.coefficient, b.coefficient)); });
