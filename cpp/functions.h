@@ -509,19 +509,17 @@ std::vector<double> remove_duplicate_elements_from_vector(const std::vector<doub
     return output;
 }
 
-double calculate_standard_deviation(const VectorXd &vector, const VectorXd &weight = VectorXd(0))
+double calculate_standard_deviation(const VectorXd &vector, const VectorXd &sample_weight = VectorXd(0))
 {
-    bool weight_is_provided{weight.size() > 0};
-    double variance;
-    if (weight_is_provided)
-    {
-        double sum_weight{weight.sum()};
-        double weighted_average_of_vector{(vector.array() * weight.array()).sum() / sum_weight};
-        variance = (weight.array() * (vector.array() - weighted_average_of_vector).pow(2)).sum() / sum_weight;
-    }
+    VectorXd sample_weight_used;
+    bool sample_weight_is_provided{sample_weight.size() > 0};
+    if (sample_weight_is_provided)
+        sample_weight_used = sample_weight / sample_weight.mean();
     else
-    {
-        variance = (vector.array() - vector.mean()).pow(2).mean();
-    }
-    return std::pow(variance, 0.5);
+        sample_weight_used = VectorXd::Constant(vector.rows(), 1.0);
+    double sum_weight{sample_weight_used.sum()};
+    double weighted_average_of_vector{(vector.array() * sample_weight_used.array()).sum() / sum_weight};
+    double variance{(sample_weight_used.array() * (vector.array() - weighted_average_of_vector).pow(2)).sum() / sum_weight};
+    double standard_deviation{std::pow(variance, 0.5)};
+    return standard_deviation;
 }

@@ -117,6 +117,8 @@ public:
         std::cout << predictions.mean() << "\n\n";
         tests.push_back(is_approximately_equal(predictions.mean(), 20.170939369337834));
 
+        VectorXd feature_importance_on_test_set{model.calculate_feature_importance(X_test)};
+        double feature_importance_on_test_set_mean{feature_importance_on_test_set.mean()};
         double feature_importance_mean{model.get_feature_importance().mean()};
         double term_importance_mean{model.get_term_importance().mean()};
         double feature_importance_first{model.get_feature_importance()[0]};
@@ -129,6 +131,7 @@ public:
         std::cout << term_importance_first << "\n\n";
         std::cout << term_base_predictor_index_max << "\n\n";
         std::cout << term_interaction_level_max << "\n\n";
+        tests.push_back(is_approximately_equal(feature_importance_on_test_set_mean, 0.3745208543129413));
         tests.push_back(is_approximately_equal(feature_importance_mean, 0.37558643075803277));
         tests.push_back(is_approximately_equal(term_importance_mean, 0.12150899891033366));
         tests.push_back(is_approximately_equal(feature_importance_first, 0.74048121167747938));

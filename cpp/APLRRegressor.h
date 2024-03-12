@@ -231,8 +231,8 @@ public:
              const MatrixXd &other_data = MatrixXd(0, 0));
     VectorXd predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = true);
     void set_term_names(const std::vector<std::string> &X_names);
-    VectorXd calculate_feature_importance(const MatrixXd &X, const VectorXd &sample_weight);
-    VectorXd calculate_term_importance(const MatrixXd &X, const VectorXd &sample_weight);
+    VectorXd calculate_feature_importance(const MatrixXd &X, const VectorXd &sample_weight = VectorXd(0));
+    VectorXd calculate_term_importance(const MatrixXd &X, const VectorXd &sample_weight = VectorXd(0));
     MatrixXd calculate_local_feature_contribution(const MatrixXd &X);
     MatrixXd calculate_local_term_contribution(const MatrixXd &X);
     MatrixXd calculate_terms(const MatrixXd &X);
