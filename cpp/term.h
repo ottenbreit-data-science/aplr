@@ -508,6 +508,9 @@ void Term::estimate_split_point_on_discretized_data()
     for (auto bin = bins_split_points_left.rbegin(); bin != bins_split_points_left.rend(); ++bin)
     {
         split_point = *bin;
+        bool unusable_split_point{is_approximately_equal(split_point, sorted_vectors.values_sorted[0])};
+        if (unusable_split_point)
+            continue;
         direction_right = false;
         estimate_coefficient_and_error(calculate_without_interactions(values_discretized), negative_gradient_discretized, sample_weight_discretized);
         if (std::isless(split_point_search_errors_sum, error_min_left))
@@ -522,6 +525,9 @@ void Term::estimate_split_point_on_discretized_data()
     for (auto &bin : bins_split_points_right)
     {
         split_point = bin;
+        bool unusable_split_point{is_approximately_equal(split_point, sorted_vectors.values_sorted[sorted_vectors.values_sorted.size() - 1])};
+        if (unusable_split_point)
+            continue;
         direction_right = true;
         estimate_coefficient_and_error(calculate_without_interactions(values_discretized), negative_gradient_discretized, sample_weight_discretized);
         if (std::isless(split_point_search_errors_sum, error_min_right))
