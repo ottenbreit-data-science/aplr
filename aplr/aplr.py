@@ -65,6 +65,7 @@ class APLRRegressor:
         group_mse_by_prediction_bins: int = 10,
         group_mse_cycle_min_obs_in_bin: int = 30,
         early_stopping_rounds: int = 500,
+        num_first_steps_with_linear_effects_only: int = 0,
     ):
         self.m = m
         self.v = v
@@ -105,6 +106,9 @@ class APLRRegressor:
         self.group_mse_by_prediction_bins = group_mse_by_prediction_bins
         self.group_mse_cycle_min_obs_in_bin = group_mse_cycle_min_obs_in_bin
         self.early_stopping_rounds = early_stopping_rounds
+        self.num_first_steps_with_linear_effects_only = (
+            num_first_steps_with_linear_effects_only
+        )
 
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
@@ -159,6 +163,9 @@ class APLRRegressor:
             self.group_mse_cycle_min_obs_in_bin
         )
         self.APLRRegressor.early_stopping_rounds = self.early_stopping_rounds
+        self.APLRRegressor.num_first_steps_with_linear_effects_only = (
+            self.num_first_steps_with_linear_effects_only
+        )
 
     def fit(
         self,
@@ -286,6 +293,7 @@ class APLRRegressor:
             "group_mse_by_prediction_bins": self.group_mse_by_prediction_bins,
             "group_mse_cycle_min_obs_in_bin": self.group_mse_cycle_min_obs_in_bin,
             "early_stopping_rounds": self.early_stopping_rounds,
+            "num_first_steps_with_linear_effects_only": self.num_first_steps_with_linear_effects_only,
         }
 
     # For sklearn
@@ -314,6 +322,7 @@ class APLRClassifier:
         boosting_steps_before_interactions_are_allowed: int = 0,
         monotonic_constraints_ignore_interactions: bool = False,
         early_stopping_rounds: int = 500,
+        num_first_steps_with_linear_effects_only: int = 0,
     ):
         self.m = m
         self.v = v
@@ -334,6 +343,9 @@ class APLRClassifier:
             monotonic_constraints_ignore_interactions
         )
         self.early_stopping_rounds = early_stopping_rounds
+        self.num_first_steps_with_linear_effects_only = (
+            num_first_steps_with_linear_effects_only
+        )
 
         # Creating aplr_cpp and setting parameters
         self.APLRClassifier = aplr_cpp.APLRClassifier()
@@ -362,6 +374,9 @@ class APLRClassifier:
             self.monotonic_constraints_ignore_interactions
         )
         self.APLRClassifier.early_stopping_rounds = self.early_stopping_rounds
+        self.APLRClassifier.num_first_steps_with_linear_effects_only = (
+            self.num_first_steps_with_linear_effects_only
+        )
 
     def fit(
         self,
@@ -434,6 +449,7 @@ class APLRClassifier:
             "boosting_steps_before_interactions_are_allowed": self.boosting_steps_before_interactions_are_allowed,
             "monotonic_constraints_ignore_interactions": self.monotonic_constraints_ignore_interactions,
             "early_stopping_rounds": self.early_stopping_rounds,
+            "num_first_steps_with_linear_effects_only": self.num_first_steps_with_linear_effects_only,
         }
 
     # For sklearn

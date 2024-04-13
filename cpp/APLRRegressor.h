@@ -72,6 +72,7 @@ private:
     VectorXd intercept_steps;
     double best_validation_error_so_far;
     size_t best_m_so_far;
+    bool linear_effects_only_in_this_boosting_step;
 
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
@@ -210,6 +211,7 @@ public:
     VectorXi term_main_predictor_indexes;
     VectorXi term_interaction_levels;
     size_t early_stopping_rounds;
+    size_t num_first_steps_with_linear_effects_only;
 
     APLRRegressor(size_t m = 3000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, size_t cv_folds = 5,
@@ -222,7 +224,8 @@ public:
                   const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {},
                   size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
-                  size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30, size_t early_stopping_rounds = 500);
+                  size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30, size_t early_stopping_rounds = 500,
+                  size_t num_first_steps_with_linear_effects_only = 0);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
@@ -262,7 +265,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function,
                              const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
                              size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
-                             size_t group_mse_by_prediction_bins, size_t group_mse_cycle_min_obs_in_bin, size_t early_stopping_rounds)
+                             size_t group_mse_by_prediction_bins, size_t group_mse_cycle_min_obs_in_bin, size_t early_stopping_rounds,
+                             size_t num_first_steps_with_linear_effects_only)
     : reserved_terms_times_num_x{reserved_terms_times_num_x}, intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, cv_folds{cv_folds}, n_jobs{n_jobs}, random_state{random_state},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
@@ -276,7 +280,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
       calculate_custom_differentiate_predictions_wrt_linear_predictor_function{calculate_custom_differentiate_predictions_wrt_linear_predictor_function},
       boosting_steps_before_interactions_are_allowed{boosting_steps_before_interactions_are_allowed},
       monotonic_constraints_ignore_interactions{monotonic_constraints_ignore_interactions}, group_mse_by_prediction_bins{group_mse_by_prediction_bins},
-      group_mse_cycle_min_obs_in_bin{group_mse_cycle_min_obs_in_bin}, cv_error{NAN_DOUBLE}, early_stopping_rounds{early_stopping_rounds}
+      group_mse_cycle_min_obs_in_bin{group_mse_cycle_min_obs_in_bin}, cv_error{NAN_DOUBLE}, early_stopping_rounds{early_stopping_rounds},
+      num_first_steps_with_linear_effects_only{num_first_steps_with_linear_effects_only}
 {
 }
 
@@ -301,7 +306,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       monotonic_constraints_ignore_interactions{other.monotonic_constraints_ignore_interactions}, group_mse_by_prediction_bins{other.group_mse_by_prediction_bins},
       group_mse_cycle_min_obs_in_bin{other.group_mse_cycle_min_obs_in_bin}, cv_error{other.cv_error},
       term_main_predictor_indexes{other.term_main_predictor_indexes}, term_interaction_levels{other.term_interaction_levels},
-      early_stopping_rounds{other.early_stopping_rounds}
+      early_stopping_rounds{other.early_stopping_rounds},
+      num_first_steps_with_linear_effects_only{other.num_first_steps_with_linear_effects_only}
 {
 }
 
@@ -1026,6 +1032,7 @@ void APLRRegressor::execute_boosting_steps(Eigen::Index fold_index)
     abort_boosting = false;
     for (size_t boosting_step = 0; boosting_step < m; ++boosting_step)
     {
+        linear_effects_only_in_this_boosting_step = num_first_steps_with_linear_effects_only > boosting_step;
         execute_boosting_step(boosting_step, fold_index);
         if (abort_boosting)
             break;
@@ -1137,7 +1144,8 @@ void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms,
 #pragma omp parallel for schedule(guided) if (multithreading)
     for (size_t i = 0; i < terms_indexes.size(); ++i)
     {
-        terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins, v, min_observations_in_split);
+        terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins, v, min_observations_in_split,
+                                                     linear_effects_only_in_this_boosting_step);
     }
 }
 

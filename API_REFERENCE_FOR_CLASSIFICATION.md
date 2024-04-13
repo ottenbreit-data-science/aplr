@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int=3000, v:float=0.1, random_state:int=0, n_jobs:int=0, cv_folds:int=5, bins:int=300, verbosity:int=0, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 500)
+## class aplr.APLRClassifier(m:int=3000, v:float=0.1, random_state:int=0, n_jobs:int=0, cv_folds:int=5, bins:int=300, verbosity:int=0, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 500, num_first_steps_with_linear_effects_only: int = 0)
 
 ### Constructor parameters
 
@@ -48,6 +48,9 @@ See ***monotonic_constraints*** in the ***fit*** method.
 
 #### early_stopping_rounds (default = 500)
 If validation loss does not improve during the last ***early_stopping_rounds*** boosting steps then boosting is aborted. The point with this constructor parameter is to speed up the training and make it easier to select a high ***m***.
+
+#### num_first_steps_with_linear_effects_only (default = 0)
+Specifies the number of initial boosting steps that are reserved only for linear effects. 0 means that non-linear effects are allowed from the first boosting step. Reasons for setting this parameter to a higher value than 0 could be to 1) build a more interpretable model with more emphasis on linear effects or 2) build a linear only model by setting ***num_first_steps_with_linear_effects_only*** to no less than ***m***.
 
 
 ## Method: fit(X:npt.ArrayLike, y:List[str], sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], cv_observations: npt.ArrayLike = np.empty([0, 0]), prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], interaction_constraints:List[List[int]]=[])

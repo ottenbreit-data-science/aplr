@@ -44,9 +44,11 @@ private:
     std::vector<size_t> observations_in_bins;
     int monotonic_constraint;
     int interaction_constraint;
+    bool linear_effects_only_in_this_boosting_step;
 
     void calculate_error_where_given_terms_are_zero(const VectorXd &negative_gradient, const VectorXd &sample_weight);
-    void initialize_parameters_in_estimate_split_point(size_t bins, double v, size_t min_observations_in_split);
+    void initialize_parameters_in_estimate_split_point(size_t bins, double v, size_t min_observations_in_split,
+                                                       bool linear_effects_only_in_this_boosting_step);
     void adjust_min_observations_in_split_to_avoid_computational_errors(size_t min_observations_in_split);
     void sort_vectors_ascending_by_base_term(const MatrixXd &X, const VectorXd &negative_gradient, const VectorXd &sample_weight);
     SortedData sort_data(const VectorXd &values_to_sort, const VectorXd &negative_gradient_to_sort, const VectorXd &sample_weight_to_sort);
@@ -91,7 +93,8 @@ public:
     VectorXd calculate_contribution_to_linear_predictor(const MatrixXd &X);
     static bool equals_not_comparing_given_terms(const Term &p1, const Term &p2);
     static bool equals_given_terms(const Term &p1, const Term &p2);
-    void estimate_split_point(const MatrixXd &X, const VectorXd &negative_gradient, const VectorXd &sample_weight, size_t bins, double v, size_t min_observations_in_split);
+    void estimate_split_point(const MatrixXd &X, const VectorXd &negative_gradient, const VectorXd &sample_weight, size_t bins, double v,
+                              size_t min_observations_in_split, bool linear_effects_only_in_this_boosting_step);
     size_t get_interaction_level();
     VectorXd calculate_without_interactions(const VectorXd &x);
     void calculate_rows_to_zero_out_and_not_due_to_given_terms(const MatrixXd &X);
@@ -164,7 +167,8 @@ bool operator==(const Term &p1, const Term &p2)
     return cmp_ex_given_terms && cmp_given_terms;
 }
 
-void Term::estimate_split_point(const MatrixXd &X, const VectorXd &negative_gradient, const VectorXd &sample_weight, size_t bins, double v, size_t min_observations_in_split)
+void Term::estimate_split_point(const MatrixXd &X, const VectorXd &negative_gradient, const VectorXd &sample_weight, size_t bins, double v,
+                                size_t min_observations_in_split, bool linear_effects_only_in_this_boosting_step)
 {
     calculate_rows_to_zero_out_and_not_due_to_given_terms(X);
 
@@ -175,7 +179,7 @@ void Term::estimate_split_point(const MatrixXd &X, const VectorXd &negative_grad
         return;
     }
 
-    initialize_parameters_in_estimate_split_point(bins, v, min_observations_in_split);
+    initialize_parameters_in_estimate_split_point(bins, v, min_observations_in_split, linear_effects_only_in_this_boosting_step);
     calculate_error_where_given_terms_are_zero(negative_gradient, sample_weight);
     sort_vectors_ascending_by_base_term(X, negative_gradient, sample_weight);
     setup_bins();
@@ -295,10 +299,12 @@ void Term::calculate_error_where_given_terms_are_zero(const VectorXd &negative_g
     }
 }
 
-void Term::initialize_parameters_in_estimate_split_point(size_t bins, double v, size_t min_observations_in_split)
+void Term::initialize_parameters_in_estimate_split_point(size_t bins, double v, size_t min_observations_in_split,
+                                                         bool linear_effects_only_in_this_boosting_step)
 {
     this->bins = bins;
     this->v = v;
+    this->linear_effects_only_in_this_boosting_step = linear_effects_only_in_this_boosting_step;
     adjust_min_observations_in_split_to_avoid_computational_errors(min_observations_in_split);
     max_index = calculate_max_index_in_vector(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed);
 }
@@ -503,52 +509,49 @@ void Term::estimate_split_point_on_discretized_data()
         error_split_point_nan = split_point_search_errors_sum;
     }
 
-    double split_point_left{NAN_DOUBLE};
-    double error_min_left{error_split_point_nan};
-    for (auto bin = bins_split_points_left.rbegin(); bin != bins_split_points_left.rend(); ++bin)
+    if (!linear_effects_only_in_this_boosting_step)
     {
-        split_point = *bin;
-        bool unusable_split_point{is_approximately_equal(split_point, sorted_vectors.values_sorted[0])};
-        if (unusable_split_point)
-            continue;
-        direction_right = false;
-        estimate_coefficient_and_error(calculate_without_interactions(values_discretized), negative_gradient_discretized, sample_weight_discretized);
-        if (std::isless(split_point_search_errors_sum, error_min_left))
+        double split_point_left{NAN_DOUBLE};
+        double error_min_left{error_split_point_nan};
+        for (auto bin = bins_split_points_left.rbegin(); bin != bins_split_points_left.rend(); ++bin)
         {
-            error_min_left = split_point_search_errors_sum;
-            split_point_left = split_point;
+            split_point = *bin;
+            direction_right = false;
+            estimate_coefficient_and_error(calculate_without_interactions(values_discretized), negative_gradient_discretized, sample_weight_discretized);
+            if (std::isless(split_point_search_errors_sum, error_min_left))
+            {
+                error_min_left = split_point_search_errors_sum;
+                split_point_left = split_point;
+            }
         }
-    }
 
-    double split_point_right{NAN_DOUBLE};
-    double error_min_right{error_split_point_nan};
-    for (auto &bin : bins_split_points_right)
-    {
-        split_point = bin;
-        bool unusable_split_point{is_approximately_equal(split_point, sorted_vectors.values_sorted[sorted_vectors.values_sorted.size() - 1])};
-        if (unusable_split_point)
-            continue;
-        direction_right = true;
-        estimate_coefficient_and_error(calculate_without_interactions(values_discretized), negative_gradient_discretized, sample_weight_discretized);
-        if (std::isless(split_point_search_errors_sum, error_min_right))
+        double split_point_right{NAN_DOUBLE};
+        double error_min_right{error_split_point_nan};
+        for (auto &bin : bins_split_points_right)
         {
-            error_min_right = split_point_search_errors_sum;
-            split_point_right = split_point;
+            split_point = bin;
+            direction_right = true;
+            estimate_coefficient_and_error(calculate_without_interactions(values_discretized), negative_gradient_discretized, sample_weight_discretized);
+            if (std::isless(split_point_search_errors_sum, error_min_right))
+            {
+                error_min_right = split_point_search_errors_sum;
+                split_point_right = split_point;
+            }
         }
-    }
 
-    bool use_left_direction{std::isless(error_min_left, error_min_right)};
-    if (use_left_direction)
-    {
-        direction_right = false;
-        split_point = split_point_left;
-        split_point_search_errors_sum = error_min_left;
-    }
-    else
-    {
-        direction_right = true;
-        split_point = split_point_right;
-        split_point_search_errors_sum = error_min_right;
+        bool use_left_direction{std::isless(error_min_left, error_min_right)};
+        if (use_left_direction)
+        {
+            direction_right = false;
+            split_point = split_point_left;
+            split_point_search_errors_sum = error_min_left;
+        }
+        else
+        {
+            direction_right = true;
+            split_point = split_point_right;
+            split_point_search_errors_sum = error_min_right;
+        }
     }
 
     prune_given_terms();
