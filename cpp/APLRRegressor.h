@@ -212,6 +212,8 @@ public:
     VectorXi term_interaction_levels;
     size_t early_stopping_rounds;
     size_t num_first_steps_with_linear_effects_only;
+    double penalty_for_non_linearity;
+    double penalty_for_interactions;
 
     APLRRegressor(size_t m = 3000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, size_t cv_folds = 5,
@@ -225,7 +227,8 @@ public:
                   const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {},
                   size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
                   size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30, size_t early_stopping_rounds = 500,
-                  size_t num_first_steps_with_linear_effects_only = 0);
+                  size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0,
+                  double penalty_for_interactions = 0.0);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
@@ -266,7 +269,7 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
                              size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
                              size_t group_mse_by_prediction_bins, size_t group_mse_cycle_min_obs_in_bin, size_t early_stopping_rounds,
-                             size_t num_first_steps_with_linear_effects_only)
+                             size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity, double penalty_for_interactions)
     : reserved_terms_times_num_x{reserved_terms_times_num_x}, intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, cv_folds{cv_folds}, n_jobs{n_jobs}, random_state{random_state},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
@@ -281,7 +284,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
       boosting_steps_before_interactions_are_allowed{boosting_steps_before_interactions_are_allowed},
       monotonic_constraints_ignore_interactions{monotonic_constraints_ignore_interactions}, group_mse_by_prediction_bins{group_mse_by_prediction_bins},
       group_mse_cycle_min_obs_in_bin{group_mse_cycle_min_obs_in_bin}, cv_error{NAN_DOUBLE}, early_stopping_rounds{early_stopping_rounds},
-      num_first_steps_with_linear_effects_only{num_first_steps_with_linear_effects_only}
+      num_first_steps_with_linear_effects_only{num_first_steps_with_linear_effects_only}, penalty_for_non_linearity{penalty_for_non_linearity},
+      penalty_for_interactions{penalty_for_interactions}
 {
 }
 
@@ -307,7 +311,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       group_mse_cycle_min_obs_in_bin{other.group_mse_cycle_min_obs_in_bin}, cv_error{other.cv_error},
       term_main_predictor_indexes{other.term_main_predictor_indexes}, term_interaction_levels{other.term_interaction_levels},
       early_stopping_rounds{other.early_stopping_rounds},
-      num_first_steps_with_linear_effects_only{other.num_first_steps_with_linear_effects_only}
+      num_first_steps_with_linear_effects_only{other.num_first_steps_with_linear_effects_only},
+      penalty_for_non_linearity{other.penalty_for_non_linearity}, penalty_for_interactions{other.penalty_for_interactions}
 {
 }
 
@@ -1145,7 +1150,7 @@ void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms,
     for (size_t i = 0; i < terms_indexes.size(); ++i)
     {
         terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins, v, min_observations_in_split,
-                                                     linear_effects_only_in_this_boosting_step);
+                                                     linear_effects_only_in_this_boosting_step, penalty_for_non_linearity, penalty_for_interactions);
     }
 }
 

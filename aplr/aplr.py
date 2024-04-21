@@ -66,6 +66,8 @@ class APLRRegressor:
         group_mse_cycle_min_obs_in_bin: int = 30,
         early_stopping_rounds: int = 500,
         num_first_steps_with_linear_effects_only: int = 0,
+        penalty_for_non_linearity: float = 0.0,
+        penalty_for_interactions: float = 0.0,
     ):
         self.m = m
         self.v = v
@@ -109,6 +111,8 @@ class APLRRegressor:
         self.num_first_steps_with_linear_effects_only = (
             num_first_steps_with_linear_effects_only
         )
+        self.penalty_for_non_linearity = penalty_for_non_linearity
+        self.penalty_for_interactions = penalty_for_interactions
 
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
@@ -166,6 +170,8 @@ class APLRRegressor:
         self.APLRRegressor.num_first_steps_with_linear_effects_only = (
             self.num_first_steps_with_linear_effects_only
         )
+        self.APLRRegressor.penalty_for_non_linearity = self.penalty_for_non_linearity
+        self.APLRRegressor.penalty_for_interactions = self.penalty_for_interactions
 
     def fit(
         self,
@@ -294,6 +300,8 @@ class APLRRegressor:
             "group_mse_cycle_min_obs_in_bin": self.group_mse_cycle_min_obs_in_bin,
             "early_stopping_rounds": self.early_stopping_rounds,
             "num_first_steps_with_linear_effects_only": self.num_first_steps_with_linear_effects_only,
+            "penalty_for_non_linearity": self.penalty_for_non_linearity,
+            "penalty_for_interactions": self.penalty_for_interactions,
         }
 
     # For sklearn
@@ -323,6 +331,8 @@ class APLRClassifier:
         monotonic_constraints_ignore_interactions: bool = False,
         early_stopping_rounds: int = 500,
         num_first_steps_with_linear_effects_only: int = 0,
+        penalty_for_non_linearity: float = 0.0,
+        penalty_for_interactions: float = 0.0,
     ):
         self.m = m
         self.v = v
@@ -346,6 +356,8 @@ class APLRClassifier:
         self.num_first_steps_with_linear_effects_only = (
             num_first_steps_with_linear_effects_only
         )
+        self.penalty_for_non_linearity = penalty_for_non_linearity
+        self.penalty_for_interactions = penalty_for_interactions
 
         # Creating aplr_cpp and setting parameters
         self.APLRClassifier = aplr_cpp.APLRClassifier()
@@ -377,6 +389,8 @@ class APLRClassifier:
         self.APLRClassifier.num_first_steps_with_linear_effects_only = (
             self.num_first_steps_with_linear_effects_only
         )
+        self.APLRClassifier.penalty_for_non_linearity = self.penalty_for_non_linearity
+        self.APLRClassifier.penalty_for_interactions = self.penalty_for_interactions
 
     def fit(
         self,
@@ -450,6 +464,8 @@ class APLRClassifier:
             "monotonic_constraints_ignore_interactions": self.monotonic_constraints_ignore_interactions,
             "early_stopping_rounds": self.early_stopping_rounds,
             "num_first_steps_with_linear_effects_only": self.num_first_steps_with_linear_effects_only,
+            "penalty_for_non_linearity": self.penalty_for_non_linearity,
+            "penalty_for_interactions": self.penalty_for_interactions,
         }
 
     # For sklearn

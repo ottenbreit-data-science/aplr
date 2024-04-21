@@ -45,10 +45,13 @@ private:
     int monotonic_constraint;
     int interaction_constraint;
     bool linear_effects_only_in_this_boosting_step;
+    double penalty_for_non_linearity;
+    double penalty_for_interactions;
 
     void calculate_error_where_given_terms_are_zero(const VectorXd &negative_gradient, const VectorXd &sample_weight);
     void initialize_parameters_in_estimate_split_point(size_t bins, double v, size_t min_observations_in_split,
-                                                       bool linear_effects_only_in_this_boosting_step);
+                                                       bool linear_effects_only_in_this_boosting_step,
+                                                       double penalty_for_non_linearity, double penalty_for_interactions);
     void adjust_min_observations_in_split_to_avoid_computational_errors(size_t min_observations_in_split);
     void sort_vectors_ascending_by_base_term(const MatrixXd &X, const VectorXd &negative_gradient, const VectorXd &sample_weight);
     SortedData sort_data(const VectorXd &values_to_sort, const VectorXd &negative_gradient_to_sort, const VectorXd &sample_weight_to_sort);
@@ -56,6 +59,7 @@ private:
     void discretize_data_by_bin();
     void estimate_split_point_on_discretized_data();
     void estimate_coefficient_and_error(const VectorXd &x, const VectorXd &y, const VectorXd &sample_weight, double error_added = 0.0);
+    double calculate_penalty_factor_due_to_non_linearity_and_interactions();
     void prune_given_terms();
     double estimate_coefficient(const VectorXd &x, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0));
     void cleanup_after_estimate_split_point();
@@ -94,7 +98,8 @@ public:
     static bool equals_not_comparing_given_terms(const Term &p1, const Term &p2);
     static bool equals_given_terms(const Term &p1, const Term &p2);
     void estimate_split_point(const MatrixXd &X, const VectorXd &negative_gradient, const VectorXd &sample_weight, size_t bins, double v,
-                              size_t min_observations_in_split, bool linear_effects_only_in_this_boosting_step);
+                              size_t min_observations_in_split, bool linear_effects_only_in_this_boosting_step,
+                              double penalty_for_non_linearity, double penalty_for_interactions);
     size_t get_interaction_level();
     VectorXd calculate_without_interactions(const VectorXd &x);
     void calculate_rows_to_zero_out_and_not_due_to_given_terms(const MatrixXd &X);
@@ -168,7 +173,8 @@ bool operator==(const Term &p1, const Term &p2)
 }
 
 void Term::estimate_split_point(const MatrixXd &X, const VectorXd &negative_gradient, const VectorXd &sample_weight, size_t bins, double v,
-                                size_t min_observations_in_split, bool linear_effects_only_in_this_boosting_step)
+                                size_t min_observations_in_split, bool linear_effects_only_in_this_boosting_step,
+                                double penalty_for_non_linearity, double penalty_for_interactions)
 {
     calculate_rows_to_zero_out_and_not_due_to_given_terms(X);
 
@@ -179,7 +185,8 @@ void Term::estimate_split_point(const MatrixXd &X, const VectorXd &negative_grad
         return;
     }
 
-    initialize_parameters_in_estimate_split_point(bins, v, min_observations_in_split, linear_effects_only_in_this_boosting_step);
+    initialize_parameters_in_estimate_split_point(bins, v, min_observations_in_split, linear_effects_only_in_this_boosting_step,
+                                                  penalty_for_non_linearity, penalty_for_interactions);
     calculate_error_where_given_terms_are_zero(negative_gradient, sample_weight);
     sort_vectors_ascending_by_base_term(X, negative_gradient, sample_weight);
     setup_bins();
@@ -300,11 +307,14 @@ void Term::calculate_error_where_given_terms_are_zero(const VectorXd &negative_g
 }
 
 void Term::initialize_parameters_in_estimate_split_point(size_t bins, double v, size_t min_observations_in_split,
-                                                         bool linear_effects_only_in_this_boosting_step)
+                                                         bool linear_effects_only_in_this_boosting_step, double penalty_for_non_linearity,
+                                                         double penalty_for_interactions)
 {
     this->bins = bins;
     this->v = v;
     this->linear_effects_only_in_this_boosting_step = linear_effects_only_in_this_boosting_step;
+    this->penalty_for_non_linearity = penalty_for_non_linearity;
+    this->penalty_for_interactions = penalty_for_interactions;
     adjust_min_observations_in_split_to_avoid_computational_errors(min_observations_in_split);
     max_index = calculate_max_index_in_vector(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed);
 }
@@ -559,7 +569,8 @@ void Term::estimate_split_point_on_discretized_data()
 
 void Term::estimate_coefficient_and_error(const VectorXd &x, const VectorXd &y, const VectorXd &sample_weight, double error_added)
 {
-    coefficient = v * estimate_coefficient(x, y, sample_weight);
+    double penalty_factor{calculate_penalty_factor_due_to_non_linearity_and_interactions()};
+    coefficient = v * penalty_factor * estimate_coefficient(x, y, sample_weight);
     if (std::isfinite(coefficient) && coefficient_adheres_to_monotonic_constraint())
     {
         VectorXd predictions{x * coefficient};
@@ -570,6 +581,18 @@ void Term::estimate_coefficient_and_error(const VectorXd &x, const VectorXd &y, 
         coefficient = 0.0;
         split_point_search_errors_sum = std::numeric_limits<double>::infinity();
     }
+}
+
+double Term::calculate_penalty_factor_due_to_non_linearity_and_interactions()
+{
+    double penalty_factor{1.0};
+    bool is_non_linear{!std::isnan(split_point)};
+    bool has_interactions{get_interaction_level() > 0};
+    if (is_non_linear)
+        penalty_factor *= (1.0 - penalty_for_non_linearity);
+    if (has_interactions)
+        penalty_factor *= (1.0 - penalty_for_interactions);
+    return penalty_factor;
 }
 
 double Term::estimate_coefficient(const VectorXd &x, const VectorXd &y, const VectorXd &sample_weight)
