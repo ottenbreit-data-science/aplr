@@ -519,7 +519,8 @@ void Term::estimate_split_point_on_discretized_data()
         error_split_point_nan = split_point_search_errors_sum;
     }
 
-    if (!linear_effects_only_in_this_boosting_step)
+    bool non_linear_effects_are_allowed{!linear_effects_only_in_this_boosting_step && std::isless(penalty_for_non_linearity, 1.0)};
+    if (non_linear_effects_are_allowed)
     {
         double split_point_left{NAN_DOUBLE};
         double error_min_left{error_split_point_nan};

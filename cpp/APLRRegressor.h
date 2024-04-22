@@ -86,6 +86,8 @@ private:
     void preprocess_prioritized_predictors_and_interaction_constraints(const MatrixXd &X, const std::vector<size_t> &prioritized_predictors_indexes,
                                                                        const std::vector<std::vector<size_t>> &interaction_constraints);
     void initialize_multithreading();
+    void preprocess_penalties();
+    void preprocess_penalty(double &penalty);
     void fit_model_for_cv_fold(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight,
                                const std::vector<std::string> &X_names, const VectorXi &cv_observations_in_fold,
                                const std::vector<int> &monotonic_constraints, const VectorXi &group, const MatrixXd &other_data,
@@ -334,6 +336,7 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
     MatrixXi cv_observations_used{preprocess_cv_observations(cv_observations, y)};
     preprocess_prioritized_predictors_and_interaction_constraints(X, prioritized_predictors_indexes, interaction_constraints);
     initialize_multithreading();
+    preprocess_penalties();
     cv_fold_models.resize(cv_observations_used.cols());
     for (Eigen::Index i = 0; i < cv_observations_used.cols(); ++i)
     {
@@ -370,6 +373,20 @@ void APLRRegressor::initialize_multithreading()
     else
         cores_to_use = std::min(n_jobs, available_cores);
     omp_set_num_threads(cores_to_use);
+}
+
+void APLRRegressor::preprocess_penalties()
+{
+    preprocess_penalty(penalty_for_non_linearity);
+    preprocess_penalty(penalty_for_interactions);
+}
+
+void APLRRegressor::preprocess_penalty(double &penalty)
+{
+    if (std::isgreater(penalty, 1.0))
+        penalty = 1.0;
+    else if (std::isless(penalty, 0.0))
+        penalty = 0.0;
 }
 
 void APLRRegressor::fit_model_for_cv_fold(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight,
@@ -1177,7 +1194,7 @@ size_t APLRRegressor::find_best_term_index(std::vector<Term> &terms, std::vector
 
 void APLRRegressor::consider_interactions(const std::vector<size_t> &available_predictor_indexes, size_t boosting_step)
 {
-    bool consider_interactions{terms.size() > 0 && max_interaction_level > 0 && interactions_eligible < max_interactions && boosting_step >= boosting_steps_before_interactions_are_allowed};
+    bool consider_interactions{terms.size() > 0 && max_interaction_level > 0 && interactions_eligible < max_interactions && boosting_step >= boosting_steps_before_interactions_are_allowed && std::isless(penalty_for_interactions, 1.0)};
     if (consider_interactions)
     {
         determine_interactions_to_consider(available_predictor_indexes);
