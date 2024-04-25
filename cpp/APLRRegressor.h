@@ -56,6 +56,9 @@ private:
     std::vector<size_t> predictor_indexes;
     std::vector<size_t> prioritized_predictors_indexes;
     std::vector<int> monotonic_constraints;
+    std::vector<double> predictor_learning_rates;
+    std::vector<double> predictor_penalties_for_non_linearity;
+    std::vector<double> predictor_penalties_for_interactions;
     VectorXi group_train;
     VectorXi group_validation;
     std::set<int> unique_groups_train;
@@ -77,10 +80,13 @@ private:
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
                                const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<std::vector<size_t>> &interaction_constraints,
-                               const MatrixXd &other_data);
+                               const MatrixXd &other_data, const std::vector<double> &predictor_learning_rates,
+                               const std::vector<double> &predictor_penalties_for_non_linearity,
+                               const std::vector<double> &predictor_penalties_for_interactions);
     void throw_error_if_validation_set_indexes_has_invalid_indexes(const VectorXd &y, const std::vector<size_t> &validation_set_indexes);
     void throw_error_if_prioritized_predictors_indexes_has_invalid_indexes(const MatrixXd &X, const std::vector<size_t> &prioritized_predictors_indexes);
     void throw_error_if_monotonic_constraints_has_invalid_indexes(const MatrixXd &X, const std::vector<int> &monotonic_constraints);
+    void throw_error_if_predictor_penalties_or_learning_rates_have_invalid_values(const MatrixXd &X, const std::vector<double> &predictor_penaties_or_learning_rates);
     void throw_error_if_interaction_constraints_has_invalid_indexes(const MatrixXd &X, const std::vector<std::vector<size_t>> &interaction_constraints);
     MatrixXi preprocess_cv_observations(const MatrixXi &cv_observations, const VectorXd &y);
     void preprocess_prioritized_predictors_and_interaction_constraints(const MatrixXd &X, const std::vector<size_t> &prioritized_predictors_indexes,
@@ -88,6 +94,11 @@ private:
     void initialize_multithreading();
     void preprocess_penalties();
     void preprocess_penalty(double &penalty);
+    void preprocess_predictor_learning_rates_and_penalties(const MatrixXd &X, const std::vector<double> &predictor_learning_rates,
+                                                           const std::vector<double> &predictor_penalties_for_non_linearity,
+                                                           const std::vector<double> &predictor_penalties_for_interactions);
+    std::vector<double> preprocess_predictor_learning_rate_or_penalty(const MatrixXd &X, double general_value,
+                                                                      const std::vector<double> &predictor_specific_values);
     void fit_model_for_cv_fold(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight,
                                const std::vector<std::string> &X_names, const VectorXi &cv_observations_in_fold,
                                const std::vector<int> &monotonic_constraints, const VectorXi &group, const MatrixXd &other_data,
@@ -236,7 +247,9 @@ public:
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
              const MatrixXi &cv_observations = MatrixXi(0, 0), const std::vector<size_t> &prioritized_predictors_indexes = {},
              const std::vector<int> &monotonic_constraints = {}, const VectorXi &group = VectorXi(0), const std::vector<std::vector<size_t>> &interaction_constraints = {},
-             const MatrixXd &other_data = MatrixXd(0, 0));
+             const MatrixXd &other_data = MatrixXd(0, 0), const std::vector<double> &predictor_learning_rates = {},
+             const std::vector<double> &predictor_penalties_for_non_linearity = {},
+             const std::vector<double> &predictor_penalties_for_interactions = {});
     VectorXd predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = true);
     void set_term_names(const std::vector<std::string> &X_names);
     VectorXd calculate_feature_importance(const MatrixXd &X, const VectorXd &sample_weight = VectorXd(0));
@@ -325,18 +338,23 @@ APLRRegressor::~APLRRegressor()
 void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                         const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
                         const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<std::vector<size_t>> &interaction_constraints,
-                        const MatrixXd &other_data)
+                        const MatrixXd &other_data, const std::vector<double> &predictor_learning_rates,
+                        const std::vector<double> &predictor_penalties_for_non_linearity,
+                        const std::vector<double> &predictor_penalties_for_interactions)
 {
     throw_error_if_loss_function_does_not_exist();
     throw_error_if_link_function_does_not_exist();
     throw_error_if_dispersion_parameter_is_invalid();
     throw_error_if_m_is_invalid();
     validate_input_to_fit(X, y, sample_weight, X_names, cv_observations, prioritized_predictors_indexes, monotonic_constraints, group,
-                          interaction_constraints, other_data);
+                          interaction_constraints, other_data, predictor_learning_rates, predictor_penalties_for_non_linearity,
+                          predictor_penalties_for_interactions);
     MatrixXi cv_observations_used{preprocess_cv_observations(cv_observations, y)};
     preprocess_prioritized_predictors_and_interaction_constraints(X, prioritized_predictors_indexes, interaction_constraints);
     initialize_multithreading();
     preprocess_penalties();
+    preprocess_predictor_learning_rates_and_penalties(X, predictor_learning_rates, predictor_penalties_for_non_linearity,
+                                                      predictor_penalties_for_interactions);
     cv_fold_models.resize(cv_observations_used.cols());
     for (Eigen::Index i = 0; i < cv_observations_used.cols(); ++i)
     {
@@ -387,6 +405,37 @@ void APLRRegressor::preprocess_penalty(double &penalty)
         penalty = 1.0;
     else if (std::isless(penalty, 0.0))
         penalty = 0.0;
+}
+
+void APLRRegressor::preprocess_predictor_learning_rates_and_penalties(const MatrixXd &X,
+                                                                      const std::vector<double> &predictor_learning_rates,
+                                                                      const std::vector<double> &predictor_penalties_for_non_linearity,
+                                                                      const std::vector<double> &predictor_penalties_for_interactions)
+{
+    this->predictor_learning_rates = preprocess_predictor_learning_rate_or_penalty(X, v, predictor_learning_rates);
+    this->predictor_penalties_for_non_linearity = preprocess_predictor_learning_rate_or_penalty(X, penalty_for_non_linearity,
+                                                                                                predictor_penalties_for_non_linearity);
+    this->predictor_penalties_for_interactions = preprocess_predictor_learning_rate_or_penalty(X, penalty_for_interactions,
+                                                                                               predictor_penalties_for_interactions);
+}
+
+std::vector<double> APLRRegressor::preprocess_predictor_learning_rate_or_penalty(const MatrixXd &X, double general_value,
+                                                                                 const std::vector<double> &predictor_specific_values)
+{
+    std::vector<double> output(X.cols());
+    bool predictor_specific_values_are_provided{predictor_specific_values.size() > 0};
+    if (predictor_specific_values_are_provided)
+    {
+        output = predictor_specific_values;
+    }
+    else
+    {
+        for (size_t i = 0; i < output.size(); ++i)
+        {
+            output[i] = general_value;
+        }
+    }
+    return output;
 }
 
 void APLRRegressor::fit_model_for_cv_fold(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight,
@@ -485,7 +534,10 @@ void APLRRegressor::throw_error_if_m_is_invalid()
 void APLRRegressor::validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight,
                                           const std::vector<std::string> &X_names, const MatrixXi &cv_observations,
                                           const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints, const VectorXi &group,
-                                          const std::vector<std::vector<size_t>> &interaction_constraints, const MatrixXd &other_data)
+                                          const std::vector<std::vector<size_t>> &interaction_constraints, const MatrixXd &other_data,
+                                          const std::vector<double> &predictor_learning_rates,
+                                          const std::vector<double> &predictor_penalties_for_non_linearity,
+                                          const std::vector<double> &predictor_penalties_for_interactions)
 {
     if (X.rows() != y.size())
         throw std::runtime_error("X and y must have the same number of rows.");
@@ -498,6 +550,9 @@ void APLRRegressor::validate_input_to_fit(const MatrixXd &X, const VectorXd &y, 
     throw_error_if_matrix_has_nan_or_infinite_elements(sample_weight, "sample_weight");
     throw_error_if_prioritized_predictors_indexes_has_invalid_indexes(X, prioritized_predictors_indexes);
     throw_error_if_monotonic_constraints_has_invalid_indexes(X, monotonic_constraints);
+    throw_error_if_predictor_penalties_or_learning_rates_have_invalid_values(X, predictor_learning_rates);
+    throw_error_if_predictor_penalties_or_learning_rates_have_invalid_values(X, predictor_penalties_for_non_linearity);
+    throw_error_if_predictor_penalties_or_learning_rates_have_invalid_values(X, predictor_penalties_for_interactions);
     throw_error_if_interaction_constraints_has_invalid_indexes(X, interaction_constraints);
     throw_error_if_response_contains_invalid_values(y);
     throw_error_if_sample_weight_contains_invalid_values(y, sample_weight);
@@ -554,6 +609,23 @@ void APLRRegressor::throw_error_if_monotonic_constraints_has_invalid_indexes(con
     bool error{monotonic_constraints.size() > 0 && monotonic_constraints.size() != X.cols()};
     if (error)
         throw std::runtime_error("monotonic_constraints must either be empty or a vector with one integer for each column in X.");
+}
+
+void APLRRegressor::throw_error_if_predictor_penalties_or_learning_rates_have_invalid_values(const MatrixXd &X,
+                                                                                             const std::vector<double> &predictor_penaties_or_learning_rates)
+{
+    bool is_provided{predictor_penaties_or_learning_rates.size() > 0};
+    if (is_provided)
+    {
+        bool dimension_error{predictor_penaties_or_learning_rates.size() != X.cols()};
+        if (dimension_error)
+            throw std::runtime_error("predictor specific penalties or learning rates must either be empty or a vector with a float value for each column in X.");
+        for (auto &value : predictor_penaties_or_learning_rates)
+        {
+            if (std::isless(value, 0.0) || std::isgreater(value, 1.0))
+                throw std::runtime_error("predictor specific penalties or learning rates must not be less than zero or greater than one.");
+        }
+    }
 }
 
 void APLRRegressor::throw_error_if_interaction_constraints_has_invalid_indexes(const MatrixXd &X, const std::vector<std::vector<size_t>> &interaction_constraints)
@@ -1166,8 +1238,11 @@ void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms,
 #pragma omp parallel for schedule(guided) if (multithreading)
     for (size_t i = 0; i < terms_indexes.size(); ++i)
     {
-        terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins, v, min_observations_in_split,
-                                                     linear_effects_only_in_this_boosting_step, penalty_for_non_linearity, penalty_for_interactions);
+        terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins,
+                                                     predictor_learning_rates[terms[terms_indexes[i]].base_term],
+                                                     min_observations_in_split, linear_effects_only_in_this_boosting_step,
+                                                     predictor_penalties_for_non_linearity[terms[terms_indexes[i]].base_term],
+                                                     predictor_penalties_for_interactions[terms[terms_indexes[i]].base_term]);
     }
 }
 

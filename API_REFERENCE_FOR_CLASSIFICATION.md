@@ -59,7 +59,7 @@ Specifies a penalty in the range [0.0, 1.0] on terms that are not linear effects
 Specifies a penalty in the range [0.0, 1.0] on interaction terms. A higher value increases model interpretability but can hurt predictiveness. Values outside of the [0.0, 1.0] range are rounded to the nearest boundary within the range.
 
 
-## Method: fit(X:npt.ArrayLike, y:List[str], sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], cv_observations: npt.ArrayLike = np.empty([0, 0]), prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], interaction_constraints:List[List[int]]=[])
+## Method: fit(X:npt.ArrayLike, y:List[str], sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], cv_observations: npt.ArrayLike = np.empty([0, 0]), prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], interaction_constraints:List[List[int]]=[], predictor_learning_rates: List[float] = [], predictor_penalties_for_non_linearity: List[float] = [], predictor_penalties_for_interactions: List[float] = [])
 
 ***This method fits the model to data.***
 
@@ -88,6 +88,15 @@ An optional list of integers specifying monotonic constraints on model terms. Fo
 
 #### interaction_constraints
 An optional list containing lists of integers. Specifies interaction constraints on model terms. For example, interaction_constraints = [[0,1], [1,2,3]] means that 1) the first and second predictors may interact with each other, and that 2) the second, third and fourth predictors may interact with each other. There are no interaction constraints on predictors not mentioned in interaction_constraints.
+
+#### predictor_learning_rates
+An optional list of floats specifying learning rates for each predictor. If provided then this supercedes ***v***. For example, if there are two predictors in ***X***, then predictor_learning_rates = [0.1,0.2] means that all terms using the first predictor in ***X*** as a main effect will have a learning rate of 0.1 and that all terms using the second predictor in ***X*** as a main effect will have a learning rate of 0.2.
+
+#### predictor_penalties_for_non_linearity
+An optional list of floats specifying penalties for non-linearity for each predictor. If provided then this supercedes ***penalty_for_non_linearity***. For example, if there are two predictors in ***X***, then predictor_penalties_for_non_linearity = [0.1,0.2] means that all terms using the first predictor in ***X*** as a main effect will have a penalty for non-linearity of 0.1 and that all terms using the second predictor in ***X*** as a main effect will have a penalty for non-linearity of 0.2.
+
+#### predictor_penalties_for_interactions
+An optional list of floats specifying interaction penalties for each predictor. If provided then this supercedes ***penalty_for_interactions***. For example, if there are two predictors in ***X***, then predictor_penalties_for_interactions = [0.1,0.2] means that all terms using the first predictor in ***X*** as a main effect will have an interaction penalty of 0.1 and that all terms using the second predictor in ***X*** as a main effect will have an interaction penalty of 0.2.
 
 
 ## Method: predict_class_probabilities(X:npt.ArrayLike, cap_predictions_to_minmax_in_training:bool=False)

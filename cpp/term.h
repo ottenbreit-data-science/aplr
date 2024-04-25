@@ -176,6 +176,13 @@ void Term::estimate_split_point(const MatrixXd &X, const VectorXd &negative_grad
                                 size_t min_observations_in_split, bool linear_effects_only_in_this_boosting_step,
                                 double penalty_for_non_linearity, double penalty_for_interactions)
 {
+    bool learning_rate_is_zero{is_approximately_zero(v)};
+    if (learning_rate_is_zero)
+    {
+        make_term_ineligible();
+        return;
+    }
+
     calculate_rows_to_zero_out_and_not_due_to_given_terms(X);
 
     bool too_few_observations{static_cast<size_t>(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed.size()) < min_observations_in_split};

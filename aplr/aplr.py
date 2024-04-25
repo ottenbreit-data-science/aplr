@@ -185,6 +185,9 @@ class APLRRegressor:
         group: npt.ArrayLike = np.empty(0),
         interaction_constraints: List[List[int]] = [],
         other_data: npt.ArrayLike = np.empty([0, 0]),
+        predictor_learning_rates: List[float] = [],
+        predictor_penalties_for_non_linearity: List[float] = [],
+        predictor_penalties_for_interactions: List[float] = [],
     ):
         self.__set_params_cpp()
         self.APLRRegressor.fit(
@@ -198,6 +201,9 @@ class APLRRegressor:
             group,
             interaction_constraints,
             other_data,
+            predictor_learning_rates,
+            predictor_penalties_for_non_linearity,
+            predictor_penalties_for_interactions,
         )
 
     def predict(
@@ -402,6 +408,9 @@ class APLRClassifier:
         prioritized_predictors_indexes: List[int] = [],
         monotonic_constraints: List[int] = [],
         interaction_constraints: List[List[int]] = [],
+        predictor_learning_rates: List[float] = [],
+        predictor_penalties_for_non_linearity: List[float] = [],
+        predictor_penalties_for_interactions: List[float] = [],
     ):
         self.__set_params_cpp()
         self.APLRClassifier.fit(
@@ -413,6 +422,9 @@ class APLRClassifier:
             prioritized_predictors_indexes,
             monotonic_constraints,
             interaction_constraints,
+            predictor_learning_rates,
+            predictor_penalties_for_non_linearity,
+            predictor_penalties_for_interactions,
         )
 
     def predict_class_probabilities(
