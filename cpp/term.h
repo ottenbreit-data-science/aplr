@@ -99,7 +99,7 @@ public:
     static bool equals_given_terms(const Term &p1, const Term &p2);
     void estimate_split_point(const MatrixXd &X, const VectorXd &negative_gradient, const VectorXd &sample_weight, size_t bins, double v,
                               size_t min_observations_in_split, bool linear_effects_only_in_this_boosting_step,
-                              double penalty_for_non_linearity, double penalty_for_interactions);
+                              double penalty_for_non_linearity, double penalty_for_interactions, bool estimate_coefficient_only = false);
     size_t get_interaction_level();
     VectorXd calculate_without_interactions(const VectorXd &x);
     void calculate_rows_to_zero_out_and_not_due_to_given_terms(const MatrixXd &X);
@@ -174,7 +174,7 @@ bool operator==(const Term &p1, const Term &p2)
 
 void Term::estimate_split_point(const MatrixXd &X, const VectorXd &negative_gradient, const VectorXd &sample_weight, size_t bins, double v,
                                 size_t min_observations_in_split, bool linear_effects_only_in_this_boosting_step,
-                                double penalty_for_non_linearity, double penalty_for_interactions)
+                                double penalty_for_non_linearity, double penalty_for_interactions, bool estimate_coefficient_only)
 {
     bool learning_rate_is_zero{is_approximately_zero(v)};
     if (learning_rate_is_zero)
@@ -196,15 +196,18 @@ void Term::estimate_split_point(const MatrixXd &X, const VectorXd &negative_grad
                                                   penalty_for_non_linearity, penalty_for_interactions);
     calculate_error_where_given_terms_are_zero(negative_gradient, sample_weight);
     sort_vectors_ascending_by_base_term(X, negative_gradient, sample_weight);
-    setup_bins();
-    bool too_few_bins_for_main_effect{bins_start_index.size() <= 1 && get_interaction_level() == 0};
-    if (too_few_bins_for_main_effect)
+    if (!estimate_coefficient_only)
     {
-        make_term_ineligible();
-        return;
+        setup_bins();
+        bool too_few_bins_for_main_effect{bins_start_index.size() <= 1 && get_interaction_level() == 0};
+        if (too_few_bins_for_main_effect)
+        {
+            make_term_ineligible();
+            return;
+        }
+        discretize_data_by_bin();
+        estimate_split_point_on_discretized_data();
     }
-    discretize_data_by_bin();
-    estimate_split_point_on_discretized_data();
     estimate_coefficient_and_error(calculate_without_interactions(sorted_vectors.values_sorted), sorted_vectors.negative_gradient_sorted,
                                    sorted_vectors.sample_weight_sorted, error_where_given_terms_are_zero);
     cleanup_after_estimate_split_point();

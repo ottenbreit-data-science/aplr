@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int=3000, v:float=0.1, random_state:int=0, n_jobs:int=0, cv_folds:int=5, bins:int=300, verbosity:int=0, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 500, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0)
+## class aplr.APLRClassifier(m:int=3000, v:float=0.1, random_state:int=0, n_jobs:int=0, cv_folds:int=5, bins:int=300, verbosity:int=0, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 500, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0)
 
 ### Constructor parameters
 
@@ -57,6 +57,9 @@ Specifies a penalty in the range [0.0, 1.0] on terms that are not linear effects
 
 #### penalty_for_interactions (default = 0.0)
 Specifies a penalty in the range [0.0, 1.0] on interaction terms. A higher value increases model interpretability but can hurt predictiveness. Values outside of the [0.0, 1.0] range are rounded to the nearest boundary within the range.
+
+#### max_terms (default = 0)
+Restricts the maximum number of terms in any of the underlying models trained to ***max_terms***. The default value of 0 means no limit. After the limit is reached, the remaining boosting steps are used to further update the coefficients of already included terms. A reason for using ***max_terms*** is to increase model interpretability by reducing the number of terms in the model. Please note that low non-zero values of ***max_terms*** may require a high ***v*** for best results, such as 1.0.
 
 
 ## Method: fit(X:npt.ArrayLike, y:List[str], sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], cv_observations: npt.ArrayLike = np.empty([0, 0]), prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], interaction_constraints:List[List[int]]=[], predictor_learning_rates: List[float] = [], predictor_penalties_for_non_linearity: List[float] = [], predictor_penalties_for_interactions: List[float] = [])

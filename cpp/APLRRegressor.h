@@ -76,6 +76,9 @@ private:
     double best_validation_error_so_far;
     size_t best_m_so_far;
     bool linear_effects_only_in_this_boosting_step;
+    bool max_terms_reached;
+    bool round_robin_update_of_existing_terms;
+    size_t term_to_update_in_this_boosting_step;
 
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
@@ -126,6 +129,7 @@ private:
     void find_sorted_indexes_for_errors_for_interactions_to_consider();
     void add_promising_interactions_and_select_the_best_one();
     void update_intercept(size_t boosting_step);
+    void prepare_for_round_robin_coefficient_updates_if_max_terms_has_been_reached();
     void select_the_best_term_and_update_errors(size_t boosting_step);
     void remove_ineligibility();
     void update_terms(size_t boosting_step);
@@ -136,6 +140,7 @@ private:
     double calculate_validation_error(const VectorXd &predictions);
     double calculate_group_mse_by_prediction_validation_error(const VectorXd &predictions);
     void update_term_eligibility();
+    void update_a_term_coefficient_round_robin(size_t boosting_step);
     void print_summary_after_boosting_step(size_t boosting_step, Eigen::Index fold_index);
     void abort_boosting_when_no_validation_error_improvement_in_the_last_early_stopping_rounds(size_t boosting_step);
     void print_final_summary();
@@ -227,6 +232,7 @@ public:
     size_t num_first_steps_with_linear_effects_only;
     double penalty_for_non_linearity;
     double penalty_for_interactions;
+    size_t max_terms;
 
     APLRRegressor(size_t m = 3000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, size_t cv_folds = 5,
@@ -241,7 +247,7 @@ public:
                   size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
                   size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30, size_t early_stopping_rounds = 500,
                   size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0,
-                  double penalty_for_interactions = 0.0);
+                  double penalty_for_interactions = 0.0, size_t max_terms = 0);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
@@ -284,7 +290,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
                              size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
                              size_t group_mse_by_prediction_bins, size_t group_mse_cycle_min_obs_in_bin, size_t early_stopping_rounds,
-                             size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity, double penalty_for_interactions)
+                             size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity, double penalty_for_interactions,
+                             size_t max_terms)
     : reserved_terms_times_num_x{reserved_terms_times_num_x}, intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, cv_folds{cv_folds}, n_jobs{n_jobs}, random_state{random_state},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
@@ -300,7 +307,7 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
       monotonic_constraints_ignore_interactions{monotonic_constraints_ignore_interactions}, group_mse_by_prediction_bins{group_mse_by_prediction_bins},
       group_mse_cycle_min_obs_in_bin{group_mse_cycle_min_obs_in_bin}, cv_error{NAN_DOUBLE}, early_stopping_rounds{early_stopping_rounds},
       num_first_steps_with_linear_effects_only{num_first_steps_with_linear_effects_only}, penalty_for_non_linearity{penalty_for_non_linearity},
-      penalty_for_interactions{penalty_for_interactions}
+      penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}
 {
 }
 
@@ -327,7 +334,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       term_main_predictor_indexes{other.term_main_predictor_indexes}, term_interaction_levels{other.term_interaction_levels},
       early_stopping_rounds{other.early_stopping_rounds},
       num_first_steps_with_linear_effects_only{other.num_first_steps_with_linear_effects_only},
-      penalty_for_non_linearity{other.penalty_for_non_linearity}, penalty_for_interactions{other.penalty_for_interactions}
+      penalty_for_non_linearity{other.penalty_for_non_linearity}, penalty_for_interactions{other.penalty_for_interactions},
+      max_terms{other.max_terms}
 {
 }
 
@@ -926,6 +934,8 @@ void APLRRegressor::initialize(const std::vector<int> &monotonic_constraints)
 
     best_validation_error_so_far = std::numeric_limits<double>::infinity();
     best_m_so_far = 0;
+
+    round_robin_update_of_existing_terms = false;
 }
 
 bool APLRRegressor::check_if_base_term_has_only_one_unique_value(size_t base_term)
@@ -1143,46 +1153,56 @@ void APLRRegressor::execute_boosting_steps(Eigen::Index fold_index)
 
 void APLRRegressor::execute_boosting_step(size_t boosting_step, Eigen::Index fold_index)
 {
-    model_has_changed_in_this_boosting_step = false;
-    update_intercept(boosting_step);
-    bool prioritize_predictors{!abort_boosting && prioritized_predictors_indexes.size() > 0};
-    if (prioritize_predictors)
+    if (!round_robin_update_of_existing_terms)
     {
-        for (auto &index : prioritized_predictors_indexes)
+        model_has_changed_in_this_boosting_step = false;
+        update_intercept(boosting_step);
+        bool prioritize_predictors{!abort_boosting && prioritized_predictors_indexes.size() > 0};
+        if (prioritize_predictors)
         {
-            std::vector<size_t> terms_eligible_current_indexes_for_a_base_term{find_terms_eligible_current_indexes_for_a_base_term(index)};
-            bool eligible_terms_exist{terms_eligible_current_indexes_for_a_base_term.size() > 0};
-            if (eligible_terms_exist)
+            for (auto &index : prioritized_predictors_indexes)
             {
-                estimate_split_point_for_each_term(terms_eligible_current, terms_eligible_current_indexes_for_a_base_term);
-                best_term_index = find_best_term_index(terms_eligible_current, terms_eligible_current_indexes_for_a_base_term);
-                std::vector<size_t> predictor_index{index};
-                consider_interactions(predictor_index, boosting_step);
-                select_the_best_term_and_update_errors(boosting_step);
+                std::vector<size_t> terms_eligible_current_indexes_for_a_base_term{find_terms_eligible_current_indexes_for_a_base_term(index)};
+                bool eligible_terms_exist{terms_eligible_current_indexes_for_a_base_term.size() > 0};
+                if (eligible_terms_exist)
+                {
+                    estimate_split_point_for_each_term(terms_eligible_current, terms_eligible_current_indexes_for_a_base_term);
+                    best_term_index = find_best_term_index(terms_eligible_current, terms_eligible_current_indexes_for_a_base_term);
+                    std::vector<size_t> predictor_index{index};
+                    consider_interactions(predictor_index, boosting_step);
+                    select_the_best_term_and_update_errors(boosting_step);
+                    prepare_for_round_robin_coefficient_updates_if_max_terms_has_been_reached();
+                    if (round_robin_update_of_existing_terms)
+                        break;
+                }
             }
         }
-    }
-    if (!abort_boosting)
-    {
-        std::vector<size_t> term_indexes{create_term_indexes(terms_eligible_current)};
-        estimate_split_point_for_each_term(terms_eligible_current, term_indexes);
-        best_term_index = find_best_term_index(terms_eligible_current, term_indexes);
-        consider_interactions(predictor_indexes, boosting_step);
-        select_the_best_term_and_update_errors(boosting_step);
-    }
-    update_coefficient_steps(boosting_step);
-    if (!model_has_changed_in_this_boosting_step)
-    {
-        abort_boosting = true;
-        if (verbosity >= 1)
+        if (!abort_boosting && !round_robin_update_of_existing_terms)
         {
-            std::cout << "No further reduction in training loss was possible. Terminating the boosting procedure.\n";
+            std::vector<size_t> term_indexes{create_term_indexes(terms_eligible_current)};
+            estimate_split_point_for_each_term(terms_eligible_current, term_indexes);
+            best_term_index = find_best_term_index(terms_eligible_current, term_indexes);
+            consider_interactions(predictor_indexes, boosting_step);
+            select_the_best_term_and_update_errors(boosting_step);
+            prepare_for_round_robin_coefficient_updates_if_max_terms_has_been_reached();
         }
+        update_coefficient_steps(boosting_step);
+        if (!model_has_changed_in_this_boosting_step)
+        {
+            abort_boosting = true;
+            if (verbosity >= 1)
+            {
+                std::cout << "No further reduction in training loss was possible. Terminating the boosting procedure.\n";
+            }
+        }
+        abort_boosting_when_no_validation_error_improvement_in_the_last_early_stopping_rounds(boosting_step);
+        if (abort_boosting)
+            return;
+        if (!round_robin_update_of_existing_terms)
+            update_term_eligibility();
     }
-    abort_boosting_when_no_validation_error_improvement_in_the_last_early_stopping_rounds(boosting_step);
-    if (abort_boosting)
-        return;
-    update_term_eligibility();
+    else
+        update_a_term_coefficient_round_robin(boosting_step);
     print_summary_after_boosting_step(boosting_step, fold_index);
 }
 
@@ -1201,6 +1221,21 @@ void APLRRegressor::update_intercept(size_t boosting_step)
     {
         intercept += intercept_update;
         intercept_steps[boosting_step] = intercept;
+    }
+}
+
+void APLRRegressor::prepare_for_round_robin_coefficient_updates_if_max_terms_has_been_reached()
+{
+    if (!round_robin_update_of_existing_terms)
+    {
+        max_terms_reached = max_terms > 0 && terms.size() >= max_terms;
+        if (max_terms_reached)
+        {
+            number_of_eligible_terms = 1;
+            round_robin_update_of_existing_terms = true;
+            terms_eligible_current = terms;
+            term_to_update_in_this_boosting_step = 0;
+        }
     }
 }
 
@@ -1663,6 +1698,33 @@ void APLRRegressor::update_term_eligibility()
         if (term_is_eligible)
             ++number_of_eligible_terms;
     }
+}
+
+void APLRRegressor::update_a_term_coefficient_round_robin(size_t boosting_step)
+{
+    update_intercept(boosting_step);
+    terms_eligible_current[term_to_update_in_this_boosting_step].estimate_split_point(X_train, neg_gradient_current, sample_weight_train,
+                                                                                      bins,
+                                                                                      predictor_learning_rates[terms_eligible_current[term_to_update_in_this_boosting_step].base_term],
+                                                                                      min_observations_in_split,
+                                                                                      linear_effects_only_in_this_boosting_step,
+                                                                                      predictor_penalties_for_non_linearity[terms_eligible_current[term_to_update_in_this_boosting_step].base_term],
+                                                                                      predictor_penalties_for_interactions[terms_eligible_current[term_to_update_in_this_boosting_step].base_term],
+                                                                                      true);
+    terms[term_to_update_in_this_boosting_step].coefficient += terms_eligible_current[term_to_update_in_this_boosting_step].coefficient;
+    linear_predictor_update = terms_eligible_current[term_to_update_in_this_boosting_step].calculate_contribution_to_linear_predictor(X_train);
+    linear_predictor_update_validation = terms_eligible_current[term_to_update_in_this_boosting_step].calculate_contribution_to_linear_predictor(X_validation);
+    update_linear_predictor_and_predictions();
+    update_gradient_and_errors();
+    calculate_and_validate_validation_error(boosting_step);
+    update_coefficient_steps(boosting_step);
+    abort_boosting_when_no_validation_error_improvement_in_the_last_early_stopping_rounds(boosting_step);
+    if (abort_boosting)
+        return;
+    ++term_to_update_in_this_boosting_step;
+    bool term_to_update_in_next_boosting_step_must_be_reset_to_zero{term_to_update_in_this_boosting_step >= terms.size()};
+    if (term_to_update_in_next_boosting_step_must_be_reset_to_zero)
+        term_to_update_in_this_boosting_step = 0;
 }
 
 void APLRRegressor::print_summary_after_boosting_step(size_t boosting_step, Eigen::Index fold_index)

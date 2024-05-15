@@ -68,6 +68,7 @@ class APLRRegressor:
         num_first_steps_with_linear_effects_only: int = 0,
         penalty_for_non_linearity: float = 0.0,
         penalty_for_interactions: float = 0.0,
+        max_terms: int = 0,
     ):
         self.m = m
         self.v = v
@@ -113,6 +114,7 @@ class APLRRegressor:
         )
         self.penalty_for_non_linearity = penalty_for_non_linearity
         self.penalty_for_interactions = penalty_for_interactions
+        self.max_terms = max_terms
 
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
@@ -172,6 +174,7 @@ class APLRRegressor:
         )
         self.APLRRegressor.penalty_for_non_linearity = self.penalty_for_non_linearity
         self.APLRRegressor.penalty_for_interactions = self.penalty_for_interactions
+        self.APLRRegressor.max_terms = self.max_terms
 
     def fit(
         self,
@@ -308,6 +311,7 @@ class APLRRegressor:
             "num_first_steps_with_linear_effects_only": self.num_first_steps_with_linear_effects_only,
             "penalty_for_non_linearity": self.penalty_for_non_linearity,
             "penalty_for_interactions": self.penalty_for_interactions,
+            "max_terms": self.max_terms,
         }
 
     # For sklearn
@@ -339,6 +343,7 @@ class APLRClassifier:
         num_first_steps_with_linear_effects_only: int = 0,
         penalty_for_non_linearity: float = 0.0,
         penalty_for_interactions: float = 0.0,
+        max_terms: int = 0,
     ):
         self.m = m
         self.v = v
@@ -364,6 +369,7 @@ class APLRClassifier:
         )
         self.penalty_for_non_linearity = penalty_for_non_linearity
         self.penalty_for_interactions = penalty_for_interactions
+        self.max_terms = max_terms
 
         # Creating aplr_cpp and setting parameters
         self.APLRClassifier = aplr_cpp.APLRClassifier()
@@ -397,6 +403,7 @@ class APLRClassifier:
         )
         self.APLRClassifier.penalty_for_non_linearity = self.penalty_for_non_linearity
         self.APLRClassifier.penalty_for_interactions = self.penalty_for_interactions
+        self.APLRClassifier.max_terms = self.max_terms
 
     def fit(
         self,
@@ -478,6 +485,7 @@ class APLRClassifier:
             "num_first_steps_with_linear_effects_only": self.num_first_steps_with_linear_effects_only,
             "penalty_for_non_linearity": self.penalty_for_non_linearity,
             "penalty_for_interactions": self.penalty_for_interactions,
+            "max_terms": self.max_terms,
         }
 
     # For sklearn
