@@ -49,7 +49,7 @@ for params in param_grid:
         verbosity=2,
         m=3000,
         v=0.1,
-        # max_terms=5,  # max terms in each underlying model. Tune this to find a trade-off between interpretability and predictiveness.
+        # max_terms=5,  # Optionally tune this to find a trade-off between interpretability and predictiveness. May require a higher learning rate for best results.
         **params
     )
     model.fit(

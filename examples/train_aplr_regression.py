@@ -40,9 +40,9 @@ param_grid = ParameterGrid(
     }
 )
 best_model = None
-loss_function = "mse"  # other available loss functions are binomial, poisson, gamma, tweedie, group_mse, mae, quantile, negative_binomial, cauchy, weibull and custom_function.
+loss_function = "mse"  # Other available loss functions are binomial, poisson, gamma, tweedie, group_mse, mae, quantile, negative_binomial, cauchy, weibull and custom_function.
 link_function = (
-    "identity"  # other available link functions are logit, log and custom_function.
+    "identity"  # Other available link functions are logit, log and custom_function.
 )
 for params in param_grid:
     model = APLRRegressor(
@@ -52,7 +52,7 @@ for params in param_grid:
         v=0.1,
         loss_function=loss_function,
         link_function=link_function,
-        # max_terms=10,  # max terms in each underlying model. Tune this to find a trade-off between interpretability and predictiveness.
+        # max_terms=10,  # Optionally tune this to find a trade-off between interpretability and predictiveness. May require a higher learning rate for best results.
         **params
     )
     model.fit(
