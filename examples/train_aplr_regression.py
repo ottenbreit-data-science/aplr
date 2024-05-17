@@ -52,6 +52,7 @@ for params in param_grid:
         v=0.1,
         loss_function=loss_function,
         link_function=link_function,
+        # max_terms=10,  # max terms in each underlying model. Tune this to find a trade-off between interpretability and predictiveness.
         **params
     )
     model.fit(

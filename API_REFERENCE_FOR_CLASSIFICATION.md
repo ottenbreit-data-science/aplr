@@ -59,7 +59,7 @@ Specifies a penalty in the range [0.0, 1.0] on terms that are not linear effects
 Specifies a penalty in the range [0.0, 1.0] on interaction terms. A higher value increases model interpretability but can hurt predictiveness. Values outside of the [0.0, 1.0] range are rounded to the nearest boundary within the range.
 
 #### max_terms (default = 0)
-Restricts the maximum number of terms in any of the underlying models trained to ***max_terms***. The default value of 0 means no limit. After the limit is reached, the remaining boosting steps are used to further update the coefficients of already included terms. A reason for using ***max_terms*** is to increase model interpretability by reducing the number of terms in the model. Please note that low non-zero values of ***max_terms*** may require a high ***v*** for best results, such as 1.0.
+Restricts the maximum number of terms in any of the underlying models trained to ***max_terms***. The default value of 0 means no limit. After the limit is reached, the remaining boosting steps are used to further update the coefficients of already included terms. A potential tuning objective could be to find the lowest positive value of ***max_terms*** that does not increase the prediction error significantly. Low positive values can speed up the training process significantly.
 
 
 ## Method: fit(X:npt.ArrayLike, y:List[str], sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], cv_observations: npt.ArrayLike = np.empty([0, 0]), prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], interaction_constraints:List[List[int]]=[], predictor_learning_rates: List[float] = [], predictor_penalties_for_non_linearity: List[float] = [], predictor_penalties_for_interactions: List[float] = [])
