@@ -1597,6 +1597,7 @@ public:
 
         VectorXd predictions{model.predict(X_test)};
         MatrixXd li{model.calculate_local_feature_contribution(X_test)};
+        VectorXd li_for_particular_terms{model.calculate_local_contribution_from_selected_terms(X_train, {5, 1})};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -1607,8 +1608,12 @@ public:
         std::map<double, double> coefficient_shape_function = model.get_coefficient_shape_function(1);
         bool coefficient_shape_function_has_correct_length{coefficient_shape_function.size() == 27};
         bool coefficient_shape_function_value_test{is_approximately_equal(coefficient_shape_function.begin()->second, 0.04175, 0.00001)};
+        bool li_for_particular_terms_has_correct_size{li_for_particular_terms.rows() == X_train.rows()};
+        bool li_for_particular_terms_mean_is_correct{is_approximately_equal(li_for_particular_terms.mean(), 0.30321952178814915)};
         tests.push_back(coefficient_shape_function_has_correct_length);
         tests.push_back(coefficient_shape_function_value_test);
+        tests.push_back(li_for_particular_terms_has_correct_size);
+        tests.push_back(li_for_particular_terms_mean_is_correct);
     }
 
     void test_aplr_classifier_multi_class_other_params()

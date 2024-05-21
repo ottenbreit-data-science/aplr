@@ -262,6 +262,7 @@ public:
     VectorXd calculate_term_importance(const MatrixXd &X, const VectorXd &sample_weight = VectorXd(0));
     MatrixXd calculate_local_feature_contribution(const MatrixXd &X);
     MatrixXd calculate_local_term_contribution(const MatrixXd &X);
+    VectorXd calculate_local_contribution_from_selected_terms(const MatrixXd &X, const std::vector<size_t> &predictor_indexes);
     MatrixXd calculate_terms(const MatrixXd &X);
     std::vector<std::string> get_term_names();
     VectorXd get_term_coefficients();
@@ -2277,6 +2278,29 @@ MatrixXd APLRRegressor::calculate_local_term_contribution(const MatrixXd &X)
     return output;
 }
 
+VectorXd APLRRegressor::calculate_local_contribution_from_selected_terms(const MatrixXd &X, const std::vector<size_t> &predictor_indexes)
+{
+    validate_that_model_can_be_used(X);
+
+    VectorXd contribution_from_selected_terms{VectorXd::Constant(X.rows(), 0.0)};
+
+    std::vector<size_t> term_indexes_used;
+    term_indexes_used.reserve(terms.size());
+    for (size_t i = 0; i < terms.size(); ++i)
+    {
+        if (terms[i].term_uses_just_these_predictors(predictor_indexes))
+            term_indexes_used.push_back(i);
+    }
+    term_indexes_used.shrink_to_fit();
+
+    for (auto &term_index_used : term_indexes_used)
+    {
+        contribution_from_selected_terms += terms[term_index_used].calculate_contribution_to_linear_predictor(X);
+    }
+
+    return contribution_from_selected_terms;
+}
+
 MatrixXd APLRRegressor::calculate_terms(const MatrixXd &X)
 {
     validate_that_model_can_be_used(X);
@@ -2464,11 +2488,6 @@ std::map<double, double> APLRRegressor::get_coefficient_shape_function(size_t pr
     return coefficient_shape_function;
 }
 
-double APLRRegressor::get_cv_error()
-{
-    return cv_error;
-}
-
 std::vector<size_t> APLRRegressor::compute_relevant_term_indexes(size_t predictor_index)
 {
     std::vector<size_t> relevant_term_indexes;
@@ -2493,4 +2512,9 @@ std::vector<size_t> APLRRegressor::compute_relevant_term_indexes(size_t predicto
     }
     relevant_term_indexes.shrink_to_fit();
     return relevant_term_indexes;
+}
+
+double APLRRegressor::get_cv_error()
+{
+    return cv_error;
 }

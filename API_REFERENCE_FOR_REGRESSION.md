@@ -239,6 +239,19 @@ A numpy matrix with predictor values.
 A numpy matrix with predictor values.
 
 
+## Method: calculate_local_contribution_from_selected_terms(X:npt.ArrayLike, predictor_indexes:List[int])
+
+***Returns a numpy vector containing the contribution to the linear predictor from an user specified combination of interacting predictors for each observation in X. This makes it easier to interpret interactions (or main effects if just one predictor is specified), for example by plotting predictor values against the term contribution.***
+
+### Parameters
+
+#### X
+A numpy matrix with predictor values.
+
+#### predictor_indexes
+A list of integers specifying the indexes of predictors in X to use. For example, [1, 3] means the second and fourth predictors in X.
+
+
 ## Method: calculate_terms(X:npt.ArrayLike)
 
 ***Returns a numpy matrix containing values of model terms calculated on X.***

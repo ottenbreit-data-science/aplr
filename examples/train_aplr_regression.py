@@ -102,7 +102,7 @@ estimated_term_importance = pd.DataFrame(
     }
 )
 
-# Coefficient shape for the third predictor. Will be empty if the third predictor is not used as a main effect in the model
+# Coefficient shape for the third predictor. Will be empty if the third predictor is not used as a main effect in the model.
 coefficient_shape = best_model.get_coefficient_shape_function(predictor_index=2)
 coefficient_shape = pd.DataFrame(
     {
@@ -110,6 +110,13 @@ coefficient_shape = pd.DataFrame(
         "coefficient": coefficient_shape.values(),
     }
 )
+
+# Local (observation specific) contribution to the linear predictor from selected interacting predictors. 
+# In this example this concerns two-way interaction terms in the model where the second and the third predictors in X interact.
+# The local contribution will be zero for all observations if there are no such terms in the model. 
+# The local contribution can help interpreting interactions (or main effects if only one predictor index is specified).
+# In this example, the local contribution can be plotted against the predictor values for a visual interpretation.
+contribution_from_selected_terms = best_model.calculate_local_contribution_from_selected_terms(X=data_train[predictors],predictor_indexes=[1,2])
 
 
 # PREDICTING AND TESTING ON THE TEST SET

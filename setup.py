@@ -1,4 +1,5 @@
 import setuptools, sys
+from pathlib import Path
 
 extra_compile_args = []
 extra_link_args = []
@@ -19,14 +20,17 @@ sfc_module = setuptools.Extension(
     extra_link_args=extra_link_args,
 )
 
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
+
 setuptools.setup(
     name="aplr",
-    version="9.9.0",
+    version="9.10.0",
     description="Automatic Piecewise Linear Regression",
     ext_modules=[sfc_module],
     author="Mathias von Ottenbreit",
     author_email="ottenbreitdatascience@gmail.com",
-    long_description="Build predictive and interpretable parametric regression or classification machine learning models in Python based on the Automatic Piecewise Linear Regression methodology developed by Mathias von Ottenbreit.",
+    long_description=long_description,
     long_description_content_type="text/markdown",
     packages=["aplr"],
     install_requires=["numpy>=1.20"],

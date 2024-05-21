@@ -67,6 +67,12 @@ std::set<int> get_unique_integers(const VectorXi &int_vector)
     return unique_integers;
 }
 
+std::set<size_t> get_unique_integers(const std::vector<size_t> &size_t_vector)
+{
+    std::set<size_t> unique_integers{size_t_vector.begin(), size_t_vector.end()};
+    return unique_integers;
+}
+
 double set_error_to_infinity_if_invalid(double error)
 {
     bool error_is_invalid{!std::isfinite(error)};

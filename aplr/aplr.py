@@ -237,6 +237,13 @@ class APLRRegressor:
     def calculate_local_term_contribution(self, X: npt.ArrayLike) -> npt.ArrayLike:
         return self.APLRRegressor.calculate_local_term_contribution(X)
 
+    def calculate_local_contribution_from_selected_terms(
+        self, X: npt.ArrayLike, predictor_indexes: List[int]
+    ) -> npt.ArrayLike:
+        return self.APLRRegressor.calculate_local_contribution_from_selected_terms(
+            X, predictor_indexes
+        )
+
     def calculate_terms(self, X: npt.ArrayLike) -> npt.ArrayLike:
         return self.APLRRegressor.calculate_terms(X)
 

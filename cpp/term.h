@@ -70,6 +70,7 @@ private:
     bool coefficient_adheres_to_monotonic_constraint();
     InteractionConstraintsTest test_interaction_constraints(const std::vector<size_t> &legal_interaction_combination);
     std::vector<size_t> get_unique_base_terms_used_in_this_term();
+    bool term_uses_just_these_predictors(const std::vector<size_t> &predictor_indexes);
 
 public:
     std::string name;
@@ -771,6 +772,20 @@ std::vector<size_t> Term::get_unique_base_terms_used_in_this_term()
 double Term::get_estimated_term_importance()
 {
     return estimated_term_importance;
+}
+
+bool Term::term_uses_just_these_predictors(const std::vector<size_t> &predictor_indexes)
+{
+    std::vector<size_t> predictor_indexes_used_by_this_term;
+    predictor_indexes_used_by_this_term.push_back(base_term);
+    for (auto &given_term : given_terms)
+    {
+        predictor_indexes_used_by_this_term.push_back(given_term.base_term);
+    }
+    std::set<size_t> unique_predictor_indexes_used_by_this_term{get_unique_integers(predictor_indexes_used_by_this_term)};
+    std::set<size_t> unique_predictor_indexes{get_unique_integers(predictor_indexes)};
+    bool only_predictor_indexes_are_used{unique_predictor_indexes_used_by_this_term == unique_predictor_indexes};
+    return only_predictor_indexes_are_used;
 }
 
 std::vector<size_t> create_term_indexes(std::vector<Term> &terms)
