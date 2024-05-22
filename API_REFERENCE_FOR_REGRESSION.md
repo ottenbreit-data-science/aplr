@@ -314,7 +314,7 @@ A numpy matrix with predictor values.
 
 ## Method: get_coefficient_shape_function(predictor_index:int)
 
-***For the predictor in X specified by predictor_index, get_coefficient_shape_function returns a dictionary with keys equal to predictor values and values equal to coefficient. For each predictor value, the coefficient is the sum of coefficients for relevant terms using only the predictor (interactions with other predictors are ignored). This function makes it easier to interpret APLR models as one can quickly see how the main effects work across relevant values of the predictor. If the predictor is only used as a linear effect in the model then the predictor value is set to 0 even though the coefficient is valid for all values of the predictor.***
+***For the predictor in X specified by predictor_index, get_coefficient_shape_function returns a dictionary with keys equal to predictor values and values equal to coefficient. For each predictor value, the coefficient denotes the change in the linear predictor given that the predictor value increases by one unit (interactions with other predictors are ignored). This function makes it easier to interpret APLR models as one can quickly see how the main effects work across relevant values of the predictor. Predictor values lower than the lowest predictor value in the dictionary have the same coefficient that the lowest predictor value in the dictionary has. Predictor values higher than the highest predictor value in the dictionary have the same coefficient that the highest predictor value in the dictionary has.***
 
 ### Parameters
 
