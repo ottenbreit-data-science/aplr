@@ -100,6 +100,7 @@ private:
     void preprocess_predictor_learning_rates_and_penalties(const MatrixXd &X, const std::vector<double> &predictor_learning_rates,
                                                            const std::vector<double> &predictor_penalties_for_non_linearity,
                                                            const std::vector<double> &predictor_penalties_for_interactions);
+    void calculate_min_and_max_predictor_values_in_training(const MatrixXd &X);
     std::vector<double> preprocess_predictor_learning_rate_or_penalty(const MatrixXd &X, double general_value,
                                                                       const std::vector<double> &predictor_specific_values);
     void fit_model_for_cv_fold(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight,
@@ -233,6 +234,8 @@ public:
     double penalty_for_non_linearity;
     double penalty_for_interactions;
     size_t max_terms;
+    VectorXd min_predictor_values_in_training;
+    VectorXd max_predictor_values_in_training;
 
     APLRRegressor(size_t m = 3000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, size_t cv_folds = 5,
@@ -274,7 +277,7 @@ public:
     double get_intercept();
     size_t get_optimal_m();
     std::string get_validation_tuning_metric();
-    std::map<double, double> get_coefficient_shape_function(size_t predictor_index);
+    std::map<double, double> get_main_effect_shape(size_t predictor_index);
     double get_cv_error();
 
     friend class APLRClassifier;
@@ -336,7 +339,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       early_stopping_rounds{other.early_stopping_rounds},
       num_first_steps_with_linear_effects_only{other.num_first_steps_with_linear_effects_only},
       penalty_for_non_linearity{other.penalty_for_non_linearity}, penalty_for_interactions{other.penalty_for_interactions},
-      max_terms{other.max_terms}
+      max_terms{other.max_terms}, min_predictor_values_in_training{other.min_predictor_values_in_training},
+      max_predictor_values_in_training{other.max_predictor_values_in_training}
 {
 }
 
@@ -364,6 +368,7 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
     preprocess_penalties();
     preprocess_predictor_learning_rates_and_penalties(X, predictor_learning_rates, predictor_penalties_for_non_linearity,
                                                       predictor_penalties_for_interactions);
+    calculate_min_and_max_predictor_values_in_training(X);
     cv_fold_models.resize(cv_observations_used.cols());
     for (Eigen::Index i = 0; i < cv_observations_used.cols(); ++i)
     {
@@ -445,6 +450,17 @@ std::vector<double> APLRRegressor::preprocess_predictor_learning_rate_or_penalty
         }
     }
     return output;
+}
+
+void APLRRegressor::calculate_min_and_max_predictor_values_in_training(const MatrixXd &X)
+{
+    min_predictor_values_in_training = VectorXd(X.cols());
+    max_predictor_values_in_training = VectorXd(X.cols());
+    for (Eigen::Index i = 0; i < X.cols(); ++i)
+    {
+        min_predictor_values_in_training[i] = X.col(i).minCoeff();
+        max_predictor_values_in_training[i] = X.col(i).maxCoeff();
+    }
 }
 
 void APLRRegressor::fit_model_for_cv_fold(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight,
@@ -575,8 +591,8 @@ void APLRRegressor::validate_input_to_fit(const MatrixXd &X, const VectorXd &y, 
         {
             Eigen::Index rows_with_ones{(cv_observations.col(i).array() == 1).count()};
             Eigen::Index rows_with_minus_ones{(cv_observations.col(i).array() == -1).count()};
-            if (rows_with_ones < min_obserations_in_a_cv_fold || rows_with_minus_ones < min_obserations_in_a_cv_fold)
-                throw std::runtime_error("Each column in cv_observations must contain at least " + std::to_string(min_obserations_in_a_cv_fold) + " observations for each of the values 1 and -1.");
+            if (rows_with_ones < MIN_OBSERATIONS_IN_A_CV_FOLD || rows_with_minus_ones < MIN_OBSERATIONS_IN_A_CV_FOLD)
+                throw std::runtime_error("Each column in cv_observations must contain at least " + std::to_string(MIN_OBSERATIONS_IN_A_CV_FOLD) + " observations for each of the values 1 and -1.");
         }
     }
     bool group_is_of_incorrect_size{(loss_function == "group_mse" || validation_tuning_metric == "group_mse") && group.rows() != y.rows()};
@@ -744,7 +760,7 @@ MatrixXi APLRRegressor::preprocess_cv_observations(const MatrixXi &cv_observatio
         {
             Eigen::Index rows_with_ones{(output.col(i).array() == 1).count()};
             Eigen::Index rows_with_minus_ones{(output.col(i).array() == -1).count()};
-            if (rows_with_ones < min_obserations_in_a_cv_fold || rows_with_minus_ones < min_obserations_in_a_cv_fold)
+            if (rows_with_ones < MIN_OBSERATIONS_IN_A_CV_FOLD || rows_with_minus_ones < MIN_OBSERATIONS_IN_A_CV_FOLD)
                 throw std::runtime_error("Did not generate enough observations in a fold. Please try again with a different random_state and/or change cv_folds.");
         }
     }
@@ -2366,20 +2382,21 @@ std::string APLRRegressor::get_validation_tuning_metric()
     return validation_tuning_metric;
 }
 
-std::map<double, double> APLRRegressor::get_coefficient_shape_function(size_t predictor_index)
+std::map<double, double> APLRRegressor::get_main_effect_shape(size_t predictor_index)
 {
     if (model_has_not_been_trained())
-        throw std::runtime_error("The model must have been trained before using get_coefficient_shape_function().");
+        throw std::runtime_error("The model must have been trained before using get_main_effect_shape().");
 
-    std::map<double, double> coefficient_shape_function;
+    std::map<double, double> main_effect_shape;
 
     std::vector<size_t> relevant_term_indexes{compute_relevant_term_indexes(predictor_index)};
     bool relevant_term_indexes_do_not_exist{relevant_term_indexes.size() == 0};
     if (relevant_term_indexes_do_not_exist)
-        return coefficient_shape_function;
+        return main_effect_shape;
 
     std::vector<double> split_points;
-    split_points.reserve(relevant_term_indexes.size() * 4);
+    size_t max_potential_split_points{relevant_term_indexes.size() * 3 + 2};
+    split_points.reserve(max_potential_split_points);
     for (auto &relevant_term_index : relevant_term_indexes)
     {
         bool split_point_exits{std::isfinite(terms[relevant_term_index].split_point)};
@@ -2396,35 +2413,8 @@ std::map<double, double> APLRRegressor::get_coefficient_shape_function(size_t pr
             }
         }
     }
-    bool no_split_points{split_points.size() == 0};
-    if (no_split_points)
-    {
-        split_points.push_back(0);
-        split_points.push_back(1);
-    }
-    split_points = remove_duplicate_elements_from_vector(split_points);
-    bool one_split_point{split_points.size() == 1};
-    if (one_split_point)
-    {
-        split_points.push_back(split_points[0] - 1);
-        split_points = remove_duplicate_elements_from_vector(split_points);
-    }
-
-    VectorXd split_point_increments{VectorXd(split_points.size() - 1)};
-    for (Eigen::Index i = 0; i < split_point_increments.size(); ++i)
-    {
-        split_point_increments[i] = split_points[i + 1] - split_points[i];
-    }
-    double minimum_split_point_increment{split_point_increments.minCoeff()};
-    double increment_around_split_points{minimum_split_point_increment / DIVISOR_IN_GET_COEFFICIENT_SHAPE_FUNCTION};
-
-    size_t num_split_points{split_points.size()};
-    for (size_t i = 0; i < num_split_points; ++i)
-    {
-        split_points.push_back(split_points[i] - increment_around_split_points);
-        split_points.push_back(split_points[i] + increment_around_split_points);
-    }
-    split_points.push_back(split_points[split_points.size() - 1] + increment_around_split_points);
+    split_points.push_back(min_predictor_values_in_training[predictor_index]);
+    split_points.push_back(max_predictor_values_in_training[predictor_index]);
     split_points = remove_duplicate_elements_from_vector(split_points);
     split_points.shrink_to_fit();
 
@@ -2435,12 +2425,12 @@ std::map<double, double> APLRRegressor::get_coefficient_shape_function(size_t pr
     }
 
     VectorXd contribution_to_linear_predictor{calculate_local_contribution_from_selected_terms(X, {predictor_index})};
-    for (size_t i = 0; i < split_points.size() - 1; ++i)
+    for (size_t i = 0; i < split_points.size(); ++i)
     {
-        coefficient_shape_function[split_points[i]] = (contribution_to_linear_predictor[i + 1] - contribution_to_linear_predictor[i]) / (split_points[i + 1] - split_points[i]);
+        main_effect_shape[split_points[i]] = contribution_to_linear_predictor[i];
     }
 
-    return coefficient_shape_function;
+    return main_effect_shape;
 }
 
 std::vector<size_t> APLRRegressor::compute_relevant_term_indexes(size_t predictor_index)

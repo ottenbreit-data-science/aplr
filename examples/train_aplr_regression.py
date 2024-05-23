@@ -102,12 +102,12 @@ estimated_term_importance = pd.DataFrame(
     }
 )
 
-# Coefficient shape for the third predictor. Will be empty if the third predictor is not used as a main effect in the model.
-coefficient_shape = best_model.get_coefficient_shape_function(predictor_index=2)
-coefficient_shape = pd.DataFrame(
+# Main effect shape for the third predictor. Will be empty if the third predictor is not used as a main effect in the model.
+main_effect_shape = best_model.get_main_effect_shape(predictor_index=2)
+main_effect_shape = pd.DataFrame(
     {
-        "predictor_value": coefficient_shape.keys(),
-        "coefficient": coefficient_shape.values(),
+        "predictor_value": main_effect_shape.keys(),
+        "coefficient": main_effect_shape.values(),
     }
 )
 

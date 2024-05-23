@@ -312,9 +312,9 @@ A numpy matrix with predictor values.
 ***Returns the validation_tuning_metric used.*** 
 
 
-## Method: get_coefficient_shape_function(predictor_index:int)
+## Method: get_main_effect_shape(predictor_index:int)
 
-***For the predictor in X specified by predictor_index, get_coefficient_shape_function returns a dictionary with keys equal to predictor values and values equal to coefficient. For each predictor value, the coefficient denotes the change in the linear predictor given that the predictor value increases by one unit (interactions with other predictors are ignored). This function makes it easier to interpret APLR models as one can quickly see how the main effects work across relevant values of the predictor. Predictor values lower than the lowest predictor value in the dictionary have the same coefficient that the lowest predictor value in the dictionary has. Predictor values higher than the highest predictor value in the dictionary have the same coefficient that the highest predictor value in the dictionary has.***
+***For the predictor in X specified by predictor_index, get_main_effect_shape returns a dictionary with keys equal to predictor values and values equal to the corresponding contribution to the linear predictor (interactions with other predictors are ignored). This method makes it easier to interpret main effects.***
 
 ### Parameters
 

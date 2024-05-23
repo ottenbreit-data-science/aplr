@@ -1605,13 +1605,13 @@ public:
         std::cout << predictions.mean() << "\n\n";
         tests.push_back(is_approximately_equal(predictions.mean(), 23.7035, 0.00001));
 
-        std::map<double, double> coefficient_shape_function = model.get_coefficient_shape_function(1);
-        bool coefficient_shape_function_has_correct_length{coefficient_shape_function.size() == 27};
-        bool coefficient_shape_function_value_test{is_approximately_equal(coefficient_shape_function.begin()->second, 0.04175, 0.00001)};
+        std::map<double, double> main_effect_shape = model.get_main_effect_shape(1);
+        bool main_effect_shape_has_correct_length{main_effect_shape.size() == 11};
+        bool main_effect_shape_value_test{is_approximately_equal(main_effect_shape.begin()->second, -0.44924570143235887)};
         bool li_for_particular_terms_has_correct_size{li_for_particular_terms.rows() == X_train.rows()};
         bool li_for_particular_terms_mean_is_correct{is_approximately_equal(li_for_particular_terms.mean(), 0.30321952178814915)};
-        tests.push_back(coefficient_shape_function_has_correct_length);
-        tests.push_back(coefficient_shape_function_value_test);
+        tests.push_back(main_effect_shape_has_correct_length);
+        tests.push_back(main_effect_shape_value_test);
         tests.push_back(li_for_particular_terms_has_correct_size);
         tests.push_back(li_for_particular_terms_mean_is_correct);
     }

@@ -17,4 +17,4 @@ Please see the two example Python scripts [here](https://github.com/ottenbreit-d
 Please consider sponsoring Ottenbreit Data Science by clicking on the Sponsor button. Sufficient funding will enable maintenance of APLR and further development.
 
 # API reference
-Please see the [api reference for regression](https://github.com/ottenbreit-data-science/aplr/blob/main/API_REFERENCE_FOR_REGRESSION.md) and [api reference for classification](https://github.com/ottenbreit-data-science/aplr/blob/main/API_REFERENCE_FOR_CLASSIFICATION.md).
+Please see the [API reference for regression](https://github.com/ottenbreit-data-science/aplr/blob/main/API_REFERENCE_FOR_REGRESSION.md) and [API reference for classification](https://github.com/ottenbreit-data-science/aplr/blob/main/API_REFERENCE_FOR_CLASSIFICATION.md).

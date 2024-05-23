@@ -70,7 +70,7 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def("get_intercept", &APLRRegressor::get_intercept)
         .def("get_optimal_m", &APLRRegressor::get_optimal_m)
         .def("get_validation_tuning_metric", &APLRRegressor::get_validation_tuning_metric)
-        .def("get_coefficient_shape_function", &APLRRegressor::get_coefficient_shape_function, py::arg("predictor_index"))
+        .def("get_main_effect_shape", &APLRRegressor::get_main_effect_shape, py::arg("predictor_index"))
         .def("get_cv_error", &APLRRegressor::get_cv_error)
         .def_readwrite("intercept", &APLRRegressor::intercept)
         .def_readwrite("m", &APLRRegressor::m)
@@ -118,6 +118,8 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def_readwrite("penalty_for_non_linearity", &APLRRegressor::penalty_for_non_linearity)
         .def_readwrite("penalty_for_interactions", &APLRRegressor::penalty_for_interactions)
         .def_readwrite("max_terms", &APLRRegressor::max_terms)
+        .def_readwrite("min_predictor_values_in_training", &APLRRegressor::min_predictor_values_in_training)
+        .def_readwrite("max_predictor_values_in_training", &APLRRegressor::max_predictor_values_in_training)
         .def(py::pickle(
             [](const APLRRegressor &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
@@ -130,10 +132,11 @@ PYBIND11_MODULE(aplr_cpp, m)
                                       a.monotonic_constraints_ignore_interactions, a.group_mse_by_prediction_bins,
                                       a.group_mse_cycle_min_obs_in_bin, a.cv_error, a.term_importance, a.term_main_predictor_indexes,
                                       a.term_interaction_levels, a.early_stopping_rounds, a.num_first_steps_with_linear_effects_only,
-                                      a.penalty_for_non_linearity, a.penalty_for_interactions, a.max_terms);
+                                      a.penalty_for_non_linearity, a.penalty_for_interactions, a.max_terms,
+                                      a.min_predictor_values_in_training, a.max_predictor_values_in_training);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 41)
+                if (t.size() != 43)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
@@ -178,6 +181,8 @@ PYBIND11_MODULE(aplr_cpp, m)
                 double penalty_for_non_linearity = t[38].cast<double>();
                 double penalty_for_interactions = t[39].cast<double>();
                 size_t max_terms = t[40].cast<size_t>();
+                VectorXd min_predictor_values_in_training = t[41].cast<VectorXd>();
+                VectorXd max_predictor_values_in_training = t[42].cast<VectorXd>();
 
                 APLRRegressor a(m, v, random_state, loss_function, link_function, n_jobs, cv_folds, 100, bins, verbosity, max_interaction_level,
                                 max_interactions, min_observations_in_split, ineligible_boosting_steps_added, max_eligible_terms, dispersion_parameter,
@@ -206,6 +211,8 @@ PYBIND11_MODULE(aplr_cpp, m)
                 a.penalty_for_non_linearity = penalty_for_non_linearity;
                 a.penalty_for_interactions = penalty_for_interactions;
                 a.max_terms = max_terms;
+                a.min_predictor_values_in_training = min_predictor_values_in_training;
+                a.max_predictor_values_in_training = max_predictor_values_in_training;
 
                 return a;
             }));

@@ -277,10 +277,8 @@ class APLRRegressor:
     def get_validation_tuning_metric(self) -> str:
         return self.APLRRegressor.get_validation_tuning_metric()
 
-    def get_coefficient_shape_function(
-        self, predictor_index: int
-    ) -> Dict[float, float]:
-        return self.APLRRegressor.get_coefficient_shape_function(predictor_index)
+    def get_main_effect_shape(self, predictor_index: int) -> Dict[float, float]:
+        return self.APLRRegressor.get_main_effect_shape(predictor_index)
 
     def get_cv_error(self) -> float:
         return self.APLRRegressor.get_cv_error()
