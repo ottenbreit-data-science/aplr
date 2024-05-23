@@ -102,12 +102,13 @@ estimated_term_importance = pd.DataFrame(
     }
 )
 
-# Main effect shape for the third predictor. Will be empty if the third predictor is not used as a main effect in the model.
+# Main effect shape for the third predictor. This can be visualized in a scatter plot.
+# Will be empty if the third predictor is not used as a main effect in the model.
 main_effect_shape = best_model.get_main_effect_shape(predictor_index=2)
 main_effect_shape = pd.DataFrame(
     {
         "predictor_value": main_effect_shape.keys(),
-        "coefficient": main_effect_shape.values(),
+        "contribution_to_linear_predictor": main_effect_shape.values(),
     }
 )
 

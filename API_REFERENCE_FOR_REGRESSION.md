@@ -314,7 +314,7 @@ A numpy matrix with predictor values.
 
 ## Method: get_main_effect_shape(predictor_index:int)
 
-***For the predictor in X specified by predictor_index, get_main_effect_shape returns a dictionary with keys equal to predictor values and values equal to the corresponding contribution to the linear predictor (interactions with other predictors are ignored). This method makes it easier to interpret main effects.***
+***For the predictor in X specified by predictor_index, get_main_effect_shape returns a dictionary with keys equal to predictor values and values equal to the corresponding contribution to the linear predictor (interactions with other predictors are ignored). This method makes it easier to interpret main effects, for example by visualizing the output in a scatter plot.***
 
 ### Parameters
 
