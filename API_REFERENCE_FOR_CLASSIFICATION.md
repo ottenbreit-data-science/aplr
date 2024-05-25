@@ -26,7 +26,7 @@ Specifies the maximum number of bins to discretize the data into when searching 
 ***0*** does not print progress reports during fitting. ***1*** prints a summary after running the ***fit*** method. ***2*** prints a summary after each boosting step.
 
 #### max_interaction_level (default = 1)
-Specifies the maximum allowed depth of interaction terms. ***0*** means that interactions are not allowed. This hyperparameter should be tuned.
+Specifies the maximum allowed depth of interaction terms. ***0*** means that interactions are not allowed. This hyperparameter should be tuned by for example doing a grid search for best predictiveness. For best interpretability use 0 (or 1 if interactions are needed).
 
 #### max_interactions (default = 100000)
 The maximum number of interactions allowed in each underlying model. A lower value may be used to reduce computational time.
