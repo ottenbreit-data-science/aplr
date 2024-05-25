@@ -29,7 +29,7 @@ Specifies the maximum number of bins to discretize the data into when searching 
 Specifies the maximum allowed depth of interaction terms. ***0*** means that interactions are not allowed. This hyperparameter should be tuned.
 
 #### max_interactions (default = 100000)
-The maximum number of interactions allowed. A lower value may be used to reduce computational time.
+The maximum number of interactions allowed in each underlying model. A lower value may be used to reduce computational time.
 
 #### min_observations_in_split (default = 20)
 The minimum effective number of observations that a term in the model must rely on. This hyperparameter should be tuned. Larger values are more appropriate for larger datasets. Larger values result in more robust models (lower variance), potentially at the expense of increased bias.

@@ -1524,7 +1524,8 @@ void APLRRegressor::add_promising_interactions_and_select_the_best_one()
                 bool is_best_interaction{j == 0};
                 if (is_best_interaction)
                     best_term_index = terms_eligible_current.size() - 1;
-                ++interactions_eligible;
+                if (interactions_to_consider[sorted_indexes_of_errors_for_interactions_to_consider[j]].get_interaction_level() > 0)
+                    ++interactions_eligible;
             }
             else
                 break;

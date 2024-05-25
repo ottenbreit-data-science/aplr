@@ -715,7 +715,17 @@ VectorXd Term::calculate_contribution_to_linear_predictor(const MatrixXd &X)
 
 size_t Term::get_interaction_level()
 {
-    return given_terms.size();
+    std::vector<size_t> terms_used;
+    terms_used.reserve(1 + given_terms.size());
+    terms_used.push_back(base_term);
+    for (auto &given_term : given_terms)
+    {
+        terms_used.push_back(given_term.base_term);
+    }
+    std::set<size_t> unique_predictors_used{get_unique_integers(terms_used)};
+    size_t interaction_level{unique_predictors_used.size() - 1};
+
+    return interaction_level;
 }
 
 bool Term::get_can_be_used_as_a_given_term()

@@ -167,7 +167,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 18.507179601395375));
+        tests.push_back(is_approximately_equal(predictions.mean(), 18.534016846656947));
     }
 
     void test_aplrregressor_cauchy_penalties()
@@ -221,7 +221,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 20.037964498663037));
+        tests.push_back(is_approximately_equal(predictions.mean(), 20.146282076477394));
     }
 
     void test_aplrregressor_cauchy_linear_effects_only_first()
@@ -275,7 +275,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 17.971623307698852));
+        tests.push_back(is_approximately_equal(predictions.mean(), 17.964887018234787));
     }
 
     void test_aplrregressor_cauchy_group_mse_validation()
@@ -333,7 +333,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 20.170939369337834));
+        tests.push_back(is_approximately_equal(predictions.mean(), 20.096177156192478));
 
         VectorXd feature_importance_on_test_set{model.calculate_feature_importance(X_test)};
         double feature_importance_on_test_set_mean{feature_importance_on_test_set.mean()};
@@ -349,12 +349,12 @@ public:
         std::cout << term_importance_first << "\n\n";
         std::cout << term_base_predictor_index_max << "\n\n";
         std::cout << term_interaction_level_max << "\n\n";
-        tests.push_back(is_approximately_equal(feature_importance_on_test_set_mean, 0.3745208543129413));
-        tests.push_back(is_approximately_equal(feature_importance_mean, 0.37558643075803277));
-        tests.push_back(is_approximately_equal(term_importance_mean, 0.12150899891033366));
-        tests.push_back(is_approximately_equal(feature_importance_first, 0.74048121167747938));
-        tests.push_back(is_approximately_equal(term_importance_first, 0.85496610382351568));
-        tests.push_back(term_base_predictor_index_max == 5);
+        tests.push_back(is_approximately_equal(feature_importance_on_test_set_mean, 0.37735253878466402));
+        tests.push_back(is_approximately_equal(feature_importance_mean, 0.37820511700233239));
+        tests.push_back(is_approximately_equal(term_importance_mean, 0.12843198080249971));
+        tests.push_back(is_approximately_equal(feature_importance_first, 0.73797521341670724));
+        tests.push_back(is_approximately_equal(term_importance_first, 1.0431553101537596));
+        tests.push_back(term_base_predictor_index_max == 6);
         tests.push_back(term_interaction_level_max == 1);
     }
 
@@ -412,7 +412,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 20.104856610039558));
+        tests.push_back(is_approximately_equal(predictions.mean(), 19.804431518585918));
     }
 
     void test_aplrregressor_cauchy()
@@ -466,7 +466,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 20.850035037781723));
+        tests.push_back(is_approximately_equal(predictions.mean(), 20.873594934501561));
     }
 
     void test_aplrregressor_custom_loss_and_validation()
@@ -526,7 +526,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.944797684016745));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.91507568241019));
     }
 
     void test_aplrregressor_custom_loss()
@@ -585,7 +585,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.7035, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.703500296203778, 0.00001));
     }
 
     void test_aplrregressor_gamma_custom_link()
@@ -640,7 +640,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.5266, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.526613939603266, 0.00001));
     }
 
     void test_aplrregressor_gamma_custom_validation()
@@ -695,7 +695,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.5512, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.551175298027964, 0.00001));
     }
 
     void test_aplrregressor_gamma_gini_weighted()
@@ -749,7 +749,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.3198, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.319789512734854, 0.00001));
     }
 
     void test_aplrregressor_gamma_gini()
@@ -803,7 +803,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.3198, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.319789512734854, 0.00001));
     }
 
     void test_aplrregressor_gamma()
@@ -857,7 +857,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.5512, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.551175298027964, 0.00001));
     }
 
     void test_aplrregressor_group_mse()
@@ -957,7 +957,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.533140818895273));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.526475166355244));
     }
 
     void test_aplrregressor_int_constr()
@@ -1010,7 +1010,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.606326522845816));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.576830262038001));
     }
 
     void test_aplrregressor_inversegaussian()
@@ -1065,7 +1065,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.3198, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.31977985222057, 0.00001));
     }
 
     void test_aplrregressor_logit()
@@ -1118,7 +1118,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 0.0875969, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 0.087596882912220717, 0.00001));
     }
 
     void test_aplrregressor_mae()
@@ -1171,7 +1171,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.557834093496929));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.563270291507191));
     }
 
     void test_aplrregressor_monotonic()
@@ -1224,7 +1224,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.337125831228487));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.47597042545404));
     }
 
     void test_aplrregressor_monotonic_ignore_interactions()
@@ -1278,7 +1278,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 24.3013, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 24.301339246925711, 0.00001));
     }
 
     void test_aplrregressor_negative_binomial()
@@ -1332,7 +1332,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 1.8694, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 1.8694002118421278, 0.00001));
     }
 
     void test_aplrregressor_poisson()
@@ -1385,7 +1385,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 1.88727, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 1.8872692088161898, 0.00001));
     }
 
     void test_aplrregressor_poissongamma()
@@ -1439,7 +1439,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 1.88553, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 1.8855344167602603, 0.00001));
     }
 
     void test_aplrregressor_quantile()
@@ -1492,7 +1492,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.65630148869738));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.610872525541577));
     }
 
     void test_aplrregressor_weibull()
@@ -1546,7 +1546,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.6406, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.640555263512187, 0.00001));
     }
 
     void test_aplrregressor()
@@ -1603,7 +1603,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.7035, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.703500296203778, 0.00001));
 
         std::map<double, double> main_effect_shape = model.get_main_effect_shape(1);
         bool main_effect_shape_has_correct_length{main_effect_shape.size() == 11};
@@ -1688,7 +1688,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.246477, 0.000001));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.24647671959943313, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -1696,7 +1696,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.15805, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.1580504780375889, 0.00001));
     }
 
     void test_aplrclassifier_multi_class()
@@ -1911,7 +1911,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.22862513689095387));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.23802511407945728));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -1919,7 +1919,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.14062146736733369));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.13431844066700888));
     }
 
     void test_aplrclassifier_two_class()
@@ -2049,7 +2049,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.16172925575492014, 0.000001));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.16317052975361318, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -2057,7 +2057,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.12241915926968391, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.12221717377018071, 0.00001));
     }
 
     void test_aplrclassifier_two_class_predictor_specific_penalties_and_learning_rates()
@@ -2119,7 +2119,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.17021028319567164, 0.000001));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.16984042158451909, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -2127,7 +2127,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.18697312064762112, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.18613865090207235, 0.00001));
     }
 
     void test_aplrclassifier_two_class_max_terms()
@@ -2368,7 +2368,7 @@ public:
         size_t p7il{p7.get_interaction_level()};
         size_t p8il{p8.get_interaction_level()};
         tests.push_back(pil == 2 ? true : false);
-        tests.push_back(p5il == 3 ? true : false);
+        tests.push_back(p5il == 2 ? true : false);
         tests.push_back(p7il == 1 ? true : false);
         tests.push_back(p8il == 0 ? true : false);
     }
