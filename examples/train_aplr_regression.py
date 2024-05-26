@@ -39,7 +39,7 @@ param_grid = ParameterGrid(
         "min_observations_in_split": [1, 20, 50, 100, 200],
     }
 )
-best_model = None
+best_model: APLRRegressor = None
 loss_function = "mse"  # Other available loss functions are binomial, poisson, gamma, tweedie, group_mse, mae, quantile, negative_binomial, cauchy, weibull and custom_function.
 link_function = (
     "identity"  # Other available link functions are logit, log and custom_function.
@@ -68,7 +68,7 @@ for params in param_grid:
 print("Done training")
 
 # Saving model
-joblib.dump(best_model, "best_model.gz")
+joblib.dump(best_model, "best_model.gz", compress=9)
 
 # Validation results when doing grid search
 cv_results = cv_results.sort_values(by="cv_error")
@@ -80,26 +80,24 @@ validation_error_per_boosting_step = best_model.get_validation_error_steps()
 # Terms in the best model
 terms = pd.DataFrame(
     {
+        "predictor_affiliation": ["Intercept"] + best_model.get_term_affiliations(),
         "term": best_model.get_term_names(),
         "coefficient": best_model.get_term_coefficients(),
+        "estimated_term_importance": np.concatenate(
+            (np.zeros(1), best_model.get_term_importance())
+        ),
     }
 )
 
 # Estimated feature importance in the training data
 estimated_feature_importance = pd.DataFrame(
-    {"predictor": predictors, "importance": best_model.get_feature_importance()}
+    {
+        "predictor": best_model.get_unique_term_affiliations(),
+        "importance": best_model.get_feature_importance(),
+    }
 )
 estimated_feature_importance = estimated_feature_importance.sort_values(
     by="importance", ascending=False
-)
-
-# Estimated term importance in the training data
-term_names_excluding_intercept = best_model.get_term_names()[1:]
-estimated_term_importance = pd.DataFrame(
-    {
-        "term": term_names_excluding_intercept,
-        "importance": best_model.get_term_importance(),
-    }
 )
 
 # Main effect shape for the third predictor. This can be visualized in a scatter plot.
@@ -110,6 +108,13 @@ main_effect_shape = pd.DataFrame(
         "predictor_value": main_effect_shape.keys(),
         "contribution_to_linear_predictor": main_effect_shape.values(),
     }
+)
+
+# Local contribution to the linear predictor for each prediction in the training data. This can be used to interpret the model,
+# for example by visualizing two-way interactions versus predictor values in a 3D scatter plot. This method can also be used on new data.
+local_feature_contribution = pd.DataFrame(
+    best_model.calculate_local_feature_contribution(data_train[predictors]),
+    columns=best_model.get_unique_term_affiliations(),
 )
 
 # Local (observation specific) contribution to the linear predictor from selected interacting predictors.
@@ -141,7 +146,7 @@ goodness_of_fit["r_squared"] = goodness_of_fit["correlation"] ** 2
 # Estimated feature importance in the test set
 estimated_feature_importance_in_test_set = pd.DataFrame(
     {
-        "predictor": predictors,
+        "predictor": best_model.get_unique_term_affiliations(),
         "importance": best_model.calculate_feature_importance(data_test[predictors]),
     }
 )
@@ -152,6 +157,7 @@ estimated_feature_importance_in_test_set = (
 )
 
 # Estimated term importance in the test set
+term_names_excluding_intercept = best_model.get_term_names()[1:]
 estimated_term_importance_in_test_set = pd.DataFrame(
     {
         "term": term_names_excluding_intercept,
@@ -162,17 +168,11 @@ estimated_term_importance_in_test_set = (
     estimated_term_importance_in_test_set.sort_values(by="importance", ascending=False)
 )
 
-
 # Local contribution for each prediction in the test set
-estimated_local_feature_contribution = pd.DataFrame(
-    best_model.calculate_local_feature_contribution(data_test[predictors]),
-    columns=predictors,
-)
 local_term_contribution = pd.DataFrame(
     best_model.calculate_local_term_contribution(data_test[predictors]),
     columns=term_names_excluding_intercept,
 )
-
 
 # Calculate terms on test data
 calculated_terms = pd.DataFrame(

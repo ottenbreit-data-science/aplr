@@ -157,14 +157,14 @@ private:
     void compute_fold_weights();
     void update_intercept_and_term_weights();
     void create_terms(const MatrixXd &X);
-    void estimate_feature_and_term_importances(const MatrixXd &X, const VectorXd &sample_weight);
+    void estimate_term_importances(const MatrixXd &X, const VectorXd &sample_weight);
     void sort_terms();
     void calculate_other_term_vectors();
     void compute_cv_error();
     void concatenate_validation_error_steps();
     void find_final_min_and_max_training_predictions_or_responses();
     void compute_max_optimal_m();
-    void correct_term_names_and_coefficients();
+    void correct_term_names_coefficients_and_affiliations();
     void additional_cleanup_after_creating_final_model();
     void validate_that_model_can_be_used(const MatrixXd &X);
     void throw_error_if_loss_function_does_not_exist();
@@ -186,6 +186,7 @@ private:
     bool model_has_not_been_trained();
     std::vector<size_t> compute_relevant_term_indexes(size_t predictor_index);
     void validate_sample_weight(const MatrixXd &X, const VectorXd &sample_weight);
+    void set_term_coefficients();
 
 public:
     double intercept;
@@ -201,6 +202,7 @@ public:
     size_t bins;
     size_t verbosity;
     std::vector<std::string> term_names;
+    std::vector<std::string> term_affiliations;
     VectorXd term_coefficients;
     size_t max_interaction_level;
     size_t max_interactions;
@@ -210,6 +212,9 @@ public:
     size_t ineligible_boosting_steps_added;
     size_t max_eligible_terms;
     size_t number_of_base_terms;
+    size_t number_of_unique_term_affiliations;
+    std::vector<std::string> unique_term_affiliations;
+    std::map<std::string, size_t> unique_term_affiliation_map;
     VectorXd feature_importance;
     VectorXd term_importance;
     double dispersion_parameter;
@@ -261,6 +266,7 @@ public:
              const std::vector<double> &predictor_penalties_for_interactions = {});
     VectorXd predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = true);
     void set_term_names(const std::vector<std::string> &X_names);
+    void set_term_affiliations(const std::vector<std::string> &X_names);
     VectorXd calculate_feature_importance(const MatrixXd &X, const VectorXd &sample_weight = VectorXd(0));
     VectorXd calculate_term_importance(const MatrixXd &X, const VectorXd &sample_weight = VectorXd(0));
     MatrixXd calculate_local_feature_contribution(const MatrixXd &X);
@@ -268,6 +274,8 @@ public:
     VectorXd calculate_local_contribution_from_selected_terms(const MatrixXd &X, const std::vector<size_t> &predictor_indexes);
     MatrixXd calculate_terms(const MatrixXd &X);
     std::vector<std::string> get_term_names();
+    std::vector<std::string> get_term_affiliations();
+    std::vector<std::string> get_unique_term_affiliations();
     VectorXd get_term_coefficients();
     MatrixXd get_validation_error_steps();
     VectorXd get_feature_importance();
@@ -301,7 +309,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
       max_interactions{max_interactions}, interactions_eligible{0}, validation_error_steps{MatrixXd(0, 0)},
       min_observations_in_split{min_observations_in_split}, ineligible_boosting_steps_added{ineligible_boosting_steps_added},
-      max_eligible_terms{max_eligible_terms}, number_of_base_terms{0}, dispersion_parameter{dispersion_parameter}, min_training_prediction_or_response{NAN_DOUBLE},
+      max_eligible_terms{max_eligible_terms}, number_of_base_terms{0}, number_of_unique_term_affiliations{0},
+      dispersion_parameter{dispersion_parameter}, min_training_prediction_or_response{NAN_DOUBLE},
       max_training_prediction_or_response{NAN_DOUBLE}, validation_tuning_metric{validation_tuning_metric},
       quantile{quantile}, calculate_custom_validation_error_function{calculate_custom_validation_error_function},
       calculate_custom_loss_function{calculate_custom_loss_function}, calculate_custom_negative_gradient_function{calculate_custom_negative_gradient_function},
@@ -319,11 +328,12 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
     : reserved_terms_times_num_x{other.reserved_terms_times_num_x}, intercept{other.intercept}, terms{other.terms}, m{other.m}, v{other.v},
       loss_function{other.loss_function}, link_function{other.link_function}, cv_folds{other.cv_folds},
       n_jobs{other.n_jobs}, random_state{other.random_state}, bins{other.bins},
-      verbosity{other.verbosity}, term_names{other.term_names}, term_coefficients{other.term_coefficients},
+      verbosity{other.verbosity}, term_names{other.term_names}, term_affiliations{other.term_affiliations}, term_coefficients{other.term_coefficients},
       max_interaction_level{other.max_interaction_level}, max_interactions{other.max_interactions},
       interactions_eligible{other.interactions_eligible}, validation_error_steps{other.validation_error_steps},
       min_observations_in_split{other.min_observations_in_split}, ineligible_boosting_steps_added{other.ineligible_boosting_steps_added},
       max_eligible_terms{other.max_eligible_terms}, number_of_base_terms{other.number_of_base_terms},
+      number_of_unique_term_affiliations{other.number_of_unique_term_affiliations},
       feature_importance{other.feature_importance}, term_importance{other.term_importance}, dispersion_parameter{other.dispersion_parameter},
       min_training_prediction_or_response{other.min_training_prediction_or_response},
       max_training_prediction_or_response{other.max_training_prediction_or_response}, validation_tuning_metric{other.validation_tuning_metric},
@@ -340,7 +350,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       num_first_steps_with_linear_effects_only{other.num_first_steps_with_linear_effects_only},
       penalty_for_non_linearity{other.penalty_for_non_linearity}, penalty_for_interactions{other.penalty_for_interactions},
       max_terms{other.max_terms}, min_predictor_values_in_training{other.min_predictor_values_in_training},
-      max_predictor_values_in_training{other.max_predictor_values_in_training}
+      max_predictor_values_in_training{other.max_predictor_values_in_training}, unique_term_affiliations{other.unique_term_affiliations},
+      unique_term_affiliation_map{other.unique_term_affiliation_map}
 {
 }
 
@@ -477,6 +488,7 @@ void APLRRegressor::fit_model_for_cv_fold(const MatrixXd &X, const VectorXd &y, 
     merge_similar_terms(X_train);
     remove_unused_terms();
     revert_scaling_if_using_log_link_function();
+    set_term_coefficients();
     name_terms(X, X_names);
     find_min_and_max_training_predictions_or_responses();
     write_output_to_cv_fold_models(fold_index);
@@ -1867,10 +1879,22 @@ void APLRRegressor::name_terms(const MatrixXd &X, const std::vector<std::string>
             temp[i] = "X" + std::to_string(i + 1);
         }
         set_term_names(temp);
+        set_term_affiliations(temp);
     }
     else
     {
         set_term_names(X_names);
+        set_term_affiliations(X_names);
+    }
+}
+
+void APLRRegressor::set_term_coefficients()
+{
+    term_coefficients.resize(terms.size() + 1);
+    term_coefficients[0] = intercept;
+    for (size_t i = 0; i < terms.size(); ++i)
+    {
+        term_coefficients[i + 1] = terms[i].coefficient;
     }
 }
 
@@ -1896,13 +1920,31 @@ void APLRRegressor::set_term_names(const std::vector<std::string> &X_names)
     }
 
     term_names.resize(terms.size() + 1);
-    term_coefficients.resize(terms.size() + 1);
     term_names[0] = "Intercept";
-    term_coefficients[0] = intercept;
     for (size_t i = 0; i < terms.size(); ++i)
     {
         term_names[i + 1] = terms[i].name;
-        term_coefficients[i + 1] = terms[i].coefficient;
+    }
+}
+
+void APLRRegressor::set_term_affiliations(const std::vector<std::string> &X_names)
+{
+    for (auto &term : terms)
+    {
+        std::vector<size_t> base_terms_used_in_term{term.get_unique_base_terms_used_in_this_term()};
+        for (size_t i = 0; i < base_terms_used_in_term.size(); ++i)
+        {
+            if (i == 0)
+                term.predictor_affiliation = X_names[base_terms_used_in_term[i]];
+            else
+                term.predictor_affiliation = term.predictor_affiliation + " & " + X_names[base_terms_used_in_term[i]];
+        }
+    }
+
+    term_affiliations.resize(terms.size());
+    for (size_t i = 0; i < terms.size(); ++i)
+    {
+        term_affiliations[i] = terms[i].predictor_affiliation;
     }
 }
 
@@ -1938,7 +1980,7 @@ VectorXd APLRRegressor::calculate_feature_importance(const MatrixXd &X, const Ve
 {
     validate_that_model_can_be_used(X);
     validate_sample_weight(X, sample_weight);
-    VectorXd feature_importance = VectorXd::Constant(number_of_base_terms, 0);
+    VectorXd feature_importance = VectorXd::Constant(number_of_unique_term_affiliations, 0);
     MatrixXd li{calculate_local_feature_contribution(X)};
     for (Eigen::Index i = 0; i < li.cols(); ++i) // For each column calculate standard deviation of contribution to linear predictor
     {
@@ -1976,12 +2018,13 @@ MatrixXd APLRRegressor::calculate_local_feature_contribution(const MatrixXd &X)
 {
     validate_that_model_can_be_used(X);
 
-    MatrixXd output{MatrixXd::Constant(X.rows(), number_of_base_terms, 0)};
+    MatrixXd output{MatrixXd::Constant(X.rows(), number_of_unique_term_affiliations, 0)};
 
     for (size_t i = 0; i < terms.size(); ++i)
     {
         VectorXd contrib{terms[i].calculate_contribution_to_linear_predictor(X)};
-        output.col(terms[i].base_term) += contrib;
+        size_t column{unique_term_affiliation_map[terms[i].predictor_affiliation]};
+        output.col(column) += contrib;
     }
 
     return output;
@@ -2093,14 +2136,15 @@ void APLRRegressor::create_final_model(const MatrixXd &X, const VectorXd &sample
     compute_fold_weights();
     update_intercept_and_term_weights();
     create_terms(X);
-    estimate_feature_and_term_importances(X, sample_weight);
+    estimate_term_importances(X, sample_weight);
     sort_terms();
     calculate_other_term_vectors();
     compute_cv_error();
     concatenate_validation_error_steps();
     find_final_min_and_max_training_predictions_or_responses();
     compute_max_optimal_m();
-    correct_term_names_and_coefficients();
+    correct_term_names_coefficients_and_affiliations();
+    feature_importance = calculate_feature_importance(X, sample_weight);
 
     cleanup_after_fit();
     additional_cleanup_after_creating_final_model();
@@ -2144,9 +2188,8 @@ void APLRRegressor::create_terms(const MatrixXd &X)
     remove_unused_terms();
 }
 
-void APLRRegressor::estimate_feature_and_term_importances(const MatrixXd &X, const VectorXd &sample_weight)
+void APLRRegressor::estimate_term_importances(const MatrixXd &X, const VectorXd &sample_weight)
 {
-    feature_importance = calculate_feature_importance(X, sample_weight);
     term_importance = calculate_term_importance(X, sample_weight);
     for (size_t i = 0; i < terms.size(); ++i)
     {
@@ -2215,11 +2258,12 @@ void APLRRegressor::compute_max_optimal_m()
     }
 }
 
-void APLRRegressor::correct_term_names_and_coefficients()
+void APLRRegressor::correct_term_names_coefficients_and_affiliations()
 {
     size_t terms_size_with_intercept{terms.size() + 1};
     term_names.resize(terms_size_with_intercept);
     term_coefficients.resize(terms_size_with_intercept);
+    term_affiliations.resize(terms.size());
 
     term_names[0] = "Intercept";
     term_coefficients[0] = intercept;
@@ -2227,6 +2271,13 @@ void APLRRegressor::correct_term_names_and_coefficients()
     {
         term_names[i + 1] = terms[i].name;
         term_coefficients[i + 1] = terms[i].coefficient;
+        term_affiliations[i] = terms[i].predictor_affiliation;
+    }
+    unique_term_affiliations = get_unique_strings_as_vector(term_affiliations);
+    number_of_unique_term_affiliations = unique_term_affiliations.size();
+    for (size_t i = 0; i < unique_term_affiliations.size(); ++i)
+    {
+        unique_term_affiliation_map[unique_term_affiliations[i]] = i;
     }
 }
 
@@ -2336,6 +2387,16 @@ MatrixXd APLRRegressor::calculate_terms(const MatrixXd &X)
 std::vector<std::string> APLRRegressor::get_term_names()
 {
     return term_names;
+}
+
+std::vector<std::string> APLRRegressor::get_term_affiliations()
+{
+    return term_affiliations;
+}
+
+std::vector<std::string> APLRRegressor::get_unique_term_affiliations()
+{
+    return unique_term_affiliations;
 }
 
 VectorXd APLRRegressor::get_term_coefficients()

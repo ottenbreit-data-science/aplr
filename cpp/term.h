@@ -90,6 +90,7 @@ public:
     VectorXd sample_weight_discretized;
     bool can_be_used_as_a_given_term;
     double estimated_term_importance;
+    std::string predictor_affiliation;
 
     Term(size_t base_term = 0, const std::vector<Term> &given_terms = std::vector<Term>(0), double split_point = NAN_DOUBLE, bool direction_right = false, double coefficient = 0);
     Term(const Term &other);
@@ -124,7 +125,8 @@ Term::Term(const Term &other)
     : name{other.name}, base_term{other.base_term}, given_terms{other.given_terms}, split_point{other.split_point}, direction_right{other.direction_right},
       coefficient{other.coefficient}, coefficient_steps{other.coefficient_steps}, split_point_search_errors_sum{other.split_point_search_errors_sum},
       ineligible_boosting_steps{0}, can_be_used_as_a_given_term{other.can_be_used_as_a_given_term}, monotonic_constraint{other.monotonic_constraint},
-      interaction_constraint{other.interaction_constraint}, estimated_term_importance{other.estimated_term_importance}
+      interaction_constraint{other.interaction_constraint}, estimated_term_importance{other.estimated_term_importance},
+      predictor_affiliation{other.predictor_affiliation}
 {
 }
 

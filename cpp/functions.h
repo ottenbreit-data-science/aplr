@@ -61,6 +61,18 @@ std::set<std::string> get_unique_strings(const std::vector<std::string> &string_
     return unique_strings;
 }
 
+std::vector<std::string> get_unique_strings_as_vector(const std::vector<std::string> &string_vector)
+{
+    std::set<std::string> unique_strings{get_unique_strings(string_vector)};
+    std::vector<std::string> unique_strings_as_vector;
+    unique_strings_as_vector.reserve(unique_strings.size());
+    for (auto &unique_string : unique_strings)
+    {
+        unique_strings_as_vector.push_back(unique_string);
+    }
+    return unique_strings_as_vector;
+}
+
 std::set<int> get_unique_integers(const VectorXi &int_vector)
 {
     std::set<int> unique_integers{int_vector.begin(), int_vector.end()};

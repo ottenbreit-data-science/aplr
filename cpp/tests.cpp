@@ -349,10 +349,10 @@ public:
         std::cout << term_importance_first << "\n\n";
         std::cout << term_base_predictor_index_max << "\n\n";
         std::cout << term_interaction_level_max << "\n\n";
-        tests.push_back(is_approximately_equal(feature_importance_on_test_set_mean, 0.37735253878466402));
-        tests.push_back(is_approximately_equal(feature_importance_mean, 0.37820511700233239));
+        tests.push_back(is_approximately_equal(feature_importance_on_test_set_mean, 0.28154881700595819));
+        tests.push_back(is_approximately_equal(feature_importance_mean, 0.28629814028801753));
         tests.push_back(is_approximately_equal(term_importance_mean, 0.12843198080249971));
-        tests.push_back(is_approximately_equal(feature_importance_first, 0.73797521341670724));
+        tests.push_back(is_approximately_equal(feature_importance_first, 0.5516725960373986));
         tests.push_back(is_approximately_equal(term_importance_first, 1.0431553101537596));
         tests.push_back(term_base_predictor_index_max == 6);
         tests.push_back(term_interaction_level_max == 1);
@@ -1670,21 +1670,8 @@ public:
         std::vector<std::string> predictions{model.predict(X_test, false)};
 
         MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
-        MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
-        MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
-        MatrixXd lfi_model3{model.get_logit_model("2.000000").calculate_local_feature_contribution(X_test)};
-        MatrixXd lfi_model4{model.get_logit_model("3.000000").calculate_local_feature_contribution(X_test)};
-        MatrixXd lfi_model5{model.get_logit_model("4.000000").calculate_local_feature_contribution(X_test)};
-
         VectorXd feature_importance{model.get_feature_importance()};
-        VectorXd feature_importance_model1{model.get_logit_model("0.000000").get_feature_importance()};
-        VectorXd feature_importance_model2{model.get_logit_model("1.000000").get_feature_importance()};
-        VectorXd feature_importance_model3{model.get_logit_model("2.000000").get_feature_importance()};
-        VectorXd feature_importance_model4{model.get_logit_model("3.000000").get_feature_importance()};
-        VectorXd feature_importance_model5{model.get_logit_model("4.000000").get_feature_importance()};
-        VectorXd feature_importance_correct{0.2 * (feature_importance_model1 + feature_importance_model2 + feature_importance_model3 + feature_importance_model4 + feature_importance_model5)};
-        double feature_importance_mae = (feature_importance - feature_importance_correct).cwiseAbs().mean();
-        tests.push_back(is_approximately_zero(feature_importance_mae));
+        tests.push_back(is_approximately_equal(feature_importance.mean(), 0.25420178743878397));
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
@@ -1696,7 +1683,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.1580504780375889, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.17780678779228751, 0.00001));
     }
 
     void test_aplrclassifier_multi_class()
@@ -1753,21 +1740,8 @@ public:
         std::vector<std::string> predictions{model.predict(X_test, false)};
 
         MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
-        MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
-        MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
-        MatrixXd lfi_model3{model.get_logit_model("2.000000").calculate_local_feature_contribution(X_test)};
-        MatrixXd lfi_model4{model.get_logit_model("3.000000").calculate_local_feature_contribution(X_test)};
-        MatrixXd lfi_model5{model.get_logit_model("4.000000").calculate_local_feature_contribution(X_test)};
-
         VectorXd feature_importance{model.get_feature_importance()};
-        VectorXd feature_importance_model1{model.get_logit_model("0.000000").get_feature_importance()};
-        VectorXd feature_importance_model2{model.get_logit_model("1.000000").get_feature_importance()};
-        VectorXd feature_importance_model3{model.get_logit_model("2.000000").get_feature_importance()};
-        VectorXd feature_importance_model4{model.get_logit_model("3.000000").get_feature_importance()};
-        VectorXd feature_importance_model5{model.get_logit_model("4.000000").get_feature_importance()};
-        VectorXd feature_importance_correct{0.2 * (feature_importance_model1 + feature_importance_model2 + feature_importance_model3 + feature_importance_model4 + feature_importance_model5)};
-        double feature_importance_mae = (feature_importance - feature_importance_correct).cwiseAbs().mean();
-        tests.push_back(is_approximately_zero(feature_importance_mae));
+        tests.push_back(is_approximately_equal(feature_importance.mean(), 0.1760445038452387));
 
         std::cout << "validation_error\n"
                   << model.get_cv_error() << "\n\n";
@@ -1849,7 +1823,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.15288, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.27518427823404712, 0.00001));
     }
 
     void test_aplrclassifier_two_class_val_index()
@@ -1919,7 +1893,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.13431844066700888));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.10989690600027999));
     }
 
     void test_aplrclassifier_two_class()
@@ -1979,7 +1953,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.164915, 0.000001));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.16491496201017047, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -1987,7 +1961,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.125672, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.22620950269183793, 0.00001));
     }
 
     void test_aplrclassifier_two_class_penalties()
@@ -2057,7 +2031,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.12221717377018071, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.054997728196581296, 0.00001));
     }
 
     void test_aplrclassifier_two_class_predictor_specific_penalties_and_learning_rates()
@@ -2127,7 +2101,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.18613865090207235, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.076147629914484025, 0.00001));
     }
 
     void test_aplrclassifier_two_class_max_terms()
@@ -2196,7 +2170,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.205820753420805, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.37047735615744898, 0.00001));
     }
 
     void test_functions()

@@ -42,7 +42,7 @@ param_grid = ParameterGrid(
         "min_observations_in_split": [1, 20, 40],
     }
 )
-best_model = None
+best_model: APLRClassifier = None
 for params in param_grid:
     model = APLRClassifier(
         random_state=random_state,
@@ -65,7 +65,7 @@ for params in param_grid:
 print("Done training")
 
 # Saving model
-joblib.dump(best_model, "best_model.gz")
+joblib.dump(best_model, "best_model.gz", compress=9)
 
 # Validation results when doing grid search
 cv_results = cv_results.sort_values(by="cv_error")
@@ -79,15 +79,27 @@ categories = (
 )  # In this example the categories are "0", "1" and "2".
 
 # Accessing the logit model that predicts whether an observation belongs to class "1" or not. The logit model is an APLRRegressor and can be used
-# for example to inspect which terms are in the model.
+# for example for interpretation purposes.
 logit_model_for_class_1 = best_model.get_logit_model(category="1")
 
 # Estimated feature importance in the training data, average of the underlying logit models.
 estimated_feature_importance = pd.DataFrame(
-    {"predictor": predictors, "importance": best_model.get_feature_importance()}
+    {
+        "predictor": best_model.get_unique_term_affiliations(),
+        "importance": best_model.get_feature_importance(),
+    }
 )
 estimated_feature_importance = estimated_feature_importance.sort_values(
     by="importance", ascending=False
+)
+
+# Local feature contribution for each prediction. For each prediction, uses calculate_local_feature_contribution() in the logit APLRRegressor model
+# for the category that corresponds to the prediction. Example in this data: If a prediction is "2" then using calculate_local_feature_contribution()
+# in the logit model that predicts whether an observation belongs to class "2" or not. This can be used to interpret the model, for example
+# by creating scatter plots against predictor values to interpret two-way interactions. This method can also be used on new data.
+local_feature_contribution = pd.DataFrame(
+    best_model.calculate_local_feature_contribution(data_train[predictors]),
+    columns=best_model.get_unique_term_affiliations(),
 )
 
 
@@ -104,12 +116,4 @@ data_test = pd.concat(
 # Goodness of fit
 balanced_accuracy = balanced_accuracy_score(
     y_true=data_test[response], y_pred=data_test[predicted]
-)
-
-# Local feature contribution for each prediction. For each prediction, uses calculate_local_feature_contribution() in the logit APLRRegressor model
-# for the category that corresponds to the prediction. Example in this data: If a prediction is "2" then using calculate_local_feature_contribution()
-# in the logit model that predicts whether an observation belongs to class "2" or not.
-estimated_local_feature_contribution_of_each_original_predictor = pd.DataFrame(
-    best_model.calculate_local_feature_contribution(data_test[predictors]),
-    columns=predictors,
 )

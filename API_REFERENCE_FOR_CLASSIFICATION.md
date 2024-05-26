@@ -29,7 +29,7 @@ Specifies the maximum number of bins to discretize the data into when searching 
 Specifies the maximum allowed depth of interaction terms. ***0*** means that interactions are not allowed. This hyperparameter should be tuned by for example doing a grid search for best predictiveness. For best interpretability use 0 (or 1 if interactions are needed).
 
 #### max_interactions (default = 100000)
-The maximum number of interactions allowed in each underlying model. A lower value may be used to reduce computational time.
+The maximum number of interactions allowed in each underlying model. A lower value may be used to reduce computational time or to increase interpretability.
 
 #### min_observations_in_split (default = 20)
 The minimum effective number of observations that a term in the model must rely on. This hyperparameter should be tuned. Larger values are more appropriate for larger datasets. Larger values result in more robust models (lower variance), potentially at the expense of increased bias.
@@ -125,7 +125,7 @@ Parameters are the same as in ***predict_class_probabilities()***.
 
 ## Method: calculate_local_feature_contribution(X:npt.ArrayLike)
 
-***Returns a numpy matrix containing estimated feature contribution to the linear predictor in X for each predictor.***
+***Returns a numpy matrix containing feature contribution to the linear predictor in X for each predictor. For each prediction this method uses calculate_local_feature_contribution() in the logit APLRRegressor model for the category that corresponds to the prediction. Example: If a prediction is "myclass" then the method uses calculate_local_feature_contribution() in the logit model that predicts whether an observation belongs to class "myclass" or not.***
 
 ### Parameters
 
@@ -161,3 +161,8 @@ A string specifying the label of the category.
 ## Method: get_feature_importance()
 
 ***Returns a numpy vector containing the feature importance of each predictor, estimated as an average of feature importances for the underlying logit models.***
+
+
+## Method: get_unique_term_affiliations()
+
+***Returns a list of strings containing unique predictor affiliations for terms.***

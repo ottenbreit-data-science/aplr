@@ -21,6 +21,7 @@ private:
     void define_cv_observations(const std::vector<std::string> &y, const MatrixXi &cv_observations_);
     void invert_second_model_in_two_class_case(APLRRegressor &second_model);
     void calculate_validation_metrics();
+    void calculate_unique_term_affiliations();
     void cleanup_after_fit();
 
 public:
@@ -49,6 +50,8 @@ public:
     double penalty_for_non_linearity;
     double penalty_for_interactions;
     size_t max_terms;
+    std::vector<std::string> unique_term_affiliations;
+    std::map<std::string, size_t> unique_term_affiliation_map;
 
     APLRClassifier(size_t m = 3000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), size_t n_jobs = 0,
                    size_t cv_folds = 5, size_t reserved_terms_times_num_x = 100, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1,
@@ -72,6 +75,7 @@ public:
     MatrixXd get_validation_error_steps();
     double get_cv_error();
     VectorXd get_feature_importance();
+    std::vector<std::string> get_unique_term_affiliations();
 };
 
 APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, size_t n_jobs, size_t cv_folds,
@@ -104,7 +108,8 @@ APLRClassifier::APLRClassifier(const APLRClassifier &other)
       early_stopping_rounds{other.early_stopping_rounds},
       num_first_steps_with_linear_effects_only{other.num_first_steps_with_linear_effects_only},
       penalty_for_non_linearity{other.penalty_for_non_linearity}, penalty_for_interactions{other.penalty_for_interactions},
-      max_terms{other.max_terms}
+      max_terms{other.max_terms}, unique_term_affiliations{other.unique_term_affiliations},
+      unique_term_affiliation_map{other.unique_term_affiliation_map}
 {
 }
 
@@ -163,6 +168,7 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
         }
     }
 
+    calculate_unique_term_affiliations();
     calculate_validation_metrics();
     cleanup_after_fit();
 }
@@ -227,17 +233,47 @@ void APLRClassifier::invert_second_model_in_two_class_case(APLRRegressor &second
     }
 }
 
+void APLRClassifier::calculate_unique_term_affiliations()
+{
+    size_t number_of_term_affiliations{0};
+    for (std::string &category : categories)
+    {
+        number_of_term_affiliations += logit_models[category].number_of_unique_term_affiliations;
+    }
+    std::vector<std::string> term_affiliations;
+    term_affiliations.reserve(number_of_term_affiliations);
+    size_t counter{0};
+    for (std::string &category : categories)
+    {
+        for (auto &affiliation : logit_models[category].unique_term_affiliations)
+        {
+            term_affiliations.push_back(affiliation);
+            ++counter;
+        }
+    }
+    unique_term_affiliations = get_unique_strings_as_vector(term_affiliations);
+    for (size_t i = 0; i < unique_term_affiliations.size(); ++i)
+    {
+        unique_term_affiliation_map[unique_term_affiliations[i]] = i;
+    }
+}
+
 void APLRClassifier::calculate_validation_metrics()
 {
     double category_weight{1.0 / static_cast<double>(categories.size())};
     validation_error_steps = MatrixXd::Constant(m, cv_observations.cols(), 0.0);
     cv_error = 0.0;
-    feature_importance = VectorXd::Constant(logit_models[categories[0]].get_feature_importance().rows(), 0.0);
+    feature_importance = VectorXd::Constant(unique_term_affiliations.size(), 0.0);
     for (std::string &category : categories)
     {
         cv_error += logit_models[category].get_cv_error() * category_weight;
         validation_error_steps += logit_models[category].get_validation_error_steps() * category_weight;
-        feature_importance += logit_models[category].get_feature_importance() * category_weight;
+        for (auto &affiliation : logit_models[category].unique_term_affiliations)
+        {
+            size_t feature_number_in_classifier{unique_term_affiliation_map[affiliation]};
+            size_t feature_number_in_logit_model{logit_models[category].unique_term_affiliation_map[affiliation]};
+            feature_importance[feature_number_in_classifier] += logit_models[category].get_feature_importance()[feature_number_in_logit_model] * category_weight;
+        }
     }
 }
 
@@ -282,11 +318,17 @@ std::vector<std::string> APLRClassifier::predict(const MatrixXd &X, bool cap_pre
 
 MatrixXd APLRClassifier::calculate_local_feature_contribution(const MatrixXd &X)
 {
-    MatrixXd output{MatrixXd::Constant(X.rows(), feature_importance.rows(), 0)};
+    MatrixXd output{MatrixXd::Constant(X.rows(), unique_term_affiliations.size(), 0)};
     std::vector<std::string> predictions{predict(X, false)};
     for (size_t row = 0; row < predictions.size(); ++row)
     {
-        output.row(row) = logit_models[predictions[row]].calculate_local_feature_contribution(X.row(row));
+        VectorXd local_feature_contribution_from_logit_model{logit_models[predictions[row]].calculate_local_feature_contribution(X.row(row)).row(0)};
+        for (auto &affiliation : logit_models[predictions[row]].unique_term_affiliations)
+        {
+            size_t feature_number_in_classifier{unique_term_affiliation_map[affiliation]};
+            size_t feature_number_in_logit_model{logit_models[predictions[row]].unique_term_affiliation_map[affiliation]};
+            output.col(feature_number_in_classifier)[row] = local_feature_contribution_from_logit_model[feature_number_in_logit_model];
+        }
     }
 
     return output;
@@ -327,4 +369,9 @@ double APLRClassifier::get_cv_error()
 VectorXd APLRClassifier::get_feature_importance()
 {
     return feature_importance;
+}
+
+std::vector<std::string> APLRClassifier::get_unique_term_affiliations()
+{
+    return unique_term_affiliations;
 }

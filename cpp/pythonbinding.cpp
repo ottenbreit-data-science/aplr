@@ -61,6 +61,8 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def("calculate_local_contribution_from_selected_terms", &APLRRegressor::calculate_local_contribution_from_selected_terms, py::arg("X"), py::arg("predictor_indexes"))
         .def("calculate_terms", &APLRRegressor::calculate_terms, py::arg("X"))
         .def("get_term_names", &APLRRegressor::get_term_names)
+        .def("get_term_affiliations", &APLRRegressor::get_term_affiliations)
+        .def("get_unique_term_affiliations", &APLRRegressor::get_unique_term_affiliations)
         .def("get_term_coefficients", &APLRRegressor::get_term_coefficients)
         .def("get_validation_error_steps", &APLRRegressor::get_validation_error_steps)
         .def("get_feature_importance", &APLRRegressor::get_feature_importance)
@@ -89,11 +91,15 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def_readwrite("bins", &APLRRegressor::bins)
         .def_readwrite("verbosity", &APLRRegressor::verbosity)
         .def_readwrite("term_names", &APLRRegressor::term_names)
+        .def_readwrite("term_affiliations", &APLRRegressor::term_affiliations)
+        .def_readwrite("unique_term_affiliations", &APLRRegressor::unique_term_affiliations)
+        .def_readwrite("unique_term_affiliation_map", &APLRRegressor::unique_term_affiliation_map)
         .def_readwrite("term_coefficients", &APLRRegressor::term_coefficients)
         .def_readwrite("terms", &APLRRegressor::terms)
         .def_readwrite("ineligible_boosting_steps_added", &APLRRegressor::ineligible_boosting_steps_added)
         .def_readwrite("max_eligible_terms", &APLRRegressor::max_eligible_terms)
         .def_readwrite("number_of_base_terms", &APLRRegressor::number_of_base_terms)
+        .def_readwrite("number_of_unique_term_affiliations", &APLRRegressor::number_of_unique_term_affiliations)
         .def_readwrite("feature_importance", &APLRRegressor::feature_importance)
         .def_readwrite("term_importance", &APLRRegressor::term_importance)
         .def_readwrite("term_main_predictor_indexes", &APLRRegressor::term_main_predictor_indexes)
@@ -133,10 +139,12 @@ PYBIND11_MODULE(aplr_cpp, m)
                                       a.group_mse_cycle_min_obs_in_bin, a.cv_error, a.term_importance, a.term_main_predictor_indexes,
                                       a.term_interaction_levels, a.early_stopping_rounds, a.num_first_steps_with_linear_effects_only,
                                       a.penalty_for_non_linearity, a.penalty_for_interactions, a.max_terms,
-                                      a.min_predictor_values_in_training, a.max_predictor_values_in_training);
+                                      a.min_predictor_values_in_training, a.max_predictor_values_in_training,
+                                      a.term_affiliations, a.number_of_unique_term_affiliations, a.unique_term_affiliations,
+                                      a.unique_term_affiliation_map);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 43)
+                if (t.size() != 47)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
@@ -183,6 +191,10 @@ PYBIND11_MODULE(aplr_cpp, m)
                 size_t max_terms = t[40].cast<size_t>();
                 VectorXd min_predictor_values_in_training = t[41].cast<VectorXd>();
                 VectorXd max_predictor_values_in_training = t[42].cast<VectorXd>();
+                std::vector<std::string> term_affiliations = t[43].cast<std::vector<std::string>>();
+                size_t number_of_unique_term_affiliations = t[44].cast<size_t>();
+                std::vector<std::string> unique_term_affiliations = t[45].cast<std::vector<std::string>>();
+                std::map<std::string, size_t> unique_term_affiliation_map = t[46].cast<std::map<std::string, size_t>>();
 
                 APLRRegressor a(m, v, random_state, loss_function, link_function, n_jobs, cv_folds, 100, bins, verbosity, max_interaction_level,
                                 max_interactions, min_observations_in_split, ineligible_boosting_steps_added, max_eligible_terms, dispersion_parameter,
@@ -213,6 +225,10 @@ PYBIND11_MODULE(aplr_cpp, m)
                 a.max_terms = max_terms;
                 a.min_predictor_values_in_training = min_predictor_values_in_training;
                 a.max_predictor_values_in_training = max_predictor_values_in_training;
+                a.term_affiliations = term_affiliations;
+                a.number_of_unique_term_affiliations = number_of_unique_term_affiliations;
+                a.unique_term_affiliations = unique_term_affiliations;
+                a.unique_term_affiliation_map = unique_term_affiliation_map;
 
                 return a;
             }));
@@ -226,14 +242,15 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def_readwrite("coefficient", &Term::coefficient)
         .def_readwrite("coefficient_steps", &Term::coefficient_steps)
         .def_readwrite("estimated_term_importance", &Term::estimated_term_importance)
+        .def_readwrite("predictor_affiliation", &Term::predictor_affiliation)
         .def(py::pickle(
             [](const Term &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
                 return py::make_tuple(a.name, a.base_term, a.given_terms, a.split_point, a.direction_right, a.coefficient, a.coefficient_steps,
-                                      a.split_point_search_errors_sum, a.estimated_term_importance);
+                                      a.split_point_search_errors_sum, a.estimated_term_importance, a.predictor_affiliation);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 9)
+                if (t.size() != 10)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
@@ -246,12 +263,14 @@ PYBIND11_MODULE(aplr_cpp, m)
                 VectorXd coefficient_steps = t[6].cast<VectorXd>();
                 double split_point_search_errors_sum = t[7].cast<double>();
                 double estimated_term_importance = t[8].cast<double>();
+                std::string predictor_affiliation = t[9].cast<std::string>();
 
                 Term a(base_term, given_terms, split_point, direction_right, coefficient);
                 a.name = name;
                 a.coefficient_steps = coefficient_steps;
                 a.split_point_search_errors_sum = split_point_search_errors_sum;
                 a.estimated_term_importance = estimated_term_importance;
+                a.predictor_affiliation = predictor_affiliation;
 
                 return a;
             }));
@@ -281,6 +300,7 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def("get_validation_error_steps", &APLRClassifier::get_validation_error_steps)
         .def("get_cv_error", &APLRClassifier::get_cv_error)
         .def("get_feature_importance", &APLRClassifier::get_feature_importance)
+        .def("get_unique_term_affiliations", &APLRClassifier::get_unique_term_affiliations)
         .def_readwrite("m", &APLRClassifier::m)
         .def_readwrite("v", &APLRClassifier::v)
         .def_readwrite("cv_folds", &APLRClassifier::cv_folds)
@@ -305,6 +325,8 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def_readwrite("penalty_for_non_linearity", &APLRClassifier::penalty_for_non_linearity)
         .def_readwrite("penalty_for_interactions", &APLRClassifier::penalty_for_interactions)
         .def_readwrite("max_terms", &APLRClassifier::max_terms)
+        .def_readwrite("unique_term_affiliations", &APLRClassifier::unique_term_affiliations)
+        .def_readwrite("unique_term_affiliation_map", &APLRClassifier::unique_term_affiliation_map)
         .def(py::pickle(
             [](const APLRClassifier &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
@@ -314,10 +336,10 @@ PYBIND11_MODULE(aplr_cpp, m)
                                       a.feature_importance, a.boosting_steps_before_interactions_are_allowed,
                                       a.monotonic_constraints_ignore_interactions, a.early_stopping_rounds,
                                       a.num_first_steps_with_linear_effects_only, a.penalty_for_non_linearity, a.penalty_for_interactions,
-                                      a.max_terms);
+                                      a.max_terms, a.unique_term_affiliations, a.unique_term_affiliation_map);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 24)
+                if (t.size() != 26)
                     throw std::runtime_error("Invalid state!");
 
                 /* Create a new C++ instance */
@@ -345,6 +367,8 @@ PYBIND11_MODULE(aplr_cpp, m)
                 double penalty_for_non_linearity = t[21].cast<double>();
                 double penalty_for_interactions = t[22].cast<double>();
                 size_t max_terms = t[23].cast<size_t>();
+                std::vector<std::string> unique_term_affiliations = t[24].cast<std::vector<std::string>>();
+                std::map<std::string, size_t> unique_term_affiliation_map = t[25].cast<std::map<std::string, size_t>>();
 
                 APLRClassifier a(m, v, random_state, n_jobs, cv_folds, 100, bins, verbosity, max_interaction_level, max_interactions,
                                  min_observations_in_split, ineligible_boosting_steps_added, max_eligible_terms);
@@ -360,6 +384,8 @@ PYBIND11_MODULE(aplr_cpp, m)
                 a.penalty_for_non_linearity = penalty_for_non_linearity;
                 a.penalty_for_interactions = penalty_for_interactions;
                 a.max_terms = max_terms;
+                a.unique_term_affiliations = unique_term_affiliations;
+                a.unique_term_affiliation_map = unique_term_affiliation_map;
 
                 return a;
             }));
