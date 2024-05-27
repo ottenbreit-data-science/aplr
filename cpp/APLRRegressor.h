@@ -1371,6 +1371,9 @@ void APLRRegressor::determine_interactions_to_consider(const std::vector<size_t>
                 if (model_term_without_given_terms_can_be_a_given_term)
                     model_term_with_added_given_term.given_terms.push_back(model_term_without_given_terms);
                 add_necessary_given_terms_to_interaction(interaction, model_term_with_added_given_term);
+                bool interaction_only_uses_one_base_term{interaction.term_uses_just_these_predictors({interaction.base_term})};
+                if (interaction_only_uses_one_base_term)
+                    continue;
                 if (interaction_constraints_provided)
                 {
                     bool interaction_violates_constraints{true};
@@ -2457,7 +2460,7 @@ std::map<double, double> APLRRegressor::get_main_effect_shape(size_t predictor_i
         return main_effect_shape;
 
     std::vector<double> split_points;
-    size_t max_potential_split_points{relevant_term_indexes.size() * 3 + 2};
+    size_t max_potential_split_points{(relevant_term_indexes.size() * 3 + 2) * 3};
     split_points.reserve(max_potential_split_points);
     for (auto &relevant_term_index : relevant_term_indexes)
     {
@@ -2477,6 +2480,22 @@ std::map<double, double> APLRRegressor::get_main_effect_shape(size_t predictor_i
     }
     split_points.push_back(min_predictor_values_in_training[predictor_index]);
     split_points.push_back(max_predictor_values_in_training[predictor_index]);
+    split_points = remove_duplicate_elements_from_vector(split_points);
+
+    VectorXd split_point_increments{VectorXd(split_points.size() - 1)};
+    for (Eigen::Index i = 0; i < split_point_increments.size(); ++i)
+    {
+        split_point_increments[i] = split_points[i + 1] - split_points[i];
+    }
+    double minimum_split_point_increment{split_point_increments.minCoeff()};
+    double increment_around_split_points{minimum_split_point_increment / DIVISOR_IN_GET_MAIN_EFFECT_SHAPE_FUNCTION};
+
+    size_t num_split_points_before_small_increments{split_points.size()};
+    for (size_t i = 0; i < num_split_points_before_small_increments; ++i)
+    {
+        split_points.push_back(split_points[i] - increment_around_split_points);
+        split_points.push_back(split_points[i] + increment_around_split_points);
+    }
     split_points = remove_duplicate_elements_from_vector(split_points);
     split_points.shrink_to_fit();
 
