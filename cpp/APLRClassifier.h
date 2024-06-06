@@ -52,6 +52,7 @@ public:
     size_t max_terms;
     std::vector<std::string> unique_term_affiliations;
     std::map<std::string, size_t> unique_term_affiliation_map;
+    std::vector<std::vector<size_t>> base_predictors_in_each_unique_term_affiliation;
 
     APLRClassifier(size_t m = 3000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), size_t n_jobs = 0,
                    size_t cv_folds = 5, size_t reserved_terms_times_num_x = 100, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1,
@@ -76,6 +77,7 @@ public:
     double get_cv_error();
     VectorXd get_feature_importance();
     std::vector<std::string> get_unique_term_affiliations();
+    std::vector<std::vector<size_t>> get_base_predictors_in_each_unique_term_affiliation();
 };
 
 APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, size_t n_jobs, size_t cv_folds,
@@ -109,7 +111,8 @@ APLRClassifier::APLRClassifier(const APLRClassifier &other)
       num_first_steps_with_linear_effects_only{other.num_first_steps_with_linear_effects_only},
       penalty_for_non_linearity{other.penalty_for_non_linearity}, penalty_for_interactions{other.penalty_for_interactions},
       max_terms{other.max_terms}, unique_term_affiliations{other.unique_term_affiliations},
-      unique_term_affiliation_map{other.unique_term_affiliation_map}
+      unique_term_affiliation_map{other.unique_term_affiliation_map},
+      base_predictors_in_each_unique_term_affiliation{other.base_predictors_in_each_unique_term_affiliation}
 {
 }
 
@@ -256,6 +259,20 @@ void APLRClassifier::calculate_unique_term_affiliations()
     {
         unique_term_affiliation_map[unique_term_affiliations[i]] = i;
     }
+    base_predictors_in_each_unique_term_affiliation.resize(unique_term_affiliation_map.size());
+    std::vector<std::set<size_t>> base_predictors_in_each_unique_term_affiliation_set(unique_term_affiliation_map.size());
+    for (std::string &category : categories)
+    {
+        for (auto &term : logit_models[category].terms)
+        {
+            std::vector<size_t> unique_base_terms_for_this_term{term.get_unique_base_terms_used_in_this_term()};
+            base_predictors_in_each_unique_term_affiliation_set[unique_term_affiliation_map[term.predictor_affiliation]].insert(unique_base_terms_for_this_term.begin(), unique_base_terms_for_this_term.end());
+        }
+    }
+    for (size_t i = 0; i < base_predictors_in_each_unique_term_affiliation_set.size(); ++i)
+    {
+        base_predictors_in_each_unique_term_affiliation[i] = std::vector<size_t>(base_predictors_in_each_unique_term_affiliation_set[i].begin(), base_predictors_in_each_unique_term_affiliation_set[i].end());
+    }
 }
 
 void APLRClassifier::calculate_validation_metrics()
@@ -374,4 +391,9 @@ VectorXd APLRClassifier::get_feature_importance()
 std::vector<std::string> APLRClassifier::get_unique_term_affiliations()
 {
     return unique_term_affiliations;
+}
+
+std::vector<std::vector<size_t>> APLRClassifier::get_base_predictors_in_each_unique_term_affiliation()
+{
+    return base_predictors_in_each_unique_term_affiliation;
 }

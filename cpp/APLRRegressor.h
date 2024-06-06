@@ -4,7 +4,7 @@
 #include <future>
 #include <random>
 #include <vector>
-#include <omp.h>
+#include <thread>
 #include "../dependencies/eigen-3.4.0/Eigen/Dense"
 #include "functions.h"
 #include "term.h"
@@ -79,6 +79,7 @@ private:
     bool max_terms_reached;
     bool round_robin_update_of_existing_terms;
     size_t term_to_update_in_this_boosting_step;
+    size_t cores_to_use;
 
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
@@ -215,6 +216,7 @@ public:
     size_t number_of_unique_term_affiliations;
     std::vector<std::string> unique_term_affiliations;
     std::map<std::string, size_t> unique_term_affiliation_map;
+    std::vector<std::vector<size_t>> base_predictors_in_each_unique_term_affiliation;
     VectorXd feature_importance;
     VectorXd term_importance;
     double dispersion_parameter;
@@ -276,6 +278,7 @@ public:
     std::vector<std::string> get_term_names();
     std::vector<std::string> get_term_affiliations();
     std::vector<std::string> get_unique_term_affiliations();
+    std::vector<std::vector<size_t>> get_base_predictors_in_each_unique_term_affiliation();
     VectorXd get_term_coefficients();
     MatrixXd get_validation_error_steps();
     VectorXd get_feature_importance();
@@ -351,7 +354,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       penalty_for_non_linearity{other.penalty_for_non_linearity}, penalty_for_interactions{other.penalty_for_interactions},
       max_terms{other.max_terms}, min_predictor_values_in_training{other.min_predictor_values_in_training},
       max_predictor_values_in_training{other.max_predictor_values_in_training}, unique_term_affiliations{other.unique_term_affiliations},
-      unique_term_affiliation_map{other.unique_term_affiliation_map}
+      unique_term_affiliation_map{other.unique_term_affiliation_map},
+      base_predictors_in_each_unique_term_affiliation{other.base_predictors_in_each_unique_term_affiliation}
 {
 }
 
@@ -410,12 +414,10 @@ void APLRRegressor::preprocess_prioritized_predictors_and_interaction_constraint
 void APLRRegressor::initialize_multithreading()
 {
     size_t available_cores{static_cast<size_t>(std::thread::hardware_concurrency())};
-    size_t cores_to_use;
     if (n_jobs == 0)
         cores_to_use = available_cores;
     else
         cores_to_use = std::min(n_jobs, available_cores);
-    omp_set_num_threads(cores_to_use);
 }
 
 void APLRRegressor::preprocess_penalties()
@@ -1299,14 +1301,47 @@ std::vector<size_t> APLRRegressor::find_terms_eligible_current_indexes_for_a_bas
 void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms, std::vector<size_t> &terms_indexes)
 {
     bool multithreading{n_jobs != 1 && terms_indexes.size() > 1};
-#pragma omp parallel for schedule(guided) if (multithreading)
-    for (size_t i = 0; i < terms_indexes.size(); ++i)
+
+    if (multithreading)
     {
-        terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins,
-                                                     predictor_learning_rates[terms[terms_indexes[i]].base_term],
-                                                     min_observations_in_split, linear_effects_only_in_this_boosting_step,
-                                                     predictor_penalties_for_non_linearity[terms[terms_indexes[i]].base_term],
-                                                     predictor_penalties_for_interactions[terms[terms_indexes[i]].base_term]);
+        size_t num_threads{std::min(cores_to_use, terms_indexes.size())};
+        std::vector<std::thread> threads;
+        size_t chunk_size{(terms_indexes.size() + num_threads - 1) / num_threads};
+
+        for (size_t t = 0; t < num_threads; ++t)
+        {
+            threads.emplace_back([&, t]()
+                                 {
+                size_t start = t * chunk_size;
+                size_t end = std::min(start + chunk_size, terms_indexes.size());
+                for (size_t i = start; i < end; ++i)
+                {
+                    terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins,
+                                                                 predictor_learning_rates[terms[terms_indexes[i]].base_term],
+                                                                 min_observations_in_split, linear_effects_only_in_this_boosting_step,
+                                                                 predictor_penalties_for_non_linearity[terms[terms_indexes[i]].base_term],
+                                                                 predictor_penalties_for_interactions[terms[terms_indexes[i]].base_term]);
+                } });
+        }
+
+        for (auto &thread : threads)
+        {
+            if (thread.joinable())
+            {
+                thread.join();
+            }
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < terms_indexes.size(); ++i)
+        {
+            terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins,
+                                                         predictor_learning_rates[terms[terms_indexes[i]].base_term],
+                                                         min_observations_in_split, linear_effects_only_in_this_boosting_step,
+                                                         predictor_penalties_for_non_linearity[terms[terms_indexes[i]].base_term],
+                                                         predictor_penalties_for_interactions[terms[terms_indexes[i]].base_term]);
+        }
     }
 }
 
@@ -2282,6 +2317,17 @@ void APLRRegressor::correct_term_names_coefficients_and_affiliations()
     {
         unique_term_affiliation_map[unique_term_affiliations[i]] = i;
     }
+    base_predictors_in_each_unique_term_affiliation.resize(unique_term_affiliation_map.size());
+    std::vector<std::set<size_t>> base_predictors_in_each_unique_term_affiliation_set(unique_term_affiliation_map.size());
+    for (auto &term : terms)
+    {
+        std::vector<size_t> unique_base_terms_for_this_term{term.get_unique_base_terms_used_in_this_term()};
+        base_predictors_in_each_unique_term_affiliation_set[unique_term_affiliation_map[term.predictor_affiliation]].insert(unique_base_terms_for_this_term.begin(), unique_base_terms_for_this_term.end());
+    }
+    for (size_t i = 0; i < base_predictors_in_each_unique_term_affiliation_set.size(); ++i)
+    {
+        base_predictors_in_each_unique_term_affiliation[i] = std::vector<size_t>(base_predictors_in_each_unique_term_affiliation_set[i].begin(), base_predictors_in_each_unique_term_affiliation_set[i].end());
+    }
 }
 
 void APLRRegressor::additional_cleanup_after_creating_final_model()
@@ -2400,6 +2446,11 @@ std::vector<std::string> APLRRegressor::get_term_affiliations()
 std::vector<std::string> APLRRegressor::get_unique_term_affiliations()
 {
     return unique_term_affiliations;
+}
+
+std::vector<std::vector<size_t>> APLRRegressor::get_base_predictors_in_each_unique_term_affiliation()
+{
+    return base_predictors_in_each_unique_term_affiliation;
 }
 
 VectorXd APLRRegressor::get_term_coefficients()

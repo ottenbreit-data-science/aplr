@@ -53,7 +53,7 @@ for params in param_grid:
         loss_function=loss_function,
         link_function=link_function,
         # max_terms=10,  # Optionally tune this to find a trade-off between interpretability and predictiveness. May require a higher learning rate for best results.
-        **params
+        **params,
     )
     model.fit(
         data_train[predictors].values, data_train[response].values, X_names=predictors
@@ -115,6 +115,34 @@ main_effect_shape = pd.DataFrame(
 local_feature_contribution = pd.DataFrame(
     best_model.calculate_local_feature_contribution(data_train[predictors]),
     columns=best_model.get_unique_term_affiliations(),
+)
+# Combining predictor values with local feature contribution for the second feature in best_model.get_unique_term_affiliations().
+# This can be visualized if it is a main effect or a two-way interaction.
+unique_term_affiliation_index = 1
+predictors_in_the_second_feature = [
+    predictors[predictor_index]
+    for predictor_index in best_model.get_base_predictors_in_each_unique_term_affiliation()[
+        unique_term_affiliation_index
+    ]
+]
+data_to_visualize = pd.DataFrame(
+    np.concatenate(
+        (
+            data_train[predictors_in_the_second_feature].values,
+            local_feature_contribution[
+                [
+                    best_model.get_unique_term_affiliations()[
+                        unique_term_affiliation_index
+                    ]
+                ]
+            ],
+        ),
+        axis=1,
+    ),
+    columns=predictors_in_the_second_feature
+    + [
+        f"contribution from {best_model.get_unique_term_affiliations()[unique_term_affiliation_index]}"
+    ],
 )
 
 # Local (observation specific) contribution to the linear predictor from selected interacting predictors.

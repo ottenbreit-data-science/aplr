@@ -112,6 +112,7 @@ public:
 
     friend bool operator==(const Term &p1, const Term &p2);
     friend class APLRRegressor;
+    friend class APLRClassifier;
 };
 
 Term::Term(size_t base_term, const std::vector<Term> &given_terms, double split_point, bool direction_right, double coefficient)

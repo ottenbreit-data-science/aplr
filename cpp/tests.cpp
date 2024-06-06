@@ -105,7 +105,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -161,7 +160,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -215,7 +213,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -269,7 +266,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -327,7 +323,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -406,7 +401,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -460,7 +454,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -520,7 +513,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -579,7 +571,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -634,7 +625,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -689,7 +679,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -743,7 +732,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -797,7 +785,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -851,7 +838,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -907,7 +893,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -951,7 +936,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -1004,7 +988,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -1059,7 +1042,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -1112,7 +1094,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -1165,7 +1146,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -1218,7 +1198,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -1272,7 +1251,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -1326,7 +1304,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -1379,7 +1356,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -1433,7 +1409,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -1486,7 +1461,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -1540,7 +1514,6 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -1596,8 +1569,11 @@ public:
                   << model.feature_importance << "\n\n";
 
         VectorXd predictions{model.predict(X_test)};
-        MatrixXd li{model.calculate_local_feature_contribution(X_test)};
         VectorXd li_for_particular_terms{model.calculate_local_contribution_from_selected_terms(X_train, {1, 8})};
+        std::vector<size_t> base_predictors_in_the_second_affiliation{model.get_base_predictors_in_each_unique_term_affiliation()[1]};
+        std::vector<size_t> correct_base_predictors_in_the_second_affiliation{{1, 8}};
+        std::string the_second_unique_term_affiliation{model.get_unique_term_affiliations()[1]};
+        std::string the_correct_second_unique_term_affiliation{"X2 & X9"};
 
         // Saving results
         save_as_csv_file("data/output.csv", predictions);
@@ -1614,6 +1590,8 @@ public:
         tests.push_back(main_effect_shape_value_test);
         tests.push_back(li_for_particular_terms_has_correct_size);
         tests.push_back(li_for_particular_terms_mean_is_correct);
+        tests.push_back(base_predictors_in_the_second_affiliation == correct_base_predictors_in_the_second_affiliation);
+        tests.push_back(the_second_unique_term_affiliation == the_correct_second_unique_term_affiliation);
     }
 
     void test_aplr_classifier_multi_class_other_params()
@@ -1669,7 +1647,7 @@ public:
         MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
         std::vector<std::string> predictions{model.predict(X_test, false)};
 
-        MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
+        MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
         VectorXd feature_importance{model.get_feature_importance()};
         tests.push_back(is_approximately_equal(feature_importance.mean(), 0.25420178743878397));
 
@@ -1682,8 +1660,8 @@ public:
         tests.push_back(is_approximately_equal(predicted_class_probabilities.mean(), 0.2, 0.00001));
 
         std::cout << "local_feature_importance_mean\n"
-                  << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.17780678779228751, 0.00001));
+                  << local_feature_contribution.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.17780678779228751, 0.00001));
     }
 
     void test_aplrclassifier_multi_class()
@@ -1739,7 +1717,7 @@ public:
         MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
         std::vector<std::string> predictions{model.predict(X_test, false)};
 
-        MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
+        MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
         VectorXd feature_importance{model.get_feature_importance()};
         tests.push_back(is_approximately_equal(feature_importance.mean(), 0.1760445038452387));
 
@@ -1752,8 +1730,8 @@ public:
         tests.push_back(is_approximately_equal(predicted_class_probabilities.mean(), 0.2, 0.00001));
 
         std::cout << "local_feature_importance_mean\n"
-                  << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.154628, 0.00001));
+                  << local_feature_contribution.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.154628, 0.00001));
     }
 
     void test_aplrclassifier_two_class_other_params()
@@ -1809,9 +1787,9 @@ public:
                   {{1, 1, 8, 1, 8, 8}, {2, 3}, {4}});
         MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
         std::vector<std::string> predictions{model.predict(X_test, false)};
-        MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
-        // MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
-        // MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
+        MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
@@ -1822,8 +1800,8 @@ public:
         tests.push_back(is_approximately_equal(predicted_class_probabilities.mean(), 0.5, 0.00001));
 
         std::cout << "local_feature_importance_mean\n"
-                  << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.27518427823404712, 0.00001));
+                  << local_feature_contribution.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.27518427823404712, 0.00001));
     }
 
     void test_aplrclassifier_two_class_val_index()
@@ -1879,9 +1857,9 @@ public:
         model.fit(X_train, y_train_str, sample_weight, {}, cv_observations);
         MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
         std::vector<std::string> predictions{model.predict(X_test, false)};
-        MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
-        // MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
-        // MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
+        MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
@@ -1892,8 +1870,8 @@ public:
         tests.push_back(is_approximately_equal(predicted_class_probabilities.mean(), 0.5, 0.00001));
 
         std::cout << "local_feature_importance_mean\n"
-                  << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.10989690600027999));
+                  << local_feature_contribution.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.10989690600027999));
     }
 
     void test_aplrclassifier_two_class()
@@ -1947,9 +1925,9 @@ public:
         // model.fit(X_train, y_train_str, sample_weight, {}, cv_observations);
         MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
         std::vector<std::string> predictions{model.predict(X_test, false)};
-        MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
-        // MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
-        // MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
+        MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
@@ -1960,8 +1938,8 @@ public:
         tests.push_back(is_approximately_equal(predicted_class_probabilities.mean(), 0.5, 0.00001));
 
         std::cout << "local_feature_importance_mean\n"
-                  << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.22620950269183793, 0.00001));
+                  << local_feature_contribution.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.22620950269183793, 0.00001));
     }
 
     void test_aplrclassifier_two_class_penalties()
@@ -2017,9 +1995,13 @@ public:
         // model.fit(X_train, y_train_str, sample_weight, {}, cv_observations);
         MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
         std::vector<std::string> predictions{model.predict(X_test, false)};
-        MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
-        // MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
-        // MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
+        MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
+        std::vector<size_t> base_predictors_in_the_second_affiliation{model.get_base_predictors_in_each_unique_term_affiliation()[1]};
+        std::vector<size_t> correct_base_predictors_in_the_second_affiliation{{0, 3, 5}};
+        std::string the_second_unique_term_affiliation{model.get_unique_term_affiliations()[1]};
+        std::string the_correct_second_unique_term_affiliation{"X1 & X4 & X6"};
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
@@ -2030,8 +2012,10 @@ public:
         tests.push_back(is_approximately_equal(predicted_class_probabilities.mean(), 0.5, 0.00001));
 
         std::cout << "local_feature_importance_mean\n"
-                  << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.052181259967961045, 0.00001));
+                  << local_feature_contribution.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.052181259967961045, 0.00001));
+        tests.push_back(base_predictors_in_the_second_affiliation == correct_base_predictors_in_the_second_affiliation);
+        tests.push_back(the_second_unique_term_affiliation == the_correct_second_unique_term_affiliation);
     }
 
     void test_aplrclassifier_two_class_predictor_specific_penalties_and_learning_rates()
@@ -2087,9 +2071,9 @@ public:
         // model.fit(X_train, y_train_str, sample_weight, {}, cv_observations);
         MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
         std::vector<std::string> predictions{model.predict(X_test, false)};
-        MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
-        // MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
-        // MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
+        MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
@@ -2100,8 +2084,8 @@ public:
         tests.push_back(is_approximately_equal(predicted_class_probabilities.mean(), 0.5, 0.00001));
 
         std::cout << "local_feature_importance_mean\n"
-                  << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.07920242388299352, 0.00001));
+                  << local_feature_contribution.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.07920242388299352, 0.00001));
     }
 
     void test_aplrclassifier_two_class_max_terms()
@@ -2156,9 +2140,9 @@ public:
         // model.fit(X_train, y_train_str, sample_weight, {}, cv_observations);
         MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
         std::vector<std::string> predictions{model.predict(X_test, false)};
-        MatrixXd local_feature_importance{model.calculate_local_feature_contribution(X_test)};
-        // MatrixXd lfi_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
-        // MatrixXd lfi_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
+        MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
@@ -2169,8 +2153,8 @@ public:
         tests.push_back(is_approximately_equal(predicted_class_probabilities.mean(), 0.5, 0.00001));
 
         std::cout << "local_feature_importance_mean\n"
-                  << local_feature_importance.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_importance.mean(), 0.37047735615744898, 0.00001));
+                  << local_feature_contribution.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.37047735615744898, 0.00001));
     }
 
     void test_functions()

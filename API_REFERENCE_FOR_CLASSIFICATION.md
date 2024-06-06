@@ -166,3 +166,8 @@ A string specifying the label of the category.
 ## Method: get_unique_term_affiliations()
 
 ***Returns a list of strings containing unique predictor affiliations for terms.***
+
+
+## Method: get_base_predictors_in_each_unique_term_affiliation()
+
+***Returns a list of integer lists. The first list contains indexes for the unique base predictors used in the first unique term affiliation. The second list contains indexes for the unique base predictors used in the second unique term affiliation, and so on.***

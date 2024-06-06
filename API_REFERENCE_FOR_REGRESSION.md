@@ -277,6 +277,11 @@ A numpy matrix with predictor values.
 ***Returns a list of strings containing unique predictor affiliations for terms.***
 
 
+## Method: get_base_predictors_in_each_unique_term_affiliation()
+
+***Returns a list of integer lists. The first list contains indexes for the unique base predictors used in the first unique term affiliation. The second list contains indexes for the unique base predictors used in the second unique term affiliation, and so on.***
+
+
 ## Method: get_term_coefficients()
 
 ***Returns a numpy vector containing term regression coefficients.***

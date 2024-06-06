@@ -8,7 +8,7 @@ Build predictive and interpretable parametric regression or classification machi
 ***pip install aplr***
 
 # Availability
-Currently available for Windows and most Linux distributions.
+Available for Windows, most Linux distributions and MacOS.
 
 # How to use
 Please see the two example Python scripts [here](https://github.com/ottenbreit-data-science/aplr/tree/main/examples). They cover common use cases, but not all of the functionality in this package.

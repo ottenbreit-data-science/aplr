@@ -256,6 +256,9 @@ class APLRRegressor:
     def get_unique_term_affiliations(self) -> List[str]:
         return self.APLRRegressor.get_unique_term_affiliations()
 
+    def get_base_predictors_in_each_unique_term_affiliation(self) -> List[str]:
+        return self.APLRRegressor.get_base_predictors_in_each_unique_term_affiliation()
+
     def get_term_coefficients(self) -> npt.ArrayLike:
         return self.APLRRegressor.get_term_coefficients()
 
@@ -477,6 +480,9 @@ class APLRClassifier:
 
     def get_unique_term_affiliations(self) -> List[str]:
         return self.APLRClassifier.get_unique_term_affiliations()
+    
+    def get_base_predictors_in_each_unique_term_affiliation(self) -> List[str]:
+        return self.APLRClassifier.get_base_predictors_in_each_unique_term_affiliation()
 
     # For sklearn
     def get_params(self, deep=True):
