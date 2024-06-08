@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
+from typing import Dict
 import joblib
 from sklearn.model_selection import ParameterGrid, train_test_split
 from sklearn.datasets import load_diabetes
+import matplotlib.pyplot as plt
 from aplr import APLRRegressor
 
 
@@ -100,7 +102,50 @@ estimated_feature_importance = estimated_feature_importance.sort_values(
     by="importance", ascending=False
 )
 
-# Main effect shape for the third predictor. This can be visualized in a scatter plot.
+# Shapes for all term affiliations in the model. For each term affiliation, contains relevant predictor values and the corresponding
+# contributions to the linear predictor.
+# This is probably the most useful method to use for understanding how the model works.
+# Plots are created for main effects and two-way interactions.
+shapes: Dict[str, pd.DataFrame] = {}
+predictors_in_each_affiliation = (
+    best_model.get_base_predictors_in_each_unique_term_affiliation()
+)
+for affiliation_index, affiliation in enumerate(
+    best_model.get_unique_term_affiliations()
+):
+    shape = best_model.get_unique_term_affiliation_shape(affiliation)
+    predictor_indexes_used = predictors_in_each_affiliation[affiliation_index]
+    shape_df = pd.DataFrame(
+        shape,
+        columns=[predictors[i] for i in predictor_indexes_used] + ["contribution"],
+    )
+    shapes.update({affiliation: shape_df})
+    is_main_effect: bool = len(predictor_indexes_used) == 1
+    is_two_way_interaction: bool = len(predictor_indexes_used) == 2
+    if is_main_effect:
+        plt.plot(shape_df.iloc[:, 0], shape_df.iloc[:, 1])
+        plt.xlabel(shape_df.columns[0])
+        plt.ylabel(shape_df.columns[1])
+        plt.title("Contribution to the linear predictor")
+        plt.savefig(f"shape of {affiliation}.png")
+        plt.close()
+    elif is_two_way_interaction:
+        plt.figure()
+        ax = plt.axes(projection="3d")
+        ax.plot_trisurf(
+            shape_df.iloc[:, 0],
+            shape_df.iloc[:, 1],
+            shape_df.iloc[:, 2],
+            cmap="Greys",
+        )
+        ax.set_xlabel(shape_df.columns[0])
+        ax.set_ylabel(shape_df.columns[1])
+        ax.set_zlabel("contribution")
+        plt.title("Contribution to the linear predictor")
+        plt.savefig(f"shape of {affiliation}.png")
+        plt.close()
+
+# Main effect shape for the third predictor. This can be visualized in a line plot.
 # Will be empty if the third predictor is not used as a main effect in the model.
 main_effect_shape = best_model.get_main_effect_shape(predictor_index=2)
 main_effect_shape = pd.DataFrame(
@@ -111,45 +156,17 @@ main_effect_shape = pd.DataFrame(
 )
 
 # Local contribution to the linear predictor for each prediction in the training data. This can be used to interpret the model,
-# for example by visualizing two-way interactions versus predictor values in a 3D scatter plot. This method can also be used on new data.
+# for example by visualizing two-way interactions versus predictor values in a 3D surface plot. This method can also be used on new data.
 local_feature_contribution = pd.DataFrame(
     best_model.calculate_local_feature_contribution(data_train[predictors]),
     columns=best_model.get_unique_term_affiliations(),
-)
-# Combining predictor values with local feature contribution for the second feature in best_model.get_unique_term_affiliations().
-# This can be visualized if it is a main effect or a two-way interaction.
-unique_term_affiliation_index = 1
-predictors_in_the_second_feature = [
-    predictors[predictor_index]
-    for predictor_index in best_model.get_base_predictors_in_each_unique_term_affiliation()[
-        unique_term_affiliation_index
-    ]
-]
-data_to_visualize = pd.DataFrame(
-    np.concatenate(
-        (
-            data_train[predictors_in_the_second_feature].values,
-            local_feature_contribution[
-                [
-                    best_model.get_unique_term_affiliations()[
-                        unique_term_affiliation_index
-                    ]
-                ]
-            ],
-        ),
-        axis=1,
-    ),
-    columns=predictors_in_the_second_feature
-    + [
-        f"contribution from {best_model.get_unique_term_affiliations()[unique_term_affiliation_index]}"
-    ],
 )
 
 # Local (observation specific) contribution to the linear predictor from selected interacting predictors.
 # In this example this concerns two-way interaction terms in the model where the fourth and the seventh predictors in X interact.
 # The local contribution will be zero for all observations if there are no such terms in the model.
 # The local contribution can help interpreting interactions (or main effects if only one predictor index is specified).
-# For two-way interactions the local contribution can be plotted against the predictor values in a 3D scatter plot.
+# For two-way interactions the local contribution can be plotted against the predictor values in a 3D surface plot.
 contribution_from_selected_terms = (
     best_model.calculate_local_contribution_from_selected_terms(
         X=data_train[predictors], predictor_indexes=[3, 6]

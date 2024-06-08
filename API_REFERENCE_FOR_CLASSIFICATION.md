@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int=3000, v:float=0.1, random_state:int=0, n_jobs:int=0, cv_folds:int=5, bins:int=300, verbosity:int=0, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 500, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0)
+## class aplr.APLRClassifier(m:int = 3000, v:float = 0.1, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 20, ineligible_boosting_steps_added:int = 10, max_eligible_terms:int = 5, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 500, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0)
 
 ### Constructor parameters
 
@@ -62,7 +62,7 @@ Specifies a penalty in the range [0.0, 1.0] on interaction terms. A higher value
 Restricts the maximum number of terms in any of the underlying models trained to ***max_terms***. The default value of 0 means no limit. After the limit is reached, the remaining boosting steps are used to further update the coefficients of already included terms. An optional tuning objective could be to find the lowest positive value of ***max_terms*** that does not increase the prediction error significantly. Low positive values can speed up the training process significantly. Setting a limit with ***max_terms*** may require a higher learning rate for best results.
 
 
-## Method: fit(X:npt.ArrayLike, y:List[str], sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], cv_observations: npt.ArrayLike = np.empty([0, 0]), prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], interaction_constraints:List[List[int]]=[], predictor_learning_rates: List[float] = [], predictor_penalties_for_non_linearity: List[float] = [], predictor_penalties_for_interactions: List[float] = [])
+## Method: fit(X:FloatMatrix, y:StrVector, sample_weight:FloatVector = [], X_names:StrVector = [], cv_observations:IntMatrix = [], prioritized_predictors_indexes:IntVector = [], monotonic_constraints:IntVector = [], interaction_constraints:List[List[int]] = [], predictor_learning_rates:FloatVector = [], predictor_penalties_for_non_linearity:FloatVector = [], predictor_penalties_for_interactions:FloatVector = [])
 
 ***This method fits the model to data.***
 
@@ -81,7 +81,7 @@ An optional numpy vector with sample weights. If not specified then the observat
 An optional list of strings containing names for each predictor in ***X***. Naming predictors may increase model readability because model terms get names based on ***X_names***.
 
 #### cv_observations
-An optional list of integers specifying how each training observation is used in cross validation. If this is specified then ***cv_folds*** is not used. Specifying ***cv_observations*** may be useful for example when modelling time series data (you can place more recent observations in the holdout folds). ***cv_observations*** must contain a column for each desired fold combination. For a given column, row values equalling 1 specify that these rows will be used for training, while row values equalling -1 specify that these rows will be used for validation. Row values equalling 0 will not be used.
+An optional integer matrix specifying how each training observation is used in cross validation. If this is specified then ***cv_folds*** is not used. Specifying ***cv_observations*** may be useful for example when modelling time series data (you can place more recent observations in the holdout folds). ***cv_observations*** must contain a column for each desired fold combination. For a given column, row values equalling 1 specify that these rows will be used for training, while row values equalling -1 specify that these rows will be used for validation. Row values equalling 0 will not be used.
 
 #### prioritized_predictors_indexes
 An optional list of integers specifying the indexes of predictors (columns) in ***X*** that should be prioritized. Terms of the prioritized predictors will enter the model as long as they reduce the training error and do not contain too few effective observations. They will also be updated more often.
@@ -102,7 +102,7 @@ An optional list of floats specifying penalties for non-linearity for each predi
 An optional list of floats specifying interaction penalties for each predictor. If provided then this supercedes ***penalty_for_interactions***. For example, if there are two predictors in ***X***, then predictor_penalties_for_interactions = [0.1,0.2] means that all terms using the first predictor in ***X*** as a main effect will have an interaction penalty of 0.1 and that all terms using the second predictor in ***X*** as a main effect will have an interaction penalty of 0.2.
 
 
-## Method: predict_class_probabilities(X:npt.ArrayLike, cap_predictions_to_minmax_in_training:bool=False)
+## Method: predict_class_probabilities(X:FloatMatrix, cap_predictions_to_minmax_in_training:bool = False)
 
 ***Returns a numpy matrix containing predictions of the data in X. Requires that the model has been fitted with the fit method.***
 
@@ -115,7 +115,7 @@ A numpy matrix with predictor values.
 If ***True*** then for each underlying logit model the predictions are capped so that they are not less than the minimum and not greater than the maximum prediction or response in the training dataset.
 
 
-## Method: predict(X:npt.ArrayLike, cap_predictions_to_minmax_in_training:bool=False)
+## Method: predict(X:FloatMatrix, cap_predictions_to_minmax_in_training:bool = False)
 
 ***Returns a list of strings containing predictions of the data in X. An observation is classified to the category with the highest predicted class probability. Requires that the model has been fitted with the fit method.***
 
@@ -123,7 +123,7 @@ If ***True*** then for each underlying logit model the predictions are capped so
 Parameters are the same as in ***predict_class_probabilities()***.
 
 
-## Method: calculate_local_feature_contribution(X:npt.ArrayLike)
+## Method: calculate_local_feature_contribution(X:FloatMatrix)
 
 ***Returns a numpy matrix containing feature contribution to the linear predictor in X for each predictor. For each prediction this method uses calculate_local_feature_contribution() in the logit APLRRegressor model for the category that corresponds to the prediction. Example: If a prediction is "myclass" then the method uses calculate_local_feature_contribution() in the logit model that predicts whether an observation belongs to class "myclass" or not.***
 

@@ -1586,12 +1586,27 @@ public:
         bool main_effect_shape_value_test{is_approximately_equal(main_effect_shape.begin()->second, 0)};
         bool li_for_particular_terms_has_correct_size{li_for_particular_terms.rows() == X_train.rows()};
         bool li_for_particular_terms_mean_is_correct{is_approximately_equal(li_for_particular_terms.mean(), -0.52786383485971788)};
+        MatrixXd unique_term_affiliation_shape{model.get_unique_term_affiliation_shape("X2 & X9")};
+        MatrixXd unique_term_affiliation_shape_for_X2{model.get_unique_term_affiliation_shape("X2")};
+        VectorXd main_effect_shape_keys(main_effect_shape.size());
+        std::transform(main_effect_shape.begin(), main_effect_shape.end(), main_effect_shape_keys.data(),
+                       [](const std::pair<double, double> &pair)
+                       { return pair.first; });
+        VectorXd main_effect_shape_values(main_effect_shape.size());
+        std::transform(main_effect_shape.begin(), main_effect_shape.end(), main_effect_shape_values.data(),
+                       [](const std::pair<double, double> &pair)
+                       { return pair.second; });
         tests.push_back(main_effect_shape_has_correct_length);
         tests.push_back(main_effect_shape_value_test);
         tests.push_back(li_for_particular_terms_has_correct_size);
         tests.push_back(li_for_particular_terms_mean_is_correct);
         tests.push_back(base_predictors_in_the_second_affiliation == correct_base_predictors_in_the_second_affiliation);
         tests.push_back(the_second_unique_term_affiliation == the_correct_second_unique_term_affiliation);
+        tests.push_back(is_approximately_equal(unique_term_affiliation_shape.mean(), 85.582024243321399));
+        tests.push_back(unique_term_affiliation_shape.rows() == 36);
+        tests.push_back(unique_term_affiliation_shape.cols() == 3);
+        tests.push_back(main_effect_shape_keys == unique_term_affiliation_shape_for_X2.col(0));
+        tests.push_back(main_effect_shape_values == unique_term_affiliation_shape_for_X2.col(1));
     }
 
     void test_aplr_classifier_multi_class_other_params()

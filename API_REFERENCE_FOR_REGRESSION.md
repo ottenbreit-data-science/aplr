@@ -1,6 +1,6 @@
 # APLRRegressor
 
-## class aplr.APLRRegressor(m:int=3000, v:float=0.1, random_state:int=0, loss_function:str="mse", link_function:str="identity", n_jobs:int=0, cv_folds:int=5, bins:int=300, max_interaction_level:int=1, max_interactions:int=100000, min_observations_in_split:int=20, ineligible_boosting_steps_added:int=10, max_eligible_terms:int=5, verbosity:int=0, dispersion_parameter:float=1.5, validation_tuning_metric:str="default", quantile:float=0.5, calculate_custom_validation_error_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_loss_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], float]]=None, calculate_custom_negative_gradient_function:Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike], npt.ArrayLike]]=None, calculate_custom_transform_linear_predictor_to_predictions_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None, calculate_custom_differentiate_predictions_wrt_linear_predictor_function:Optional[Callable[[npt.ArrayLike], npt.ArrayLike]]=None, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, group_mse_by_prediction_bins: int = 10, group_mse_cycle_min_obs_in_bin: int = 30, early_stopping_rounds: int = 500, num_first_steps_with_linear_effects_only: int = 0,         penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0)
+## class aplr.APLRRegressor(m:int = 3000, v:float = 0.1, random_state:int = 0, loss_function:str = "mse", link_function:str = "identity", n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 20, ineligible_boosting_steps_added:int = 10, max_eligible_terms:int = 5, verbosity:int = 0, dispersion_parameter:float = 1.5, validation_tuning_metric:str = "default", quantile:float = 0.5, calculate_custom_validation_error_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatVector, FloatMatrix], float]] = None, calculate_custom_loss_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatVector, FloatMatrix], float]] = None, calculate_custom_negative_gradient_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatMatrix],FloatVector]] = None, calculate_custom_transform_linear_predictor_to_predictions_function:Optional[Callable[[FloatVector], FloatVector]] = None, calculate_custom_differentiate_predictions_wrt_linear_predictor_function:Optional[Callable[[FloatVector], FloatVector]] = None, boosting_steps_before_interactions_are_allowed:int = 0, monotonic_constraints_ignore_interactions:bool = False, group_mse_by_prediction_bins:int = 10, group_mse_cycle_min_obs_in_bin:int = 30, early_stopping_rounds:int = 500, num_first_steps_with_linear_effects_only:int = 0, penalty_for_non_linearity:float = 0.0, penalty_for_interactions:float = 0.0, max_terms:int = 0)
 
 ### Constructor parameters
 
@@ -88,7 +88,7 @@ A Python function that transforms the linear predictor to predictions if ***link
 ```
 def calculate_custom_transform_linear_predictor_to_predictions(linear_predictor):
     #This particular example is prone to numerical problems (requires small and non-negative response values).
-    predictions=np.exp(linear_predictor)
+    predictions = np.exp(linear_predictor)
     return predictions
 ```
 
@@ -98,7 +98,7 @@ A Python function that does a first order differentiation of the predictions wit
 ```
 def calculate_custom_differentiate_predictions_wrt_linear_predictor(linear_predictor):
     #This particular example is prone to numerical problems (requires small and non-negative response values).
-    differentiated_predictions=np.exp(linear_predictor)
+    differentiated_predictions = np.exp(linear_predictor)
     return differentiated_predictions
 ```
 
@@ -130,7 +130,7 @@ Specifies a penalty in the range [0.0, 1.0] on interaction terms. A higher value
 Restricts the maximum number of terms in any of the underlying models trained to ***max_terms***. The default value of 0 means no limit. After the limit is reached, the remaining boosting steps are used to further update the coefficients of already included terms. An optional tuning objective could be to find the lowest positive value of ***max_terms*** that does not increase the prediction error significantly. Low positive values can speed up the training process significantly. Setting a limit with ***max_terms*** may require a higher learning rate for best results.
 
 
-## Method: fit(X:npt.ArrayLike, y:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0), X_names:List[str]=[], cv_observations: npt.ArrayLike = np.empty([0, 0]), prioritized_predictors_indexes:List[int]=[], monotonic_constraints:List[int]=[], group:npt.ArrayLike = np.empty(0), interaction_constraints:List[List[int]]=[], other_data: npt.ArrayLike = np.empty([0, 0]), predictor_learning_rates: List[float] = [], predictor_penalties_for_non_linearity: List[float] = [], predictor_penalties_for_interactions: List[float] = [])
+## Method: fit(X:FloatMatrix, y:FloatVector, sample_weight:FloatVector = [], X_names:StrVector = [], cv_observations:IntMatrix = [], prioritized_predictors_indexes:IntVector = [], monotonic_constraints:IntVector = [], group:FloatVector = [], interaction_constraints:List[List[int]] = [], other_data:FloatMatrix = [], predictor_learning_rates:FloatVector = [], predictor_penalties_for_non_linearity:FloatVector = [], predictor_penalties_for_interactions:FloatVector = [])
 
 ***This method fits the model to data.***
 
@@ -149,7 +149,7 @@ An optional numpy vector with sample weights. If not specified then the observat
 An optional list of strings containing names for each predictor in ***X***. Naming predictors may increase model readability because model terms get names based on ***X_names***.
 
 #### cv_observations
-An optional list of integers specifying how each training observation is used in cross validation. If this is specified then ***cv_folds*** is not used. Specifying ***cv_observations*** may be useful for example when modelling time series data (you can place more recent observations in the holdout folds). ***cv_observations*** must contain a column for each desired fold combination. For a given column, row values equalling 1 specify that these rows will be used for training, while row values equalling -1 specify that these rows will be used for validation. Row values equalling 0 will not be used.
+An optional integer matrix specifying how each training observation is used in cross validation. If this is specified then ***cv_folds*** is not used. Specifying ***cv_observations*** may be useful for example when modelling time series data (you can place more recent observations in the holdout folds). ***cv_observations*** must contain a column for each desired fold combination. For a given column, row values equalling 1 specify that these rows will be used for training, while row values equalling -1 specify that these rows will be used for validation. Row values equalling 0 will not be used.
 
 #### prioritized_predictors_indexes
 An optional list of integers specifying the indexes of predictors (columns) in ***X*** that should be prioritized. Terms of the prioritized predictors will enter the model as long as they reduce the training error and do not contain too few effective observations. They will also be updated more often.
@@ -176,7 +176,7 @@ An optional list of floats specifying penalties for non-linearity for each predi
 An optional list of floats specifying interaction penalties for each predictor. If provided then this supercedes ***penalty_for_interactions***. For example, if there are two predictors in ***X***, then predictor_penalties_for_interactions = [0.1,0.2] means that all terms using the first predictor in ***X*** as a main effect will have an interaction penalty of 0.1 and that all terms using the second predictor in ***X*** as a main effect will have an interaction penalty of 0.2.
 
 
-## Method: predict(X:npt.ArrayLike, cap_predictions_to_minmax_in_training:bool=True)
+## Method: predict(X:FloatMatrix, cap_predictions_to_minmax_in_training:bool = True)
 
 ***Returns a numpy vector containing predictions of the data in X. Requires that the model has been fitted with the fit method.***
 
@@ -189,7 +189,7 @@ A numpy matrix with predictor values.
 If ***True*** then predictions are capped so that they are not less than the minimum and not greater than the maximum prediction or response in the training dataset. This is recommended especially if ***max_interaction_level*** is high. However, if you need the model to extrapolate then set this parameter to ***False***.
 
 
-## Method: set_term_names(X_names:List[str])
+## Method: set_term_names(X_names:StrVector)
 
 ***This method sets the names of terms based on X_names.***
 
@@ -199,7 +199,7 @@ If ***True*** then predictions are capped so that they are not less than the min
 A list of strings containing names for each predictor in the ***X*** matrix that the model was trained on.
 
 
-## Method: calculate_feature_importance(X:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0))
+## Method: calculate_feature_importance(X:FloatMatrix, sample_weight:FloatVector = [])
 
 ***Returns a numpy matrix containing estimated feature importance in X for each predictor.***
 
@@ -209,7 +209,7 @@ A list of strings containing names for each predictor in the ***X*** matrix that
 A numpy matrix with predictor values.
 
 
-## Method: calculate_term_importance(X:npt.ArrayLike, sample_weight:npt.ArrayLike = np.empty(0))
+## Method: calculate_term_importance(X:FloatMatrix, sample_weight:FloatVector = [])
 
 ***Returns a numpy matrix containing estimated term importance in X for each term in the model.***
 
@@ -219,7 +219,7 @@ A numpy matrix with predictor values.
 A numpy matrix with predictor values.
 
 
-## Method: calculate_local_feature_contribution(X:npt.ArrayLike)
+## Method: calculate_local_feature_contribution(X:FloatMatrix)
 
 ***Returns a numpy matrix containing feature contribution to the linear predictor in X for each predictor.***
 
@@ -229,7 +229,7 @@ A numpy matrix with predictor values.
 A numpy matrix with predictor values.
 
 
-## Method: calculate_local_term_contribution(X:npt.ArrayLike)
+## Method: calculate_local_term_contribution(X:FloatMatrix)
 
 ***Returns a numpy matrix containing term contribution to the linear predictor in X for each term in the model.***
 
@@ -239,7 +239,7 @@ A numpy matrix with predictor values.
 A numpy matrix with predictor values.
 
 
-## Method: calculate_local_contribution_from_selected_terms(X:npt.ArrayLike, predictor_indexes:List[int])
+## Method: calculate_local_contribution_from_selected_terms(X:FloatMatrix, predictor_indexes:IntVector)
 
 ***Returns a numpy vector containing the contribution to the linear predictor from an user specified combination of interacting predictors for each observation in X. This makes it easier to interpret interactions (or main effects if just one predictor is specified), for example by plotting predictor values against the term contribution.***
 
@@ -252,7 +252,7 @@ A numpy matrix with predictor values.
 A list of integers specifying the indexes of predictors in X to use. For example, [1, 3] means the second and fourth predictors in X.
 
 
-## Method: calculate_terms(X:npt.ArrayLike)
+## Method: calculate_terms(X:FloatMatrix)
 
 ***Returns a numpy matrix containing values of model terms calculated on X.***
 
@@ -329,7 +329,12 @@ A numpy matrix with predictor values.
 
 ## Method: get_main_effect_shape(predictor_index:int)
 
-***For the predictor in X specified by predictor_index, get_main_effect_shape returns a dictionary with keys equal to predictor values and values equal to the corresponding contribution to the linear predictor (interactions with other predictors are ignored). This method makes it easier to interpret main effects, for example by visualizing the output in a scatter plot.***
+***For the predictor in X specified by predictor_index, get_main_effect_shape returns a dictionary with keys equal to predictor values and values equal to the corresponding contribution to the linear predictor (interactions with other predictors are ignored). This method makes it easier to interpret main effects, for example by visualizing the output in a line plot.***
+
+
+## Method: get_unique_term_affiliation_shape(unique_term_affiliation: str)
+
+***Returns a matrix containing one column for each predictor used in the unique term affiliation, in addition to one column for the contribution to the linear predictor. For main effects or two-way interactions this can be visualized in for example line plots and surface plots respectively. See this [example](https://github.com/ottenbreit-data-science/aplr/blob/main/examples/train_aplr_regression.py).***
 
 ### Parameters
 

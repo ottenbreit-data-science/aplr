@@ -96,7 +96,7 @@ estimated_feature_importance = estimated_feature_importance.sort_values(
 # Local feature contribution for each prediction. For each prediction, uses calculate_local_feature_contribution() in the logit APLRRegressor model
 # for the category that corresponds to the prediction. Example in this data: If a prediction is "2" then using calculate_local_feature_contribution()
 # in the logit model that predicts whether an observation belongs to class "2" or not. This can be used to interpret the model, for example
-# by creating scatter plots against predictor values to interpret two-way interactions. This method can also be used on new data.
+# by creating 3D surface plots against predictor values to interpret two-way interactions. This method can also be used on new data.
 local_feature_contribution = pd.DataFrame(
     best_model.calculate_local_feature_contribution(data_train[predictors]),
     columns=best_model.get_unique_term_affiliations(),

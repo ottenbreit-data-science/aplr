@@ -1,7 +1,11 @@
-import numpy as np
-import numpy.typing as npt
 from typing import List, Callable, Optional, Dict
 import aplr_cpp
+
+FloatVector = List[float]
+FloatMatrix = List[List[float]]
+IntVector = List[int]
+IntMatrix = List[List[int]]
+StrVector = List[str]
 
 
 class APLRRegressor:
@@ -27,11 +31,11 @@ class APLRRegressor:
         calculate_custom_validation_error_function: Optional[
             Callable[
                 [
-                    npt.ArrayLike,
-                    npt.ArrayLike,
-                    npt.ArrayLike,
-                    npt.ArrayLike,
-                    npt.ArrayLike,
+                    FloatVector,
+                    FloatVector,
+                    FloatVector,
+                    FloatVector,
+                    FloatMatrix,
                 ],
                 float,
             ]
@@ -39,26 +43,26 @@ class APLRRegressor:
         calculate_custom_loss_function: Optional[
             Callable[
                 [
-                    npt.ArrayLike,
-                    npt.ArrayLike,
-                    npt.ArrayLike,
-                    npt.ArrayLike,
-                    npt.ArrayLike,
+                    FloatVector,
+                    FloatVector,
+                    FloatVector,
+                    FloatVector,
+                    FloatMatrix,
                 ],
                 float,
             ]
         ] = None,
         calculate_custom_negative_gradient_function: Optional[
             Callable[
-                [npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, npt.ArrayLike],
-                npt.ArrayLike,
+                [FloatVector, FloatVector, FloatVector, FloatMatrix],
+                FloatVector,
             ]
         ] = None,
         calculate_custom_transform_linear_predictor_to_predictions_function: Optional[
-            Callable[[npt.ArrayLike], npt.ArrayLike]
+            Callable[[FloatVector], FloatVector]
         ] = None,
         calculate_custom_differentiate_predictions_wrt_linear_predictor_function: Optional[
-            Callable[[npt.ArrayLike], npt.ArrayLike]
+            Callable[[FloatVector], FloatVector]
         ] = None,
         boosting_steps_before_interactions_are_allowed: int = 0,
         monotonic_constraints_ignore_interactions: bool = False,
@@ -178,19 +182,19 @@ class APLRRegressor:
 
     def fit(
         self,
-        X: npt.ArrayLike,
-        y: npt.ArrayLike,
-        sample_weight: npt.ArrayLike = np.empty(0),
-        X_names: List[str] = [],
-        cv_observations: npt.ArrayLike = np.empty([0, 0]),
-        prioritized_predictors_indexes: List[int] = [],
-        monotonic_constraints: List[int] = [],
-        group: npt.ArrayLike = np.empty(0),
+        X: FloatMatrix,
+        y: FloatVector,
+        sample_weight: FloatVector = [],
+        X_names: StrVector = [],
+        cv_observations: IntMatrix = [],
+        prioritized_predictors_indexes: IntVector = [],
+        monotonic_constraints: IntVector = [],
+        group: FloatVector = [],
         interaction_constraints: List[List[int]] = [],
-        other_data: npt.ArrayLike = np.empty([0, 0]),
-        predictor_learning_rates: List[float] = [],
-        predictor_penalties_for_non_linearity: List[float] = [],
-        predictor_penalties_for_interactions: List[float] = [],
+        other_data: FloatMatrix = [],
+        predictor_learning_rates: FloatVector = [],
+        predictor_penalties_for_non_linearity: FloatVector = [],
+        predictor_penalties_for_interactions: FloatVector = [],
     ):
         self.__set_params_cpp()
         self.APLRRegressor.fit(
@@ -210,71 +214,71 @@ class APLRRegressor:
         )
 
     def predict(
-        self, X: npt.ArrayLike, cap_predictions_to_minmax_in_training: bool = True
-    ) -> npt.ArrayLike:
+        self, X: FloatMatrix, cap_predictions_to_minmax_in_training: bool = True
+    ) -> FloatVector:
         if self.link_function == "custom_function":
             self.APLRRegressor.calculate_custom_transform_linear_predictor_to_predictions_function = (
                 self.calculate_custom_transform_linear_predictor_to_predictions_function
             )
         return self.APLRRegressor.predict(X, cap_predictions_to_minmax_in_training)
 
-    def set_term_names(self, X_names: List[str]):
+    def set_term_names(self, X_names: StrVector):
         self.APLRRegressor.set_term_names(X_names)
 
     def calculate_feature_importance(
-        self, X: npt.ArrayLike, sample_weight: npt.ArrayLike = np.empty(0)
-    ) -> npt.ArrayLike:
+        self, X: FloatMatrix, sample_weight: FloatVector = []
+    ) -> FloatVector:
         return self.APLRRegressor.calculate_feature_importance(X, sample_weight)
 
     def calculate_term_importance(
-        self, X: npt.ArrayLike, sample_weight: npt.ArrayLike = np.empty(0)
-    ) -> npt.ArrayLike:
+        self, X: FloatMatrix, sample_weight: FloatVector = []
+    ) -> FloatVector:
         return self.APLRRegressor.calculate_term_importance(X, sample_weight)
 
-    def calculate_local_feature_contribution(self, X: npt.ArrayLike) -> npt.ArrayLike:
+    def calculate_local_feature_contribution(self, X: FloatMatrix) -> FloatMatrix:
         return self.APLRRegressor.calculate_local_feature_contribution(X)
 
-    def calculate_local_term_contribution(self, X: npt.ArrayLike) -> npt.ArrayLike:
+    def calculate_local_term_contribution(self, X: FloatMatrix) -> FloatMatrix:
         return self.APLRRegressor.calculate_local_term_contribution(X)
 
     def calculate_local_contribution_from_selected_terms(
-        self, X: npt.ArrayLike, predictor_indexes: List[int]
-    ) -> npt.ArrayLike:
+        self, X: FloatMatrix, predictor_indexes: IntVector
+    ) -> FloatVector:
         return self.APLRRegressor.calculate_local_contribution_from_selected_terms(
             X, predictor_indexes
         )
 
-    def calculate_terms(self, X: npt.ArrayLike) -> npt.ArrayLike:
+    def calculate_terms(self, X: FloatMatrix) -> FloatMatrix:
         return self.APLRRegressor.calculate_terms(X)
 
-    def get_term_names(self) -> List[str]:
+    def get_term_names(self) -> StrVector:
         return self.APLRRegressor.get_term_names()
 
-    def get_term_affiliations(self) -> List[str]:
+    def get_term_affiliations(self) -> StrVector:
         return self.APLRRegressor.get_term_affiliations()
 
-    def get_unique_term_affiliations(self) -> List[str]:
+    def get_unique_term_affiliations(self) -> StrVector:
         return self.APLRRegressor.get_unique_term_affiliations()
 
-    def get_base_predictors_in_each_unique_term_affiliation(self) -> List[str]:
+    def get_base_predictors_in_each_unique_term_affiliation(self) -> List[List[int]]:
         return self.APLRRegressor.get_base_predictors_in_each_unique_term_affiliation()
 
-    def get_term_coefficients(self) -> npt.ArrayLike:
+    def get_term_coefficients(self) -> FloatVector:
         return self.APLRRegressor.get_term_coefficients()
 
-    def get_validation_error_steps(self) -> npt.ArrayLike:
+    def get_validation_error_steps(self) -> FloatMatrix:
         return self.APLRRegressor.get_validation_error_steps()
 
-    def get_feature_importance(self) -> npt.ArrayLike:
+    def get_feature_importance(self) -> FloatVector:
         return self.APLRRegressor.get_feature_importance()
 
-    def get_term_importance(self) -> npt.ArrayLike:
+    def get_term_importance(self) -> FloatVector:
         return self.APLRRegressor.get_term_importance()
 
-    def get_term_main_predictor_indexes(self) -> npt.ArrayLike:
+    def get_term_main_predictor_indexes(self) -> IntVector:
         return self.APLRRegressor.get_term_main_predictor_indexes()
 
-    def get_term_interaction_levels(self) -> npt.ArrayLike:
+    def get_term_interaction_levels(self) -> IntVector:
         return self.APLRRegressor.get_term_interaction_levels()
 
     def get_intercept(self) -> float:
@@ -288,6 +292,13 @@ class APLRRegressor:
 
     def get_main_effect_shape(self, predictor_index: int) -> Dict[float, float]:
         return self.APLRRegressor.get_main_effect_shape(predictor_index)
+
+    def get_unique_term_affiliation_shape(
+        self, unique_term_affiliation: str
+    ) -> FloatMatrix:
+        return self.APLRRegressor.get_unique_term_affiliation_shape(
+            unique_term_affiliation
+        )
 
     def get_cv_error(self) -> float:
         return self.APLRRegressor.get_cv_error()
@@ -421,17 +432,17 @@ class APLRClassifier:
 
     def fit(
         self,
-        X: npt.ArrayLike,
-        y: List[str],
-        sample_weight: npt.ArrayLike = np.empty(0),
-        X_names: List[str] = [],
-        cv_observations: npt.ArrayLike = np.empty([0, 0]),
-        prioritized_predictors_indexes: List[int] = [],
-        monotonic_constraints: List[int] = [],
+        X: FloatMatrix,
+        y: StrVector,
+        sample_weight: FloatVector = [],
+        X_names: StrVector = [],
+        cv_observations: IntMatrix = [],
+        prioritized_predictors_indexes: IntVector = [],
+        monotonic_constraints: IntVector = [],
         interaction_constraints: List[List[int]] = [],
-        predictor_learning_rates: List[float] = [],
-        predictor_penalties_for_non_linearity: List[float] = [],
-        predictor_penalties_for_interactions: List[float] = [],
+        predictor_learning_rates: FloatVector = [],
+        predictor_penalties_for_non_linearity: FloatVector = [],
+        predictor_penalties_for_interactions: FloatVector = [],
     ):
         self.__set_params_cpp()
         self.APLRClassifier.fit(
@@ -449,39 +460,39 @@ class APLRClassifier:
         )
 
     def predict_class_probabilities(
-        self, X: npt.ArrayLike, cap_predictions_to_minmax_in_training: bool = False
-    ) -> npt.ArrayLike:
+        self, X: FloatMatrix, cap_predictions_to_minmax_in_training: bool = False
+    ) -> FloatMatrix:
         return self.APLRClassifier.predict_class_probabilities(
             X, cap_predictions_to_minmax_in_training
         )
 
     def predict(
-        self, X: npt.ArrayLike, cap_predictions_to_minmax_in_training: bool = False
-    ) -> List[str]:
+        self, X: FloatMatrix, cap_predictions_to_minmax_in_training: bool = False
+    ) -> StrVector:
         return self.APLRClassifier.predict(X, cap_predictions_to_minmax_in_training)
 
-    def calculate_local_feature_contribution(self, X: npt.ArrayLike) -> npt.ArrayLike:
+    def calculate_local_feature_contribution(self, X: FloatMatrix) -> FloatMatrix:
         return self.APLRClassifier.calculate_local_feature_contribution(X)
 
-    def get_categories(self) -> List[str]:
+    def get_categories(self) -> StrVector:
         return self.APLRClassifier.get_categories()
 
     def get_logit_model(self, category: str) -> APLRRegressor:
         return self.APLRClassifier.get_logit_model(category)
 
-    def get_validation_error_steps(self) -> npt.ArrayLike:
+    def get_validation_error_steps(self) -> FloatMatrix:
         return self.APLRClassifier.get_validation_error_steps()
 
     def get_cv_error(self) -> float:
         return self.APLRClassifier.get_cv_error()
 
-    def get_feature_importance(self) -> npt.ArrayLike:
+    def get_feature_importance(self) -> FloatVector:
         return self.APLRClassifier.get_feature_importance()
 
-    def get_unique_term_affiliations(self) -> List[str]:
+    def get_unique_term_affiliations(self) -> StrVector:
         return self.APLRClassifier.get_unique_term_affiliations()
-    
-    def get_base_predictors_in_each_unique_term_affiliation(self) -> List[str]:
+
+    def get_base_predictors_in_each_unique_term_affiliation(self) -> List[List[int]]:
         return self.APLRClassifier.get_base_predictors_in_each_unique_term_affiliation()
 
     # For sklearn
