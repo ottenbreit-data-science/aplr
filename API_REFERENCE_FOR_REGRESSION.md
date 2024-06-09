@@ -334,7 +334,7 @@ A numpy matrix with predictor values.
 
 ## Method: get_unique_term_affiliation_shape(unique_term_affiliation: str)
 
-***Returns a matrix containing one column for each predictor used in the unique term affiliation, in addition to one column for the contribution to the linear predictor. For main effects or two-way interactions this can be visualized in for example line plots and surface plots respectively. See this [example](https://github.com/ottenbreit-data-science/aplr/blob/main/examples/train_aplr_regression.py).***
+***Returns a matrix containing one column for each predictor used in the unique term affiliation, in addition to one column for the contribution to the linear predictor. For main effects or two-way interactions this can be visualized in for example line plots and surface plots respectively. See this [example](https://github.com/ottenbreit-data-science/aplr/blob/main/examples/train_aplr_regression.py). Please note that the get_unique_term_affiliation_shape method is currently very memory intensive when handling interactions and may crash without warning on larger models. Consider using either of the calculate_local_feature_contribution or calculate_local_contribution_from_selected_terms methods to interpret interactions on larger models.***
 
 ### Parameters
 

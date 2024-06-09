@@ -102,10 +102,11 @@ estimated_feature_importance = estimated_feature_importance.sort_values(
     by="importance", ascending=False
 )
 
-# Shapes for all term affiliations in the model. For each term affiliation, contains relevant predictor values and the corresponding
-# contributions to the linear predictor.
-# This is probably the most useful method to use for understanding how the model works.
-# Plots are created for main effects and two-way interactions.
+# Shapes for all term affiliations in the model. For each term affiliation, contains predictor values and the corresponding
+# contributions to the linear predictor. Plots are created for main effects and two-way interactions.
+# This is probably the most useful method to use for understanding how the model works but it is currently very memory intensive when 
+# handling interactions and may crash without warning on larger models. Consider using either of the calculate_local_feature_contribution 
+# or calculate_local_contribution_from_selected_terms methods to interpret interactions on larger models.
 shapes: Dict[str, pd.DataFrame] = {}
 predictors_in_each_affiliation = (
     best_model.get_base_predictors_in_each_unique_term_affiliation()
@@ -160,6 +161,34 @@ main_effect_shape = pd.DataFrame(
 local_feature_contribution = pd.DataFrame(
     best_model.calculate_local_feature_contribution(data_train[predictors]),
     columns=best_model.get_unique_term_affiliations(),
+)
+# Combining predictor values with local feature contribution for the second feature in best_model.get_unique_term_affiliations().
+# This can be visualized if it is a main effect or a two-way interaction.
+unique_term_affiliation_index = 1
+predictors_in_the_second_feature = [
+    predictors[predictor_index]
+    for predictor_index in best_model.get_base_predictors_in_each_unique_term_affiliation()[
+        unique_term_affiliation_index
+    ]
+]
+data_to_visualize = pd.DataFrame(
+    np.concatenate(
+        (
+            data_train[predictors_in_the_second_feature].values,
+            local_feature_contribution[
+                [
+                    best_model.get_unique_term_affiliations()[
+                        unique_term_affiliation_index
+                    ]
+                ]
+            ],
+        ),
+        axis=1,
+    ),
+    columns=predictors_in_the_second_feature
+    + [
+        f"contribution from {best_model.get_unique_term_affiliations()[unique_term_affiliation_index]}"
+    ],
 )
 
 # Local (observation specific) contribution to the linear predictor from selected interacting predictors.

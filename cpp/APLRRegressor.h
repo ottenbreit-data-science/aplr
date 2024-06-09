@@ -2630,6 +2630,12 @@ MatrixXd APLRRegressor::get_unique_term_affiliation_shape(const std::string &uni
     std::vector<size_t> relevant_term_indexes{compute_relevant_term_indexes(unique_term_affiliation)};
     size_t unique_term_affiliation_index{unique_term_affiliation_map[unique_term_affiliation]};
     size_t num_predictors_used_in_the_affiliation{base_predictors_in_each_unique_term_affiliation[unique_term_affiliation_index].size()};
+    if (num_predictors_used_in_the_affiliation > 1)
+    {
+        std::string warning{"Please note that the get_unique_term_affiliation_shape method is currently very memory intensive when handling interactions and may crash without warning on larger models. Consider using either of the calculate_local_feature_contribution or calculate_local_contribution_from_selected_terms methods to interpret interactions on larger models."};
+        std::cout << warning << std::endl;
+    }
+
     std::vector<std::vector<double>> split_points_in_each_predictor(num_predictors_used_in_the_affiliation);
     for (size_t i = 0; i < num_predictors_used_in_the_affiliation; ++i)
     {

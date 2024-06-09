@@ -544,32 +544,32 @@ double calculate_standard_deviation(const VectorXd &vector, const VectorXd &samp
 
 MatrixXd generate_combinations_and_one_additional_column(const std::vector<std::vector<double>> &vectors)
 {
-    int numVectors = vectors.size();
-    std::vector<int> sizes(numVectors);
-    int numRows = 1;
+    int num_vectors = vectors.size();
+    std::vector<int> sizes(num_vectors);
+    int num_rows = 1;
 
     // Calculate the number of rows in the result matrix
-    for (int i = 0; i < numVectors; ++i)
+    for (int i = 0; i < num_vectors; ++i)
     {
         sizes[i] = vectors[i].size();
-        numRows *= sizes[i];
+        num_rows *= sizes[i];
     }
 
     // Initialize the result matrix with an additional unused column
-    MatrixXd result(numRows, numVectors + 1);
+    MatrixXd result(num_rows, num_vectors + 1);
 
     // Generate all combinations
-    for (int row = 0; row < numRows; ++row)
+    for (int row = 0; row < num_rows; ++row)
     {
         int index = row;
-        for (int col = 0; col < numVectors; ++col)
+        for (int col = 0; col < num_vectors; ++col)
         {
             int vecSize = sizes[col];
             result(row, col) = vectors[col][index % vecSize];
             index /= vecSize;
         }
         // Set the additional unused column to zero (or any other value)
-        result(row, numVectors) = 0;
+        result(row, num_vectors) = 0;
     }
 
     return result;
