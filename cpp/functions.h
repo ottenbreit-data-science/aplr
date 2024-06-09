@@ -564,9 +564,9 @@ MatrixXd generate_combinations_and_one_additional_column(const std::vector<std::
         int index = row;
         for (int col = 0; col < num_vectors; ++col)
         {
-            int vecSize = sizes[col];
-            result(row, col) = vectors[col][index % vecSize];
-            index /= vecSize;
+            int vec_size = sizes[col];
+            result(row, col) = vectors[col][index % vec_size];
+            index /= vec_size;
         }
         // Set the additional unused column to zero (or any other value)
         result(row, num_vectors) = 0;
