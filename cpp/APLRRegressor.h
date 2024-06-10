@@ -5,6 +5,7 @@
 #include <random>
 #include <vector>
 #include <thread>
+#include <unordered_map>
 #include "../dependencies/eigen-3.4.0/Eigen/Dense"
 #include "functions.h"
 #include "term.h"
@@ -187,7 +188,8 @@ private:
     bool model_has_not_been_trained();
     std::vector<size_t> compute_relevant_term_indexes(const std::string &unique_term_affiliation);
     std::vector<double> compute_split_points(size_t predictor_index, const std::vector<size_t> &relevant_term_indexes);
-    VectorXd compute_contribution_to_linear_predictor_from_specific_terms(const MatrixXd &X, const std::vector<size_t> &term_indexes);
+    VectorXd compute_contribution_to_linear_predictor_from_specific_terms(const MatrixXd &X, const std::vector<size_t> &term_indexes,
+                                                                          const std::vector<size_t> &base_predictors_used);
     void validate_sample_weight(const MatrixXd &X, const VectorXd &sample_weight);
     void set_term_coefficients();
 
@@ -291,7 +293,9 @@ public:
     size_t get_optimal_m();
     std::string get_validation_tuning_metric();
     std::map<double, double> get_main_effect_shape(size_t predictor_index);
-    MatrixXd get_unique_term_affiliation_shape(const std::string &unique_term_affiliation);
+    MatrixXd get_unique_term_affiliation_shape(const std::string &unique_term_affiliation, size_t max_rows_before_sampling = 100000);
+    MatrixXd generate_predictor_values_and_contribution(const std::vector<size_t> &relevant_term_indexes,
+                                                        size_t unique_term_affiliation_index);
     double get_cv_error();
 
     friend class APLRClassifier;
@@ -2524,12 +2528,13 @@ std::map<double, double> APLRRegressor::get_main_effect_shape(size_t predictor_i
     std::vector<size_t> relevant_term_indexes{compute_relevant_term_indexes(unique_term_affiliation)};
     std::vector<double> split_points{compute_split_points(predictor_index, relevant_term_indexes)};
 
-    MatrixXd X{MatrixXd::Constant(split_points.size(), number_of_base_terms, 0)};
+    MatrixXd X{MatrixXd::Constant(split_points.size(), 1, 0)};
     for (size_t i = 0; i < split_points.size(); ++i)
     {
-        X.col(predictor_index)[i] = split_points[i];
+        X(i, 0) = split_points[i];
     }
-    VectorXd contribution_to_linear_predictor{compute_contribution_to_linear_predictor_from_specific_terms(X, relevant_term_indexes)};
+    VectorXd contribution_to_linear_predictor{compute_contribution_to_linear_predictor_from_specific_terms(X, relevant_term_indexes,
+                                                                                                           {predictor_index})};
     for (size_t i = 0; i < split_points.size(); ++i)
     {
         main_effect_shape[split_points[i]] = contribution_to_linear_predictor[i];
@@ -2598,19 +2603,32 @@ std::vector<double> APLRRegressor::compute_split_points(size_t predictor_index, 
     return split_points;
 }
 
-VectorXd APLRRegressor::compute_contribution_to_linear_predictor_from_specific_terms(const MatrixXd &X, const std::vector<size_t> &term_indexes)
+VectorXd APLRRegressor::compute_contribution_to_linear_predictor_from_specific_terms(const MatrixXd &X,
+                                                                                     const std::vector<size_t> &term_indexes,
+                                                                                     const std::vector<size_t> &base_predictors_used)
 {
-    VectorXd contribution_from_specific_terms{VectorXd::Constant(X.rows(), 0.0)};
-
+    VectorXd contribution_from_specific_terms = VectorXd::Zero(X.rows());
+    std::unordered_map<size_t, size_t> X_map;
+    for (size_t i = 0; i < base_predictors_used.size(); ++i)
+    {
+        X_map[base_predictors_used[i]] = i;
+    }
     for (auto &term_index_used : term_indexes)
     {
-        contribution_from_specific_terms += terms[term_index_used].calculate_contribution_to_linear_predictor(X);
+        auto &term = terms[term_index_used];
+        VectorXd contribution_from_this_term = term.coefficient * term.calculate_without_interactions(X.col(X_map[term.base_term]));
+        for (auto &given_term : term.given_terms)
+        {
+            VectorXd values_from_given_term = given_term.calculate_without_interactions(X.col(X_map[given_term.base_term]));
+            VectorXi indicator = calculate_indicator(values_from_given_term);
+            contribution_from_this_term = contribution_from_this_term.array() * indicator.cast<double>().array();
+        }
+        contribution_from_specific_terms += contribution_from_this_term;
     }
-
     return contribution_from_specific_terms;
 }
 
-MatrixXd APLRRegressor::get_unique_term_affiliation_shape(const std::string &unique_term_affiliation)
+MatrixXd APLRRegressor::get_unique_term_affiliation_shape(const std::string &unique_term_affiliation, size_t max_rows_before_sampling)
 {
     if (model_has_not_been_trained())
         throw std::runtime_error("The model must have been trained before using get_unique_term_affiliation_shape().");
@@ -2630,30 +2648,40 @@ MatrixXd APLRRegressor::get_unique_term_affiliation_shape(const std::string &uni
     std::vector<size_t> relevant_term_indexes{compute_relevant_term_indexes(unique_term_affiliation)};
     size_t unique_term_affiliation_index{unique_term_affiliation_map[unique_term_affiliation]};
     size_t num_predictors_used_in_the_affiliation{base_predictors_in_each_unique_term_affiliation[unique_term_affiliation_index].size()};
-    if (num_predictors_used_in_the_affiliation > 1)
-    {
-        std::string warning{"Please note that the get_unique_term_affiliation_shape method is currently very memory intensive when handling interactions and may crash without warning on larger models. Consider using either of the calculate_local_feature_contribution or calculate_local_contribution_from_selected_terms methods to interpret interactions on larger models."};
-        std::cout << warning << std::endl;
-    }
-
     std::vector<std::vector<double>> split_points_in_each_predictor(num_predictors_used_in_the_affiliation);
     for (size_t i = 0; i < num_predictors_used_in_the_affiliation; ++i)
     {
         split_points_in_each_predictor[i] = compute_split_points(base_predictors_in_each_unique_term_affiliation[unique_term_affiliation_index][i], relevant_term_indexes);
     }
 
-    MatrixXd output{generate_combinations_and_one_additional_column(split_points_in_each_predictor)};
-
-    MatrixXd X{MatrixXd::Constant(output.rows(), number_of_base_terms, 0)};
-    for (Eigen::Index i = 0; i < output.rows(); ++i)
+    size_t num_split_point_combinations = 1;
+    for (size_t i = 0; i < split_points_in_each_predictor.size(); ++i)
     {
-        for (size_t j = 0; j < num_predictors_used_in_the_affiliation; ++j)
+        num_split_point_combinations *= split_points_in_each_predictor[i].size();
+    }
+    bool need_to_sample{num_split_point_combinations > max_rows_before_sampling};
+    if (need_to_sample)
+    {
+        double num_split_point_combinations_sqrt = std::sqrt(static_cast<double>(num_split_point_combinations));
+        double factor = std::pow(max_rows_before_sampling / num_split_point_combinations_sqrt, 1.0 / split_points_in_each_predictor.size());
+        std::mt19937 seed(random_state);
+        for (auto &split_points : split_points_in_each_predictor)
         {
-            X(i, base_predictors_in_each_unique_term_affiliation[unique_term_affiliation_index][j]) = output(i, j);
+            size_t current_num_observations = split_points.size();
+            size_t num_observations_to_keep = std::round(factor * std::sqrt(current_num_observations));
+            if (current_num_observations > num_observations_to_keep)
+            {
+                std::shuffle(split_points.begin(), split_points.end(), seed);
+                split_points.resize(num_observations_to_keep);
+                std::sort(split_points.begin(), split_points.end());
+            }
         }
     }
 
-    output.col(num_predictors_used_in_the_affiliation) = compute_contribution_to_linear_predictor_from_specific_terms(X, relevant_term_indexes);
+    MatrixXd output{generate_combinations_and_one_additional_column(split_points_in_each_predictor)};
+    output.col(num_predictors_used_in_the_affiliation) = compute_contribution_to_linear_predictor_from_specific_terms(output.block(0, 0, output.rows(), output.cols() - 1),
+                                                                                                                      relevant_term_indexes,
+                                                                                                                      base_predictors_in_each_unique_term_affiliation[unique_term_affiliation_index]);
 
     return output;
 }
