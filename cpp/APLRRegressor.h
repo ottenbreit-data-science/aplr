@@ -2025,11 +2025,17 @@ VectorXd APLRRegressor::calculate_feature_importance(const MatrixXd &X, const Ve
 {
     validate_that_model_can_be_used(X);
     validate_sample_weight(X, sample_weight);
-    VectorXd feature_importance = VectorXd::Constant(number_of_unique_term_affiliations, 0);
-    MatrixXd li{calculate_local_feature_contribution(X)};
-    for (Eigen::Index i = 0; i < li.cols(); ++i) // For each column calculate standard deviation of contribution to linear predictor
+    VectorXd feature_importance{VectorXd::Zero(number_of_unique_term_affiliations)};
+    for (size_t i = 0; i < number_of_unique_term_affiliations; ++i)
     {
-        feature_importance[i] = calculate_standard_deviation(li.col(i), sample_weight);
+        VectorXd contribution{VectorXd::Zero(X.rows())};
+        for (auto &term : terms)
+        {
+            bool term_belongs_to_affiliation{unique_term_affiliation_map[term.predictor_affiliation] == i};
+            if (term_belongs_to_affiliation)
+                contribution += term.calculate_contribution_to_linear_predictor(X);
+        }
+        feature_importance[i] = calculate_standard_deviation(contribution, sample_weight);
     }
     return feature_importance;
 }
