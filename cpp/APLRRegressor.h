@@ -1824,7 +1824,8 @@ void APLRRegressor::abort_boosting_when_no_validation_error_improvement_in_the_l
         if (no_improvement_for_too_long)
         {
             abort_boosting = true;
-            std::cout << "Aborting boosting because of no validation error improvement in the last " << std::to_string(early_stopping_rounds) << " steps.\n";
+            if (verbosity >= 1)
+                std::cout << "Aborting boosting because of no validation error improvement in the last " << std::to_string(early_stopping_rounds) << " steps.\n";
         }
     }
 }
