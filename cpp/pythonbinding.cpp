@@ -75,7 +75,7 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def("get_validation_tuning_metric", &APLRRegressor::get_validation_tuning_metric)
         .def("get_main_effect_shape", &APLRRegressor::get_main_effect_shape, py::arg("predictor_index"))
         .def("get_unique_term_affiliation_shape", &APLRRegressor::get_unique_term_affiliation_shape, py::arg("unique_term_affiliation"),
-             py::arg("max_rows_before_sampling"))
+             py::arg("max_rows_before_sampling") = 100000)
         .def("get_cv_error", &APLRRegressor::get_cv_error)
         .def_readwrite("intercept", &APLRRegressor::intercept)
         .def_readwrite("m", &APLRRegressor::m)
