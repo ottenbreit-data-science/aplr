@@ -130,7 +130,7 @@ Specifies a penalty in the range [0.0, 1.0] on interaction terms. A higher value
 Restricts the maximum number of terms in any of the underlying models trained to ***max_terms***. The default value of 0 means no limit. After the limit is reached, the remaining boosting steps are used to further update the coefficients of already included terms. An optional tuning objective could be to find the lowest positive value of ***max_terms*** that does not increase the prediction error significantly. Low positive values can speed up the training process significantly. Setting a limit with ***max_terms*** may require a higher learning rate for best results.
 
 
-## Method: fit(X:FloatMatrix, y:FloatVector, sample_weight:FloatVector = [], X_names:StrVector = [], cv_observations:IntMatrix = [], prioritized_predictors_indexes:IntVector = [], monotonic_constraints:IntVector = [], group:FloatVector = [], interaction_constraints:List[List[int]] = [], other_data:FloatMatrix = [], predictor_learning_rates:FloatVector = [], predictor_penalties_for_non_linearity:FloatVector = [], predictor_penalties_for_interactions:FloatVector = [])
+## Method: fit(X:FloatMatrix, y:FloatVector, sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], group:FloatVector = np.empty(0), interaction_constraints:List[List[int]] = [], other_data:FloatMatrix = np.empty([0, 0]), predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [])
 
 ***This method fits the model to data.***
 
@@ -189,7 +189,7 @@ A numpy matrix with predictor values.
 If ***True*** then predictions are capped so that they are not less than the minimum and not greater than the maximum prediction or response in the training dataset. This is recommended especially if ***max_interaction_level*** is high. However, if you need the model to extrapolate then set this parameter to ***False***.
 
 
-## Method: set_term_names(X_names:StrVector)
+## Method: set_term_names(X_names:List[str])
 
 ***This method sets the names of terms based on X_names.***
 
@@ -199,7 +199,7 @@ If ***True*** then predictions are capped so that they are not less than the min
 A list of strings containing names for each predictor in the ***X*** matrix that the model was trained on.
 
 
-## Method: calculate_feature_importance(X:FloatMatrix, sample_weight:FloatVector = [])
+## Method: calculate_feature_importance(X:FloatMatrix, sample_weight:FloatVector = np.empty(0))
 
 ***Returns a numpy matrix containing estimated feature importance in X for each predictor.***
 
@@ -209,7 +209,7 @@ A list of strings containing names for each predictor in the ***X*** matrix that
 A numpy matrix with predictor values.
 
 
-## Method: calculate_term_importance(X:FloatMatrix, sample_weight:FloatVector = [])
+## Method: calculate_term_importance(X:FloatMatrix, sample_weight:FloatVector = np.empty(0))
 
 ***Returns a numpy matrix containing estimated term importance in X for each term in the model.***
 
@@ -239,7 +239,7 @@ A numpy matrix with predictor values.
 A numpy matrix with predictor values.
 
 
-## Method: calculate_local_contribution_from_selected_terms(X:FloatMatrix, predictor_indexes:IntVector)
+## Method: calculate_local_contribution_from_selected_terms(X:FloatMatrix, predictor_indexes:List[int])
 
 ***Returns a numpy vector containing the contribution to the linear predictor from an user specified combination of interacting predictors for each observation in X. This makes it easier to interpret interactions (or main effects if just one predictor is specified), for example by plotting predictor values against the term contribution.***
 

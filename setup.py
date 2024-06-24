@@ -27,7 +27,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setuptools.setup(
     name="aplr",
-    version="10.4.5",
+    version="10.4.6",
     description="Automatic Piecewise Linear Regression",
     ext_modules=[sfc_module],
     author="Mathias von Ottenbreit",
@@ -35,7 +35,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=["aplr"],
-    install_requires=[],
+    install_requires=["numpy>=1.11"],
     python_requires=">=3.8",
     classifiers=["License :: OSI Approved :: MIT License"],
     license="MIT",

@@ -62,7 +62,7 @@ Specifies a penalty in the range [0.0, 1.0] on interaction terms. A higher value
 Restricts the maximum number of terms in any of the underlying models trained to ***max_terms***. The default value of 0 means no limit. After the limit is reached, the remaining boosting steps are used to further update the coefficients of already included terms. An optional tuning objective could be to find the lowest positive value of ***max_terms*** that does not increase the prediction error significantly. Low positive values can speed up the training process significantly. Setting a limit with ***max_terms*** may require a higher learning rate for best results.
 
 
-## Method: fit(X:FloatMatrix, y:StrVector, sample_weight:FloatVector = [], X_names:StrVector = [], cv_observations:IntMatrix = [], prioritized_predictors_indexes:IntVector = [], monotonic_constraints:IntVector = [], interaction_constraints:List[List[int]] = [], predictor_learning_rates:FloatVector = [], predictor_penalties_for_non_linearity:FloatVector = [], predictor_penalties_for_interactions:FloatVector = [])
+## Method: fit(X:FloatMatrix, y:List[str], sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], interaction_constraints:List[List[int]] = [], predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [])
 
 ***This method fits the model to data.***
 
@@ -72,7 +72,7 @@ Restricts the maximum number of terms in any of the underlying models trained to
 A numpy matrix with predictor values.
 
 #### y
-A numpy vector with response values.
+A list of strings with response values (class names).
 
 #### sample_weight
 An optional numpy vector with sample weights. If not specified then the observations are weighted equally.

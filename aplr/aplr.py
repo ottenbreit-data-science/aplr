@@ -1,11 +1,11 @@
 from typing import List, Callable, Optional, Dict
+import numpy as np
 import aplr_cpp
 
-FloatVector = List[float]
-FloatMatrix = List[List[float]]
-IntVector = List[int]
-IntMatrix = List[List[int]]
-StrVector = List[str]
+FloatVector = np.ndarray
+FloatMatrix = np.ndarray
+IntVector = np.ndarray
+IntMatrix = np.ndarray
 
 
 class APLRRegressor:
@@ -184,17 +184,17 @@ class APLRRegressor:
         self,
         X: FloatMatrix,
         y: FloatVector,
-        sample_weight: FloatVector = [],
-        X_names: StrVector = [],
-        cv_observations: IntMatrix = [],
-        prioritized_predictors_indexes: IntVector = [],
-        monotonic_constraints: IntVector = [],
-        group: FloatVector = [],
+        sample_weight: FloatVector = np.empty(0),
+        X_names: List[str] = [],
+        cv_observations: IntMatrix = np.empty([0, 0]),
+        prioritized_predictors_indexes: List[int] = [],
+        monotonic_constraints: List[int] = [],
+        group: FloatVector = np.empty(0),
         interaction_constraints: List[List[int]] = [],
-        other_data: FloatMatrix = [],
-        predictor_learning_rates: FloatVector = [],
-        predictor_penalties_for_non_linearity: FloatVector = [],
-        predictor_penalties_for_interactions: FloatVector = [],
+        other_data: FloatMatrix = np.empty([0, 0]),
+        predictor_learning_rates: List[float] = [],
+        predictor_penalties_for_non_linearity: List[float] = [],
+        predictor_penalties_for_interactions: List[float] = [],
     ):
         self.__set_params_cpp()
         self.APLRRegressor.fit(
@@ -222,16 +222,16 @@ class APLRRegressor:
             )
         return self.APLRRegressor.predict(X, cap_predictions_to_minmax_in_training)
 
-    def set_term_names(self, X_names: StrVector):
+    def set_term_names(self, X_names: List[str]):
         self.APLRRegressor.set_term_names(X_names)
 
     def calculate_feature_importance(
-        self, X: FloatMatrix, sample_weight: FloatVector = []
+        self, X: FloatMatrix, sample_weight: FloatVector = np.empty(0)
     ) -> FloatVector:
         return self.APLRRegressor.calculate_feature_importance(X, sample_weight)
 
     def calculate_term_importance(
-        self, X: FloatMatrix, sample_weight: FloatVector = []
+        self, X: FloatMatrix, sample_weight: FloatVector = np.empty(0)
     ) -> FloatVector:
         return self.APLRRegressor.calculate_term_importance(X, sample_weight)
 
@@ -242,7 +242,7 @@ class APLRRegressor:
         return self.APLRRegressor.calculate_local_term_contribution(X)
 
     def calculate_local_contribution_from_selected_terms(
-        self, X: FloatMatrix, predictor_indexes: IntVector
+        self, X: FloatMatrix, predictor_indexes: List[int]
     ) -> FloatVector:
         return self.APLRRegressor.calculate_local_contribution_from_selected_terms(
             X, predictor_indexes
@@ -251,13 +251,13 @@ class APLRRegressor:
     def calculate_terms(self, X: FloatMatrix) -> FloatMatrix:
         return self.APLRRegressor.calculate_terms(X)
 
-    def get_term_names(self) -> StrVector:
+    def get_term_names(self) -> List[str]:
         return self.APLRRegressor.get_term_names()
 
-    def get_term_affiliations(self) -> StrVector:
+    def get_term_affiliations(self) -> List[str]:
         return self.APLRRegressor.get_term_affiliations()
 
-    def get_unique_term_affiliations(self) -> StrVector:
+    def get_unique_term_affiliations(self) -> List[str]:
         return self.APLRRegressor.get_unique_term_affiliations()
 
     def get_base_predictors_in_each_unique_term_affiliation(self) -> List[List[int]]:
@@ -433,16 +433,16 @@ class APLRClassifier:
     def fit(
         self,
         X: FloatMatrix,
-        y: StrVector,
-        sample_weight: FloatVector = [],
-        X_names: StrVector = [],
-        cv_observations: IntMatrix = [],
-        prioritized_predictors_indexes: IntVector = [],
-        monotonic_constraints: IntVector = [],
+        y: List[str],
+        sample_weight: FloatVector = np.empty(0),
+        X_names: List[str] = [],
+        cv_observations: IntMatrix = np.empty([0, 0]),
+        prioritized_predictors_indexes: List[int] = [],
+        monotonic_constraints: List[int] = [],
         interaction_constraints: List[List[int]] = [],
-        predictor_learning_rates: FloatVector = [],
-        predictor_penalties_for_non_linearity: FloatVector = [],
-        predictor_penalties_for_interactions: FloatVector = [],
+        predictor_learning_rates: List[float] = [],
+        predictor_penalties_for_non_linearity: List[float] = [],
+        predictor_penalties_for_interactions: List[float] = [],
     ):
         self.__set_params_cpp()
         self.APLRClassifier.fit(
@@ -468,13 +468,13 @@ class APLRClassifier:
 
     def predict(
         self, X: FloatMatrix, cap_predictions_to_minmax_in_training: bool = False
-    ) -> StrVector:
+    ) -> List[str]:
         return self.APLRClassifier.predict(X, cap_predictions_to_minmax_in_training)
 
     def calculate_local_feature_contribution(self, X: FloatMatrix) -> FloatMatrix:
         return self.APLRClassifier.calculate_local_feature_contribution(X)
 
-    def get_categories(self) -> StrVector:
+    def get_categories(self) -> List[str]:
         return self.APLRClassifier.get_categories()
 
     def get_logit_model(self, category: str) -> APLRRegressor:
@@ -489,7 +489,7 @@ class APLRClassifier:
     def get_feature_importance(self) -> FloatVector:
         return self.APLRClassifier.get_feature_importance()
 
-    def get_unique_term_affiliations(self) -> StrVector:
+    def get_unique_term_affiliations(self) -> List[str]:
         return self.APLRClassifier.get_unique_term_affiliations()
 
     def get_base_predictors_in_each_unique_term_affiliation(self) -> List[List[int]]:
