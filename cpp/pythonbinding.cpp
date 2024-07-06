@@ -26,7 +26,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                       std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)> &,
                       std::function<VectorXd(const VectorXd &linear_predictor)> &, std::function<VectorXd(const VectorXd &linear_predictor)> &,
                       int &, bool &, int &, int &, int &, int &, double &, double &, int &>(),
-             py::arg("m") = 3000, py::arg("v") = 0.1, py::arg("random_state") = 0, py::arg("loss_function") = "mse", py::arg("link_function") = "identity",
+             py::arg("m") = 20000, py::arg("v") = 0.1, py::arg("random_state") = 0, py::arg("loss_function") = "mse", py::arg("link_function") = "identity",
              py::arg("n_jobs") = 0, py::arg("cv_folds") = 5,
              py::arg("reserved_terms_times_num_x") = 100, py::arg("bins") = 300, py::arg("verbosity") = 0,
              py::arg("max_interaction_level") = 1, py::arg("max_interactions") = 100000, py::arg("min_observations_in_split") = 20,
@@ -284,7 +284,7 @@ PYBIND11_MODULE(aplr_cpp, m)
     py::class_<APLRClassifier>(m, "APLRClassifier", py::module_local())
         .def(py::init<int &, double &, int &, int &, int &, int &, int &, int &, int &, int &, int &, int &, int &, int &, bool &, int &, int &,
                       double &, double &, int &>(),
-             py::arg("m") = 3000, py::arg("v") = 0.1, py::arg("random_state") = 0, py::arg("n_jobs") = 0, py::arg("cv_folds") = 5,
+             py::arg("m") = 20000, py::arg("v") = 0.1, py::arg("random_state") = 0, py::arg("n_jobs") = 0, py::arg("cv_folds") = 5,
              py::arg("reserved_terms_times_num_x") = 100, py::arg("bins") = 300, py::arg("verbosity") = 0,
              py::arg("max_interaction_level") = 1, py::arg("max_interactions") = 100000, py::arg("min_observations_in_split") = 20,
              py::arg("ineligible_boosting_steps_added") = 10, py::arg("max_eligible_terms") = 5,

@@ -11,7 +11,7 @@ IntMatrix = np.ndarray
 class APLRRegressor:
     def __init__(
         self,
-        m: int = 3000,
+        m: int = 20000,
         v: float = 0.1,
         random_state: int = 0,
         loss_function: str = "mse",
@@ -350,7 +350,7 @@ class APLRRegressor:
 class APLRClassifier:
     def __init__(
         self,
-        m: int = 3000,
+        m: int = 20000,
         v: float = 0.1,
         random_state: int = 0,
         n_jobs: int = 0,
@@ -458,6 +458,8 @@ class APLRClassifier:
             predictor_penalties_for_non_linearity,
             predictor_penalties_for_interactions,
         )
+        # For sklearn
+        self.classes_ = np.arange(len(self.APLRClassifier.get_categories()))
 
     def predict_class_probabilities(
         self, X: FloatMatrix, cap_predictions_to_minmax_in_training: bool = False
@@ -525,3 +527,7 @@ class APLRClassifier:
             setattr(self, parameter, value)
         self.__set_params_cpp()
         return self
+
+    # For sklearn
+    def predict_proba(self, X: FloatMatrix) -> FloatMatrix:
+        return self.predict_class_probabilities(X)

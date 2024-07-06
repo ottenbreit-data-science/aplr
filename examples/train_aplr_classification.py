@@ -47,7 +47,7 @@ for params in param_grid:
     model = APLRClassifier(
         random_state=random_state,
         verbosity=2,
-        m=3000,
+        m=20000,
         v=0.1,
         # max_terms=5,  # Optionally tune this to find a trade-off between interpretability and predictiveness. May require a higher learning rate for best results.
         **params
