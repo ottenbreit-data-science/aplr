@@ -1149,7 +1149,7 @@ VectorXd APLRRegressor::calculate_neg_gradient_current_for_group_mse(GroupData &
 VectorXd APLRRegressor::differentiate_predictions_wrt_linear_predictor()
 {
     if (link_function == "logit")
-        return 1.0 / 4.0 * (linear_predictor_current.array() / 2.0).cosh().array().pow(-2);
+        return 10.0 / 4.0 * (linear_predictor_current.array() / 2.0).cosh().array().pow(-2);
     else if (link_function == "log")
     {
         return linear_predictor_current.array().exp();

@@ -1055,7 +1055,7 @@ public:
         // Model
         APLRRegressor model{APLRRegressor()};
         model.m = 100;
-        model.v = 0.5;
+        model.v = 0.05;
         model.bins = 300;
         model.n_jobs = 0;
         model.loss_function = "binomial";
@@ -1614,7 +1614,7 @@ public:
         // Model
         APLRClassifier model{APLRClassifier()};
         model.m = 100;
-        model.v = 0.5;
+        model.v = 0.05;
         model.bins = 300;
         model.n_jobs = 0;
         model.verbosity = 3;
@@ -1684,7 +1684,7 @@ public:
         // Model
         APLRClassifier model{APLRClassifier()};
         model.m = 100;
-        model.v = 0.5;
+        model.v = 0.05;
         model.bins = 300;
         model.n_jobs = 0;
         model.verbosity = 3;
@@ -1754,7 +1754,7 @@ public:
         // Model
         APLRClassifier model{APLRClassifier()};
         model.m = 100;
-        model.v = 0.5;
+        model.v = 0.05;
         model.bins = 300;
         model.n_jobs = 0;
         model.verbosity = 3;
@@ -1824,7 +1824,7 @@ public:
         // Model
         APLRClassifier model{APLRClassifier()};
         model.m = 100;
-        model.v = 0.5;
+        model.v = 0.05;
         model.bins = 300;
         model.n_jobs = 0;
         model.verbosity = 3;
@@ -1894,7 +1894,7 @@ public:
         // Model
         APLRClassifier model{APLRClassifier()};
         model.m = 100;
-        model.v = 0.5;
+        model.v = 0.05;
         model.bins = 300;
         model.n_jobs = 0;
         model.verbosity = 3;
@@ -1962,7 +1962,7 @@ public:
         // Model
         APLRClassifier model{APLRClassifier()};
         model.m = 100;
-        model.v = 0.5;
+        model.v = 0.05;
         model.bins = 300;
         model.n_jobs = 0;
         model.verbosity = 3;
@@ -2020,7 +2020,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.15984656957508173, 0.000001));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.15942686880196807, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -2028,7 +2028,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.052181259967961045, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.05891072116542774, 0.00001));
         tests.push_back(base_predictors_in_the_second_affiliation == correct_base_predictors_in_the_second_affiliation);
         tests.push_back(the_second_unique_term_affiliation == the_correct_second_unique_term_affiliation);
     }
@@ -2038,7 +2038,7 @@ public:
         // Model
         APLRClassifier model{APLRClassifier()};
         model.m = 100;
-        model.v = 0.5;
+        model.v = 0.05;
         model.bins = 300;
         model.n_jobs = 0;
         model.verbosity = 3;
@@ -2092,7 +2092,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.17250319103503037, 0.000001));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.14420733842494515, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -2100,7 +2100,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.07920242388299352, 0.00001));
+        tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.10357828243742498, 0.00001));
     }
 
     void test_aplrclassifier_two_class_max_terms()
@@ -2108,7 +2108,7 @@ public:
         // Model
         APLRClassifier model{APLRClassifier()};
         model.m = 100;
-        model.v = 0.5;
+        model.v = 0.05;
         model.bins = 300;
         model.n_jobs = 0;
         model.verbosity = 3;
