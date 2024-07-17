@@ -77,6 +77,8 @@ public:
         model.max_eligible_terms = 5;
         model.dispersion_parameter = 1.0;
         model.max_terms = 5;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -130,6 +132,8 @@ public:
         model.dispersion_parameter = 1.0;
         model.penalty_for_non_linearity = 0.05;
         model.penalty_for_interactions = 0.1;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -185,6 +189,8 @@ public:
         model.dispersion_parameter = 1.0;
         model.penalty_for_non_linearity = 0.05;
         model.penalty_for_interactions = 0.1;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -290,6 +296,8 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "group_mse";
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -370,6 +378,8 @@ public:
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "group_mse_by_prediction";
         model.group_mse_by_prediction_bins = 7;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -426,6 +436,7 @@ public:
         model.max_eligible_terms = 5;
         model.dispersion_parameter = 1.0;
         model.boosting_steps_before_interactions_are_allowed = 60;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -481,6 +492,8 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "custom_function";
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -539,6 +552,8 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.early_stopping_rounds = 10;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -597,6 +612,8 @@ public:
         model.max_eligible_terms = 5;
         model.calculate_custom_transform_linear_predictor_to_predictions_function = calculate_custom_transform_linear_predictor_to_predictions;
         model.calculate_custom_differentiate_predictions_wrt_linear_predictor_function = calculate_custom_differentiate_predictions_wrt_linear_predictor;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -651,6 +668,8 @@ public:
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "custom_function";
         model.calculate_custom_validation_error_function = calculate_custom_validation_error_2;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -704,6 +723,8 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "negative_gini";
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -757,6 +778,8 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "negative_gini";
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -810,6 +833,8 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "mse";
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -861,6 +886,8 @@ public:
         model.min_observations_in_split = 50;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -918,6 +945,8 @@ public:
         model.max_eligible_terms = 5;
         model.group_mse_by_prediction_bins = 8;
         model.group_mse_cycle_min_obs_in_bin = 28;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -959,6 +988,8 @@ public:
         model.min_observations_in_split = 50;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1014,6 +1045,8 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "mae";
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1066,6 +1099,8 @@ public:
         model.min_observations_in_split = 20;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1117,6 +1152,8 @@ public:
         model.min_observations_in_split = 50;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1169,6 +1206,8 @@ public:
         model.min_observations_in_split = 50;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1222,6 +1261,8 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.monotonic_constraints_ignore_interactions = true;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1276,6 +1317,8 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.dispersion_parameter = 1.0;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1328,6 +1371,8 @@ public:
         model.min_observations_in_split = 20;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1381,6 +1426,8 @@ public:
         model.min_observations_in_split = 20;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1433,6 +1480,8 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.quantile = 0.5;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1486,6 +1535,8 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.dispersion_parameter = 1.5;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1537,6 +1588,8 @@ public:
         model.min_observations_in_split = 50;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1624,6 +1677,8 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.monotonic_constraints_ignore_interactions = true;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1693,6 +1748,8 @@ public:
         model.min_observations_in_split = 20;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1764,6 +1821,8 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.monotonic_constraints_ignore_interactions = true;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1903,6 +1962,8 @@ public:
         model.min_observations_in_split = 20;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1973,6 +2034,8 @@ public:
         model.max_eligible_terms = 5;
         model.penalty_for_non_linearity = 0.05;
         model.penalty_for_interactions = 0.1;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -2049,6 +2112,8 @@ public:
         model.max_eligible_terms = 5;
         model.penalty_for_non_linearity = 0.05;
         model.penalty_for_interactions = 0.1;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -2118,6 +2183,8 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.max_terms = 4;
+        model.boosting_steps_before_interactions_are_allowed = 0;
+        model.num_first_steps_with_linear_effects_only = 0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
