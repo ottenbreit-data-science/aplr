@@ -7,8 +7,8 @@
 #### m (default = 20000)
 The maximum number of boosting steps. If validation error does not flatten out at the end of the ***m***th boosting step, then try increasing it (or alternatively increase the learning rate).
 
-#### v (default = 0.1)
-The learning rate. Must be greater than zero and not more than one. The higher the faster the algorithm learns and the lower ***m*** is required. However, empirical evidence suggests that ***v <= 0.1*** gives better results. If the algorithm learns too fast (requires few boosting steps to converge) then try lowering the learning rate. Computational costs can be reduced by increasing the learning rate while simultaneously decreasing ***m***, potentially at the expense of predictiveness.
+#### v (default = 0.5)
+The learning rate. Must be greater than zero and not more than one. The higher the faster the algorithm learns and the lower ***m*** is required, reducing computational costs potentially at the expense of predictiveness. Empirical evidence suggests that ***v = 0.5*** gives good results for APLR.
 
 #### random_state (default = 0)
 Used to randomly split training observations into cv_folds if ***cv_observations*** is not specified when fitting.
@@ -102,8 +102,8 @@ def calculate_custom_differentiate_predictions_wrt_linear_predictor(linear_predi
     return differentiated_predictions
 ```
 
-#### boosting_steps_before_interactions_are_allowed (default = 0)
-Specifies how many boosting steps to wait before searching for interactions. If for example 800, then the algorithm will be forced to only fit main effects in the first 800 boosting steps, after which it is allowed to search for interactions (given that other hyperparameters that control interactions also allow this). The motivation for fitting main effects first may be 1) to get a cleaner looking model that puts more emphasis on main effects and 2) to speed up the algorithm since looking for interactions is computationally more demanding.
+#### boosting_steps_before_interactions_are_allowed (default = 500)
+Specifies how many boosting steps to wait before searching for interactions. If for example 800, then the algorithm will be forced to only fit main effects in the first 800 boosting steps, after which it is allowed to search for interactions (given that other hyperparameters that control interactions also allow this). The motivation for fitting main effects first may be 1) to get a cleaner looking model that puts more emphasis on main effects and 2) to speed up the algorithm since looking for interactions is computationally more demanding. The default value of 500 combined with the default value of ***max_interaction_level*** (1) often works whether the true value of ***max_interaction_level*** is 0 or 1.
 
 #### monotonic_constraints_ignore_interactions (default = False)
 See ***monotonic_constraints*** in the ***fit*** method.
@@ -117,8 +117,8 @@ When ***loss_function*** equals ***group_mse_cycle*** then ***group_mse_cycle_mi
 #### early_stopping_rounds (default = 500)
 If validation loss does not improve during the last ***early_stopping_rounds*** boosting steps then boosting is aborted. The point with this constructor parameter is to speed up the training and make it easier to select a high ***m***.
 
-#### num_first_steps_with_linear_effects_only (default = 0)
-Specifies the number of initial boosting steps that are reserved only for linear effects. 0 means that non-linear effects are allowed from the first boosting step. Reasons for setting this parameter to a higher value than 0 could be to 1) build a more interpretable model with more emphasis on linear effects or 2) build a linear only model by setting ***num_first_steps_with_linear_effects_only*** to no less than ***m***. 
+#### num_first_steps_with_linear_effects_only (default = 400)
+Specifies the number of initial boosting steps that are reserved only for linear effects. 0 means that non-linear effects are allowed from the first boosting step. Reasons for setting this parameter to a higher value than 0 could be to 1) build a more interpretable model with more emphasis on linear effects or 2) build a linear only model by setting ***num_first_steps_with_linear_effects_only*** to no less than ***m***. The default value of 400 combined with the default value of ***max_interaction_level*** (1) often works whether the true value of ***max_interaction_level*** is 0 or 1. 
 
 #### penalty_for_non_linearity (default = 0.0)
 Specifies a penalty in the range [0.0, 1.0] on terms that are not linear effects. A higher value increases model interpretability but can hurt predictiveness. Values outside of the [0.0, 1.0] range are rounded to the nearest boundary within the range.
@@ -167,7 +167,7 @@ An optional list containing lists of integers. Specifies interaction constraints
 An optional numpy matrix with other data. This is used in custom loss, negative gradient and validation error functions.
 
 #### predictor_learning_rates
-An optional list of floats specifying learning rates for each predictor. If provided then this supercedes ***v***. For example, if there are two predictors in ***X***, then predictor_learning_rates = [0.1,0.2] means that all terms using the first predictor in ***X*** as a main effect will have a learning rate of 0.1 and that all terms using the second predictor in ***X*** as a main effect will have a learning rate of 0.2.
+An optional list of floats specifying learning rates for each predictor. If provided then this supercedes ***v***. For example, if there are two predictors in ***X***, then predictor_learning_rates = [0.1, 0.2] means that all terms using the first predictor in ***X*** as a main effect will have a learning rate of 0.1 and that all terms using the second predictor in ***X*** as a main effect will have a learning rate of 0.2.
 
 #### predictor_penalties_for_non_linearity
 An optional list of floats specifying penalties for non-linearity for each predictor. If provided then this supercedes ***penalty_for_non_linearity***. For example, if there are two predictors in ***X***, then predictor_penalties_for_non_linearity = [0.1,0.2] means that all terms using the first predictor in ***X*** as a main effect will have a penalty for non-linearity of 0.1 and that all terms using the second predictor in ***X*** as a main effect will have a penalty for non-linearity of 0.2.
