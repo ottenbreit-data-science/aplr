@@ -248,7 +248,7 @@ public:
     VectorXd min_predictor_values_in_training;
     VectorXd max_predictor_values_in_training;
 
-    APLRRegressor(size_t m = 20000, double v = 0.1, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
+    APLRRegressor(size_t m = 20000, double v = 0.5, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, size_t cv_folds = 5,
                   size_t reserved_terms_times_num_x = 100, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1, size_t max_interactions = 100000,
                   size_t min_observations_in_split = 20, size_t ineligible_boosting_steps_added = 10, size_t max_eligible_terms = 5, double dispersion_parameter = 1.5,
@@ -258,9 +258,9 @@ public:
                   const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_negative_gradient_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {},
-                  size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
+                  size_t boosting_steps_before_interactions_are_allowed = 500, bool monotonic_constraints_ignore_interactions = false,
                   size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30, size_t early_stopping_rounds = 500,
-                  size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0,
+                  size_t num_first_steps_with_linear_effects_only = 400, double penalty_for_non_linearity = 0.0,
                   double penalty_for_interactions = 0.0, size_t max_terms = 0);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
