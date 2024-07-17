@@ -291,8 +291,6 @@ print(status_df["status"].value_counts().to_string(index=True, header=False))
 
 # %%
 # reload if analyzing later
-import pandas as pd
-
 results_df = joblib.load("benchmark_results_so_far.zip")
 
 # %%
