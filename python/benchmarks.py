@@ -1,3 +1,5 @@
+# This code is based on https://github.com/interpretml/interpret/blob/develop/docs/benchmarks/ebm-benchmark.ipynb
+
 import joblib
 
 # %%
