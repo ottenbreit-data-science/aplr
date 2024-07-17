@@ -290,10 +290,6 @@ for errmsg in status_df["errmsg"]:
 print(status_df["status"].value_counts().to_string(index=True, header=False))
 
 # %%
-results_df = benchmark.results()
-results_df.to_csv("results.csv", index=None)
-
-# %%
 # reload if analyzing later
 import pandas as pd
 
