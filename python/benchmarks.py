@@ -3,6 +3,7 @@ import joblib
 # %%
 xgboost_ver = "2.1.0"
 import xgboost
+
 if xgboost.__version__ != xgboost_ver:
     raise Exception(
         f"To preserve rank ordering we require xgboost=={xgboost_ver}, but have xgboost=={xgboost.__version__}"
@@ -137,11 +138,7 @@ def trial_runner(trial):
                     ("ct", ct),
                     (
                         "est",
-                        APLRClassifier(
-                            v=0.5,
-                            num_first_steps_with_linear_effects_only=400,
-                            boosting_steps_before_interactions_are_allowed=500,
-                        ),
+                        APLRClassifier(),
                     ),
                 ]
             )
@@ -162,11 +159,7 @@ def trial_runner(trial):
                     ("ct", ct),
                     (
                         "est",
-                        APLRRegressor(
-                            v=0.5,
-                            num_first_steps_with_linear_effects_only=400,
-                            boosting_steps_before_interactions_are_allowed=500,
-                        ),
+                        APLRRegressor(),
                     ),
                 ]
             )
