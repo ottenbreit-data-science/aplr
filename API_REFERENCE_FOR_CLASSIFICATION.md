@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int = 20000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 20, ineligible_boosting_steps_added:int = 10, max_eligible_terms:int = 5, boosting_steps_before_interactions_are_allowed: int = 500, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 500, num_first_steps_with_linear_effects_only: int = 400, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0)
+## class aplr.APLRClassifier(m:int = 20000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 2, ineligible_boosting_steps_added:int = 10, max_eligible_terms:int = 5, boosting_steps_before_interactions_are_allowed: int = 500, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 500, num_first_steps_with_linear_effects_only: int = 400, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0)
 
 ### Constructor parameters
 
@@ -31,7 +31,7 @@ Specifies the maximum allowed depth of interaction terms. ***0*** means that int
 #### max_interactions (default = 100000)
 The maximum number of interactions allowed in each underlying model. A lower value may be used to reduce computational time or to increase interpretability.
 
-#### min_observations_in_split (default = 20)
+#### min_observations_in_split (default = 2)
 The minimum effective number of observations that a term in the model must rely on. This hyperparameter should be tuned. Larger values are more appropriate for larger datasets. Larger values result in more robust models (lower variance), potentially at the expense of increased bias.
 
 #### ineligible_boosting_steps_added (default = 10)
