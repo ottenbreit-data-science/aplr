@@ -2,35 +2,13 @@ import joblib
 
 # %%
 xgboost_ver = "2.1.0"
-try:
-    import xgboost
-
-    if xgboost.__version__ != xgboost_ver:
-        raise Exception(
-            f"To preserve rank ordering we require xgboost=={xgboost_ver}, but have xgboost=={xgboost.__version__}"
-        )
-except ModuleNotFoundError:
-    pass
-    #!pip install -U --quiet xgboost=={xgboost_ver}
+import xgboost
+if xgboost.__version__ != xgboost_ver:
+    raise Exception(
+        f"To preserve rank ordering we require xgboost=={xgboost_ver}, but have xgboost=={xgboost.__version__}"
+    )
 
 # %%
-# install interpret if not already installed
-try:
-    import interpret
-except ModuleNotFoundError:
-    pass
-    #!pip install -U --quiet scikit-learn interpret-core
-
-# %%
-# install powerlift if not already installed
-try:
-    import powerlift
-except ModuleNotFoundError:
-    pass
-    #!pip install -U --quiet powerlift[datasets,postgres]
-
-# %%
-
 try:
     completed_so_far = joblib.load("completed_so_far.zip")
 except:
