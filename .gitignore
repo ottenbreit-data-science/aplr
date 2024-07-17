@@ -7,3 +7,4 @@ build/
 __pycache__/
 dist/
 aplr.egg-info/
+*.db
