@@ -260,7 +260,7 @@ public:
                   const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {},
                   size_t boosting_steps_before_interactions_are_allowed = 500, bool monotonic_constraints_ignore_interactions = false,
                   size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30, size_t early_stopping_rounds = 500,
-                  size_t num_first_steps_with_linear_effects_only = 400, double penalty_for_non_linearity = 0.0,
+                  size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0,
                   double penalty_for_interactions = 0.0, size_t max_terms = 0);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();

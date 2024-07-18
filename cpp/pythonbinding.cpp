@@ -42,7 +42,7 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("boosting_steps_before_interactions_are_allowed") = 500,
              py::arg("monotonic_constraints_ignore_interactions") = false,
              py::arg("group_mse_by_prediction_bins") = 10, py::arg("group_mse_cycle_min_obs_in_bin") = 30,
-             py::arg("early_stopping_rounds") = 500, py::arg("num_first_steps_with_linear_effects_only") = 400,
+             py::arg("early_stopping_rounds") = 500, py::arg("num_first_steps_with_linear_effects_only") = 0,
              py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.0, py::arg("max_terms") = 0)
         .def("fit", &APLRRegressor::fit, py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("cv_observations") = MatrixXd(0, 0), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),
@@ -289,7 +289,7 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("max_interaction_level") = 1, py::arg("max_interactions") = 100000, py::arg("min_observations_in_split") = 2,
              py::arg("ineligible_boosting_steps_added") = 10, py::arg("max_eligible_terms") = 5,
              py::arg("boosting_steps_before_interactions_are_allowed") = 500, py::arg("monotonic_constraints_ignore_interactions") = false,
-             py::arg("early_stopping_rounds") = 500, py::arg("num_first_steps_with_linear_effects_only") = 400,
+             py::arg("early_stopping_rounds") = 500, py::arg("num_first_steps_with_linear_effects_only") = 0,
              py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.0, py::arg("max_terms") = 0)
         .def("fit", &APLRClassifier::fit, py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("cv_observations") = MatrixXd(0, 0), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),
