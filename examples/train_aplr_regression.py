@@ -54,6 +54,7 @@ for params in param_grid:
         v=0.1,
         loss_function=loss_function,
         link_function=link_function,
+        boosting_steps_before_interactions_are_allowed=0,
         # max_terms=10,  # Optionally tune this to find a trade-off between interpretability and predictiveness. May require a higher learning rate for best results.
         **params,
     )
