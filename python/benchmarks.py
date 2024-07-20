@@ -2,16 +2,6 @@
 
 import joblib
 
-# %%
-xgboost_ver = "2.1.0"
-import xgboost
-
-if xgboost.__version__ != xgboost_ver:
-    raise Exception(
-        f"To preserve rank ordering we require xgboost=={xgboost_ver}, but have xgboost=={xgboost.__version__}"
-    )
-
-# %%
 try:
     completed_so_far = joblib.load("completed_so_far.zip")
 except:
@@ -31,11 +21,11 @@ def trial_filter(task):
     if task.origin == "openml":
         exclude_set = set()
         #        exclude_set = set(['isolet', 'Devnagari-Script', 'CIFAR_10'])
-        #        exclude_set = set([
-        #            'Fashion-MNIST', 'mfeat-pixel', 'Bioresponse',
-        #            'mfeat-factors', 'isolet', 'cnae-9', "Internet-Advertisements",
-        #            'har', 'Devnagari-Script', 'mnist_784', 'CIFAR_10',
-        #        ])
+        exclude_set = set([
+            'Fashion-MNIST', 'mfeat-pixel', 'Bioresponse',
+            'mfeat-factors', 'isolet', 'cnae-9', "Internet-Advertisements",
+            'har', 'Devnagari-Script', 'mnist_784', 'CIFAR_10',
+        ])
         if task.name in exclude_set:
             return []
     elif task.origin == "pmlb":
@@ -48,7 +38,7 @@ def trial_filter(task):
         else:
             raise Exception(f"Unrecognized task problem {task.problem}")
 
-        exclude_set = set()
+        exclude_set = set(["1595_poker"])
         if task.name in exclude_set:
             return []
     else:
