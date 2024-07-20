@@ -57,7 +57,7 @@ def trial_runner(trial):
     seed = 42
 
     from lightgbm import LGBMClassifier, LGBMRegressor
-    from aplr import APLRClassifier, APLRRegressor
+    from aplr import APLRTuner
     from sklearn.metrics import roc_auc_score, r2_score, log_loss
     from sklearn.model_selection import train_test_split, GridSearchCV, ParameterGrid
     from sklearn.preprocessing import OneHotEncoder, FunctionTransformer
@@ -123,7 +123,7 @@ def trial_runner(trial):
                     ("ct", ct),
                     (
                         "est",
-                        APLRClassifier(),
+                        APLRTuner(parameters=aplr_parameters,is_regressor=False),
                     ),
                 ]
             )
@@ -134,17 +134,15 @@ def trial_runner(trial):
 
         predict_fn = est.predict_proba
     elif trial.task.problem == "regression":
-        if trial.method.name == "xgboost-base":
-            est = XGBRegressor(enable_categorical=True)
-        elif trial.method.name == "ebm-base":
-            est = ExplainableBoostingRegressor(**extra_params)
-        elif trial.method.name == "aplr-base":
+        if trial.method.name == "lightgbm":
+            est = GridSearchCV(estimator=LGBMRegressor(random_state=seed),param_grid=lightgbm_parameters)
+        elif trial.method.name == "aplr":
             est = Pipeline(
                 [
                     ("ct", ct),
                     (
                         "est",
-                        APLRRegressor(),
+                        APLRTuner(parameters=aplr_parameters,is_regressor=True),
                     ),
                 ]
             )
@@ -201,15 +199,12 @@ def trial_runner(trial):
         # and the range is not sensitive to outliers. The rank is identical to RMSE.
         # https://en.wikipedia.org/wiki/Root_mean_square_deviation
 
-        q75, q25 = np.percentile(y_train, [75, 25])
-        interquartile_range = q75 - q25
-
-        eval_score = root_mean_squared_error(y_test, predictions) / interquartile_range
-        trial.log("nrmse", eval_score)
+        eval_score = r2_score(y_test, predictions)
+        trial.log("rsqr", eval_score)
     else:
         raise Exception(f"Unrecognized task problem {trial.task.problem}")
 
-    if trial.method.name == "aplr-base":
+    if trial.method.name == "aplr":
         completed_so_far.add(trial._task.name)
         joblib.dump(completed_so_far, "completed_so_far.zip", 9)
         try:
@@ -228,7 +223,6 @@ def trial_runner(trial):
     print(eval_score)
 
 
-# %%
 force_recreate = False
 exist_ok = True
 
