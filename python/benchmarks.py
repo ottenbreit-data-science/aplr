@@ -123,7 +123,7 @@ def trial_runner(trial):
     # Parameter grids
     lightgbm_parameters = {
         "n_estimators": [10, 100, 500, 1000, 2000, 3000],
-        "num_leaves": [131072],
+        "num_leaves": [4],
         "max_depth": [1, 2],
     }
     aplr_parameters = ParameterGrid(
