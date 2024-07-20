@@ -1,4 +1,4 @@
-from typing import List, Callable, Optional, Dict
+from typing import List, Callable, Optional, Dict, Union
 import numpy as np
 import aplr_cpp
 
@@ -536,7 +536,7 @@ class APLRClassifier:
 class APLRTuner:
     def __init__(
         self,
-        parameters: Dict[str, List[float]] | List[Dict[str, List[float]]],
+        parameters: Union[Dict[str, List[float]], List[Dict[str, List[float]]]],
         is_regressor: bool = True,
     ):
         from sklearn.model_selection import ParameterGrid
@@ -573,7 +573,7 @@ class APLRTuner:
                 "predict_proba is only possible if the estimator is an APLRClassifier"
             )
 
-    def get_best_estimator(self) -> APLRClassifier | APLRRegressor:
+    def get_best_estimator(self) -> Union[APLRClassifier, APLRRegressor]:
         return self.best_model
 
     def get_cv_results(self):
