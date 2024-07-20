@@ -555,6 +555,7 @@ class APLRTuner:
             if cv_error_for_this_model < best_validation_result:
                 best_validation_result = cv_error_for_this_model
                 self.best_model = model
+        self.cv_results = self.cv_results.sort_values(by="cv_error")
 
     def predict(self, **kwargs):
         self.best_model.predict(**kwargs)
