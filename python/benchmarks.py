@@ -254,21 +254,17 @@ populate_with_datasets(store, data_retrieval, exist_ok=exist_ok)
 benchmark = Benchmark(store, name=experiment_name)
 benchmark.run(trial_runner, trial_filter, executor=LocalMachine(store, debug_mode=True))
 
-# %%
 benchmark.wait_until_complete()
 
-# %%
 # re-establish connection
 # benchmark = Benchmark(conn_str, name=experiment_name)
 
-# %%
 status_df = benchmark.status()
 for errmsg in status_df["errmsg"]:
     if errmsg is not None:
         print("ERROR: " + str(errmsg))
 print(status_df["status"].value_counts().to_string(index=True, header=False))
 
-# %%
 # reload if analyzing later
 results_df = joblib.load("benchmark_results_so_far.zip")
 
