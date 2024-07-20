@@ -21,11 +21,21 @@ def trial_filter(task):
     if task.origin == "openml":
         exclude_set = set()
         #        exclude_set = set(['isolet', 'Devnagari-Script', 'CIFAR_10'])
-        exclude_set = set([
-            'Fashion-MNIST', 'mfeat-pixel', 'Bioresponse',
-            'mfeat-factors', 'isolet', 'cnae-9', "Internet-Advertisements",
-            'har', 'Devnagari-Script', 'mnist_784', 'CIFAR_10',
-        ])
+        exclude_set = set(
+            [
+                "Fashion-MNIST",
+                "mfeat-pixel",
+                "Bioresponse",
+                "mfeat-factors",
+                "isolet",
+                "cnae-9",
+                "Internet-Advertisements",
+                "har",
+                "Devnagari-Script",
+                "mnist_784",
+                "CIFAR_10",
+            ]
+        )
         if task.name in exclude_set:
             return []
     elif task.origin == "pmlb":
@@ -52,6 +62,7 @@ def trial_filter(task):
         "lightgbm",
         "aplr",
     ]
+
 
 def trial_runner(trial):
     seed = 42
@@ -109,21 +120,32 @@ def trial_runner(trial):
         ]
     )
 
-    #Parameter grids
-    lightgbm_parameters={"n_estimators":[10,100,500,1000,2000,3000],"num_leaves":[2,4,8,32,128,256]}
-    aplr_parameters=ParameterGrid({"max_interaction_level":[0,1],"min_observations_in_split":[2,20,100,500,1000]})
+    # Parameter grids
+    lightgbm_parameters = {
+        "n_estimators": [10, 100, 500, 1000, 2000, 3000],
+        "num_leaves": [2, 4, 8, 32, 128, 256],
+    }
+    aplr_parameters = ParameterGrid(
+        {
+            "max_interaction_level": [0, 1],
+            "min_observations_in_split": [2, 20, 100, 500, 1000],
+        }
+    )
 
     # Specify method
     if trial.task.problem in ["binary", "multiclass"]:
         if trial.method.name == "lightgbm":
-            est = GridSearchCV(estimator=LGBMClassifier(random_state=seed),param_grid=lightgbm_parameters)
+            est = GridSearchCV(
+                estimator=LGBMClassifier(random_state=seed),
+                param_grid=lightgbm_parameters,
+            )
         elif trial.method.name == "aplr-base":
             est = Pipeline(
                 [
                     ("ct", ct),
                     (
                         "est",
-                        APLRTuner(parameters=aplr_parameters,is_regressor=False),
+                        APLRTuner(parameters=aplr_parameters, is_regressor=False),
                     ),
                 ]
             )
@@ -135,14 +157,17 @@ def trial_runner(trial):
         predict_fn = est.predict_proba
     elif trial.task.problem == "regression":
         if trial.method.name == "lightgbm":
-            est = GridSearchCV(estimator=LGBMRegressor(random_state=seed),param_grid=lightgbm_parameters)
+            est = GridSearchCV(
+                estimator=LGBMRegressor(random_state=seed),
+                param_grid=lightgbm_parameters,
+            )
         elif trial.method.name == "aplr":
             est = Pipeline(
                 [
                     ("ct", ct),
                     (
                         "est",
-                        APLRTuner(parameters=aplr_parameters,is_regressor=True),
+                        APLRTuner(parameters=aplr_parameters, is_regressor=True),
                     ),
                 ]
             )
