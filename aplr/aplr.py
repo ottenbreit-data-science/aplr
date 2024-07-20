@@ -549,7 +549,6 @@ class APLRTuner:
 
         self.cv_results = pd.DataFrame()
         best_validation_result = np.inf
-
         for params in self.parameters:
             if self.is_regressor:
                 model = APLRRegressor(**params)
