@@ -49,26 +49,17 @@ def trial_filter(task):
         return []
 
     return [
-        "xgboost-base",
-        "ebm-base",
-        "aplr-base",
+        "lightgbm",
+        "aplr",
     ]
 
-
-# %%
 def trial_runner(trial):
     seed = 42
-    extra_params = {}
-    # extra_params = {"interactions":0, "max_rounds":5}
 
-    from xgboost import XGBClassifier, XGBRegressor
-    from interpret.glassbox import (
-        ExplainableBoostingClassifier,
-        ExplainableBoostingRegressor,
-    )
+    from lightgbm import LGBMClassifier, LGBMRegressor
     from aplr import APLRClassifier, APLRRegressor
-    from sklearn.metrics import roc_auc_score, root_mean_squared_error, log_loss
-    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import roc_auc_score, r2_score, log_loss
+    from sklearn.model_selection import train_test_split, GridSearchCV, ParameterGrid
     from sklearn.preprocessing import OneHotEncoder, FunctionTransformer
     from sklearn.compose import ColumnTransformer
     from sklearn.impute import SimpleImputer
@@ -118,12 +109,14 @@ def trial_runner(trial):
         ]
     )
 
+    #Parameter grids
+    lightgbm_parameters={"n_estimators":[10,100,500,1000,2000,3000],"num_leaves":[2,4,8,32,128,256]}
+    aplr_parameters=ParameterGrid({"max_interaction_level":[0,1],"min_observations_in_split":[2,20,100,500,1000]})
+
     # Specify method
     if trial.task.problem in ["binary", "multiclass"]:
-        if trial.method.name == "xgboost-base":
-            est = XGBClassifier(enable_categorical=True)
-        elif trial.method.name == "ebm-base":
-            est = ExplainableBoostingClassifier(**extra_params)
+        if trial.method.name == "lightgbm":
+            est = GridSearchCV(estimator=LGBMClassifier(random_state=seed),param_grid=lightgbm_parameters)
         elif trial.method.name == "aplr-base":
             est = Pipeline(
                 [

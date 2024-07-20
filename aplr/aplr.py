@@ -531,3 +531,42 @@ class APLRClassifier:
     # For sklearn
     def predict_proba(self, X: FloatMatrix) -> FloatMatrix:
         return self.predict_class_probabilities(X)
+
+
+class APLRTuner:
+    def __init__(self, parameters:Dict[str,List[float]] | List[Dict[str,List[float]]], is_regressor:bool=True):
+        from sklearn.model_selection import ParameterGrid
+        self.parameters=ParameterGrid(parameters)
+        self.is_regressor=is_regressor
+
+    def fit(self, **kwargs):
+        import pandas as pd
+        self.cv_results = pd.DataFrame()
+        best_validation_result = np.inf
+
+        for params in self.parameters:
+            if self.is_regressor:
+                model=APLRRegressor(**params)
+            model.fit(**kwargs)
+            cv_error_for_this_model = model.get_cv_error()
+            cv_results_for_this_model = pd.DataFrame(model.get_params(), index=[0])
+            cv_results_for_this_model["cv_error"] = cv_error_for_this_model
+            self.cv_results = pd.concat([self.cv_results, cv_results_for_this_model])
+            if cv_error_for_this_model < best_validation_result:
+                best_validation_result = cv_error_for_this_model
+                self.best_model = model
+
+    def predict(self, **kwargs):
+        self.best_model.predict(**kwargs)
+
+    def predict_proba(self, **kwargs):
+        if self.is_regressor==False:
+            self.best_model.predict_proba(**kwargs)
+        else:
+            raise TypeError("predict_proba is only possible if the estimator is an APLRClassifier")
+        
+    def get_best_estimator(self)->APLRClassifier | APLRRegressor:
+        return self.best_model
+    
+    def get_cv_results(self):
+        return self.cv_results
