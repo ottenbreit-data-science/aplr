@@ -552,6 +552,8 @@ class APLRTuner:
         for params in self.parameters:
             if self.is_regressor:
                 model = APLRRegressor(**params)
+            else:
+                model = APLRClassifier(**params)
             model.fit(X, y, **kwargs)
             cv_error_for_this_model = model.get_cv_error()
             cv_results_for_this_model = pd.DataFrame(model.get_params(), index=[0])
