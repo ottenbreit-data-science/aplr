@@ -545,9 +545,7 @@ class APLRTuner:
         self.is_regressor = is_regressor
 
     def fit(self, X: FloatMatrix, y: FloatVector, **kwargs):
-        import pandas as pd
-
-        self.cv_results = pd.DataFrame()
+        self.cv_results:List[Dict[str,float]] = []
         best_validation_result = np.inf
         for params in self.parameters:
             if self.is_regressor:
@@ -556,13 +554,13 @@ class APLRTuner:
                 model = APLRClassifier(**params)
             model.fit(X, y, **kwargs)
             cv_error_for_this_model = model.get_cv_error()
-            cv_results_for_this_model = pd.DataFrame(model.get_params(), index=[0])
+            cv_results_for_this_model = model.get_params()
             cv_results_for_this_model["cv_error"] = cv_error_for_this_model
-            self.cv_results = pd.concat([self.cv_results, cv_results_for_this_model])
+            self.cv_results.append(cv_results_for_this_model)
             if cv_error_for_this_model < best_validation_result:
                 best_validation_result = cv_error_for_this_model
                 self.best_model = model
-        self.cv_results = self.cv_results.sort_values(by="cv_error")
+        self.cv_results = sorted(self.cv_results, key=lambda x: x["cv_error"])
 
     def predict(self, X: FloatMatrix, **kwargs)->Union[FloatVector,List[str]]:
         return self.best_model.predict(X, **kwargs)
@@ -578,5 +576,5 @@ class APLRTuner:
     def get_best_estimator(self) -> Union[APLRClassifier, APLRRegressor]:
         return self.best_model
 
-    def get_cv_results(self):
+    def get_cv_results(self)->List[Dict[str,float]]:
         return self.cv_results
