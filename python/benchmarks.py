@@ -196,6 +196,14 @@ def trial_runner(trial):
         est.fit(X_train, y_train)
         elapsed_time = time() - start_time
     trial.log("fit_time", elapsed_time)
+    if trial.method.name == "aplr":
+        model: APLRTuner = est[1]
+        best_results = model.get_cv_results()[0]
+        for param in aplr_parameters:
+            trial.log(param, best_results[param])
+        trial.log("rows", X_train.shape[0])
+        trial.log("columns", X_train.shape[1])
+        trial.log("columns_transformed", ct.transform(X_train).shape[1])
 
     # Predict
     start_time = time()
