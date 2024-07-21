@@ -130,6 +130,7 @@ def trial_runner(trial):
         "max_interaction_level": [0, 1],
         "min_observations_in_split": [2, 20, 100, 500, 1000],
         "v": [0.5],
+        "m": [10000],
     }
 
     # Specify method
