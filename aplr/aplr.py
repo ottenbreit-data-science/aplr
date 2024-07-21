@@ -1,6 +1,7 @@
 from typing import List, Callable, Optional, Dict, Union
 import numpy as np
 import aplr_cpp
+import itertools
 
 FloatVector = np.ndarray
 FloatMatrix = np.ndarray
@@ -539,15 +540,21 @@ class APLRTuner:
         parameters: Union[Dict[str, List[float]], List[Dict[str, List[float]]]],
         is_regressor: bool = True,
     ):
-        from sklearn.model_selection import ParameterGrid
-
-        self.parameters = ParameterGrid(parameters)
+        self.parameters = parameters
         self.is_regressor = is_regressor
+        self.parameter_grid = self._create_parameter_grid()
+
+    def _create_parameter_grid(self)->List[Dict[str, float]]:
+        items = sorted(self.parameters.items())
+        keys, values = zip(*items)
+        combinations = list(itertools.product(*values))
+        grid = [dict(zip(keys, combination)) for combination in combinations]
+        return grid
 
     def fit(self, X: FloatMatrix, y: FloatVector, **kwargs):
         self.cv_results:List[Dict[str,float]] = []
         best_validation_result = np.inf
-        for params in self.parameters:
+        for params in self.parameter_grid:
             if self.is_regressor:
                 model = APLRRegressor(**params)
             else:
