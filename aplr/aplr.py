@@ -571,14 +571,17 @@ class APLRTuner:
 
     def predict(self, X: FloatMatrix, **kwargs)->Union[FloatVector,List[str]]:
         return self.best_model.predict(X, **kwargs)
-
-    def predict_proba(self, X: FloatMatrix, **kwargs)->FloatMatrix:
+    
+    def predict_class_probabilities(self, X: FloatMatrix, **kwargs)->FloatMatrix:
         if self.is_regressor == False:
-            return self.best_model.predict_proba(X, **kwargs)
+            return self.best_model.predict_class_probabilities(X, **kwargs)
         else:
             raise TypeError(
-                "predict_proba is only possible when is_regressor is False"
+                "predict_class_probabilities is only possible when is_regressor is False"
             )
+        
+    def predict_proba(self, X: FloatMatrix, **kwargs)->FloatMatrix:
+        return self.predict_class_probabilities(X, **kwargs)
 
     def get_best_estimator(self) -> Union[APLRClassifier, APLRRegressor]:
         return self.best_model
