@@ -564,15 +564,15 @@ class APLRTuner:
                 self.best_model = model
         self.cv_results = self.cv_results.sort_values(by="cv_error")
 
-    def predict(self, X: FloatMatrix, **kwargs):
-        self.best_model.predict(X, **kwargs)
+    def predict(self, X: FloatMatrix, **kwargs)->Union[FloatVector,List[str]]:
+        return self.best_model.predict(X, **kwargs)
 
-    def predict_proba(self, X: FloatMatrix, **kwargs):
+    def predict_proba(self, X: FloatMatrix, **kwargs)->FloatMatrix:
         if self.is_regressor == False:
-            self.best_model.predict_proba(X, **kwargs)
+            return self.best_model.predict_proba(X, **kwargs)
         else:
             raise TypeError(
-                "predict_proba is only possible if the estimator is an APLRClassifier"
+                "predict_proba is only possible when is_regressor is False"
             )
 
     def get_best_estimator(self) -> Union[APLRClassifier, APLRRegressor]:
