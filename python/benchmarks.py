@@ -122,8 +122,9 @@ def trial_runner(trial):
 
     # Parameter grids
     lightgbm_parameters = {
-        "n_estimators": [10],#, 100, 500, 1000, 2000, 3000],
-        "num_leaves": [2]#, 3, 4],
+        "n_estimators": [10, 100, 500, 1000, 2000, 3000],
+        "num_leaves": [2, 3, 4],
+        "verbosity": [0],
     }
     aplr_parameters = {
         "max_interaction_level": [0, 1],
