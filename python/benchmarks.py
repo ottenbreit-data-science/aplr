@@ -122,7 +122,7 @@ def trial_runner(trial):
 
     # Parameter grids
     lightgbm_parameters = {
-        "n_estimators": [10, 100, 500, 1000, 2000, 3000],
+        "n_estimators": [10, 100, 500, 1000, 2000, 3000, 5000, 10000, 20000],
         "num_leaves": [2, 3, 4],
         "verbosity": [0],
     }
