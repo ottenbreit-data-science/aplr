@@ -544,7 +544,7 @@ class APLRTuner:
         self.parameters = ParameterGrid(parameters)
         self.is_regressor = is_regressor
 
-    def fit(self, **kwargs):
+    def fit(self, X: FloatMatrix, y: FloatVector, **kwargs):
         import pandas as pd
 
         self.cv_results = pd.DataFrame()
@@ -552,7 +552,7 @@ class APLRTuner:
         for params in self.parameters:
             if self.is_regressor:
                 model = APLRRegressor(**params)
-            model.fit(**kwargs)
+            model.fit(X, y, **kwargs)
             cv_error_for_this_model = model.get_cv_error()
             cv_results_for_this_model = pd.DataFrame(model.get_params(), index=[0])
             cv_results_for_this_model["cv_error"] = cv_error_for_this_model
@@ -562,12 +562,12 @@ class APLRTuner:
                 self.best_model = model
         self.cv_results = self.cv_results.sort_values(by="cv_error")
 
-    def predict(self, **kwargs):
-        self.best_model.predict(**kwargs)
+    def predict(self, X: FloatMatrix, **kwargs):
+        self.best_model.predict(X, **kwargs)
 
-    def predict_proba(self, **kwargs):
+    def predict_proba(self, X: FloatMatrix, **kwargs):
         if self.is_regressor == False:
-            self.best_model.predict_proba(**kwargs)
+            self.best_model.predict_proba(X, **kwargs)
         else:
             raise TypeError(
                 "predict_proba is only possible if the estimator is an APLRClassifier"
