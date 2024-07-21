@@ -122,16 +122,14 @@ def trial_runner(trial):
 
     # Parameter grids
     lightgbm_parameters = {
-        "n_estimators": [10, 100, 500, 1000, 2000, 3000],
-        "num_leaves": [2, 3, 4],
+        "n_estimators": [10],#, 100, 500, 1000, 2000, 3000],
+        "num_leaves": [2]#, 3, 4],
     }
-    aplr_parameters = ParameterGrid(
-        {
-            "max_interaction_level": [0, 1],
-            "min_observations_in_split": [2, 20, 100, 500, 1000],
-            "v": [0.5],
-        }
-    )
+    aplr_parameters = {
+        "max_interaction_level": [0, 1],
+        "min_observations_in_split": [2, 20, 100, 500, 1000],
+        "v": [0.5],
+    }
 
     # Specify method
     if trial.task.problem in ["binary", "multiclass"]:
@@ -140,7 +138,7 @@ def trial_runner(trial):
                 estimator=LGBMClassifier(random_state=seed),
                 param_grid=lightgbm_parameters,
             )
-        elif trial.method.name == "aplr-base":
+        elif trial.method.name == "aplr":
             est = Pipeline(
                 [
                     ("ct", ct),
