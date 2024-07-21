@@ -544,7 +544,7 @@ class APLRTuner:
         self.is_regressor = is_regressor
         self.parameter_grid = self._create_parameter_grid()
 
-    def _create_parameter_grid(self)->List[Dict[str, float]]:
+    def _create_parameter_grid(self) -> List[Dict[str, float]]:
         items = sorted(self.parameters.items())
         keys, values = zip(*items)
         combinations = list(itertools.product(*values))
@@ -552,7 +552,7 @@ class APLRTuner:
         return grid
 
     def fit(self, X: FloatMatrix, y: FloatVector, **kwargs):
-        self.cv_results:List[Dict[str,float]] = []
+        self.cv_results: List[Dict[str, float]] = []
         best_validation_result = np.inf
         for params in self.parameter_grid:
             if self.is_regressor:
@@ -569,22 +569,22 @@ class APLRTuner:
                 self.best_model = model
         self.cv_results = sorted(self.cv_results, key=lambda x: x["cv_error"])
 
-    def predict(self, X: FloatMatrix, **kwargs)->Union[FloatVector,List[str]]:
+    def predict(self, X: FloatMatrix, **kwargs) -> Union[FloatVector, List[str]]:
         return self.best_model.predict(X, **kwargs)
-    
-    def predict_class_probabilities(self, X: FloatMatrix, **kwargs)->FloatMatrix:
+
+    def predict_class_probabilities(self, X: FloatMatrix, **kwargs) -> FloatMatrix:
         if self.is_regressor == False:
             return self.best_model.predict_class_probabilities(X, **kwargs)
         else:
             raise TypeError(
                 "predict_class_probabilities is only possible when is_regressor is False"
             )
-        
-    def predict_proba(self, X: FloatMatrix, **kwargs)->FloatMatrix:
+
+    def predict_proba(self, X: FloatMatrix, **kwargs) -> FloatMatrix:
         return self.predict_class_probabilities(X, **kwargs)
 
     def get_best_estimator(self) -> Union[APLRClassifier, APLRRegressor]:
         return self.best_model
 
-    def get_cv_results(self)->List[Dict[str,float]]:
+    def get_cv_results(self) -> List[Dict[str, float]]:
         return self.cv_results
