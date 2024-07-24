@@ -34,10 +34,12 @@ def trial_filter(task):
                 "Devnagari-Script",
                 "mnist_784",
                 "CIFAR_10",
+                "letter",
             ]
         )
         if task.name in exclude_set:
             return []
+        return []
     elif task.origin == "pmlb":
         if task.problem == "binary":
             return []
@@ -59,7 +61,7 @@ def trial_filter(task):
         return []
 
     return [
-        "lightgbm",
+        # "lightgbm",
         "aplr",
     ]
 
@@ -69,7 +71,7 @@ def trial_runner(trial):
 
     from lightgbm import LGBMClassifier, LGBMRegressor
     from aplr import APLRTuner
-    from sklearn.metrics import roc_auc_score, r2_score, log_loss
+    from sklearn.metrics import roc_auc_score, root_mean_squared_error, log_loss
     from sklearn.model_selection import train_test_split, GridSearchCV, ParameterGrid
     from sklearn.preprocessing import OneHotEncoder, FunctionTransformer
     from sklearn.compose import ColumnTransformer
@@ -129,7 +131,7 @@ def trial_runner(trial):
     aplr_parameters = {
         "max_interaction_level": [0, 1],
         "min_observations_in_split": [2, 20, 100, 500, 1000],
-        "v": [0.5],
+        "v": [0.1, 0.5],
         "m": [10000],
     }
 
@@ -233,8 +235,11 @@ def trial_runner(trial):
         # and the range is not sensitive to outliers. The rank is identical to RMSE.
         # https://en.wikipedia.org/wiki/Root_mean_square_deviation
 
-        eval_score = r2_score(y_test, predictions)
-        trial.log("rsqr", eval_score)
+        q75, q25 = np.percentile(y_train, [75, 25])
+        interquartile_range = q75 - q25
+
+        eval_score = root_mean_squared_error(y_test, predictions) / interquartile_range
+        trial.log("nrmse", eval_score)
     else:
         raise Exception(f"Unrecognized task problem {trial.task.problem}")
 
