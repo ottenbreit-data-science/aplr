@@ -131,8 +131,8 @@ def trial_runner(trial):
     aplr_parameters = {
         "max_interaction_level": [0, 1],
         "min_observations_in_split": [2, 10, 20, 100, 500, 1000],
-        "v": [0.5],
-        "m": [4000],
+        "v": [0.1],
+        "max_terms": [2000],
     }
 
     # Specify method
