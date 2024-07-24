@@ -71,7 +71,7 @@ def trial_runner(trial):
 
     from lightgbm import LGBMClassifier, LGBMRegressor
     from aplr import APLRTuner
-    from sklearn.metrics import roc_auc_score, root_mean_squared_error, log_loss
+    from sklearn.metrics import roc_auc_score, root_mean_squared_error, r2_score, log_loss
     from sklearn.model_selection import train_test_split, GridSearchCV, ParameterGrid
     from sklearn.preprocessing import OneHotEncoder, FunctionTransformer
     from sklearn.compose import ColumnTransformer
@@ -240,6 +240,9 @@ def trial_runner(trial):
 
         eval_score = root_mean_squared_error(y_test, predictions) / interquartile_range
         trial.log("nrmse", eval_score)
+
+        rsqr = r2_score(y_test, predictions)
+        trial.log("rsqr", rsqr)
     else:
         raise Exception(f"Unrecognized task problem {trial.task.problem}")
 
