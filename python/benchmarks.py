@@ -210,14 +210,19 @@ def trial_runner(trial):
     # Predict
     start_time = time()
     predictions = predict_fn(X_test)
+    predictions_train = predict_fn(X_train)
     elapsed_time = time() - start_time
     trial.log("predict_time", elapsed_time)
 
     if trial.task.problem == "binary":
         predictions = predictions[:, 1]
+        predictions_train = predictions_train[:, 1]
 
         eval_score = roc_auc_score(y_test, predictions)
         trial.log("auc", eval_score)
+
+        eval_score_train = roc_auc_score(y_train, predictions_train)
+        trial.log("auc_train", eval_score_train)
 
         eval_score2 = log_loss(y_test, predictions)
         trial.log("log_loss", eval_score2)
@@ -226,6 +231,11 @@ def trial_runner(trial):
             y_test, predictions, average="weighted", multi_class="ovo"
         )
         trial.log("multi_auc", eval_score)
+
+        eval_score_train = roc_auc_score(
+            y_train, predictions_train, average="weighted", multi_class="ovo"
+        )
+        trial.log("multi_auc_train", eval_score_train)
 
         eval_score2 = log_loss(y_test, predictions)
         trial.log("cross_entropy", eval_score2)
@@ -243,6 +253,9 @@ def trial_runner(trial):
 
         rsqr = r2_score(y_test, predictions)
         trial.log("rsqr", rsqr)
+
+        rsqr_train = r2_score(y_train, predictions_train)
+        trial.log("rsqr_train", rsqr_train)
     else:
         raise Exception(f"Unrecognized task problem {trial.task.problem}")
 
