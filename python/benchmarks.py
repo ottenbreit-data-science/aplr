@@ -335,6 +335,9 @@ def trial_runner(trial):
         raise Exception(f"Unrecognized task problem {trial.task.problem}")
 
     if trial.method.name == "aplr-base":
+        trial.log("rows", X_train.shape[0])
+        trial.log("columns", X_train.shape[1])
+        trial.log("columns_transformed", ct.transform(X_train).shape[1])
         completed_so_far.add(trial._task.name)
         joblib.dump(completed_so_far, "completed_so_far.zip", 9)
         try:
