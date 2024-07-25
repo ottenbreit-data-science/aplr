@@ -39,7 +39,6 @@ def trial_filter(task):
         )
         if task.name in exclude_set:
             return []
-        return []
     elif task.origin == "pmlb":
         if task.problem == "binary":
             return []
@@ -61,18 +60,26 @@ def trial_filter(task):
         return []
 
     return [
-        # "lightgbm",
-        "aplr",
+        "xgboost-base",
+        "ebm-base",
+        "aplr-base",
     ]
 
 
+# %%
 def trial_runner(trial):
     seed = 42
+    extra_params = {}
+    # extra_params = {"interactions":0, "max_rounds":5}
 
-    from lightgbm import LGBMClassifier, LGBMRegressor
-    from aplr import APLRTuner
-    from sklearn.metrics import roc_auc_score, root_mean_squared_error, r2_score, log_loss
-    from sklearn.model_selection import train_test_split, GridSearchCV, ParameterGrid
+    from xgboost import XGBClassifier, XGBRegressor
+    from interpret.glassbox import (
+        ExplainableBoostingClassifier,
+        ExplainableBoostingRegressor,
+    )
+    from aplr import APLRClassifier, APLRRegressor
+    from sklearn.metrics import roc_auc_score, r2_score, log_loss
+    from sklearn.model_selection import train_test_split
     from sklearn.preprocessing import OneHotEncoder, FunctionTransformer
     from sklearn.compose import ColumnTransformer
     from sklearn.impute import SimpleImputer
@@ -122,33 +129,19 @@ def trial_runner(trial):
         ]
     )
 
-    # Parameter grids
-    lightgbm_parameters = {
-        "n_estimators": [10, 100, 500, 1000, 2000, 3000, 5000, 10000, 20000],
-        "num_leaves": [2, 3, 4],
-        "verbosity": [0],
-    }
-    aplr_parameters = {
-        "max_interaction_level": [0, 1],
-        "min_observations_in_split": [2, 10, 20, 100, 1000],
-        "v": [0.5],
-        "max_terms": [2000],
-    }
-
     # Specify method
     if trial.task.problem in ["binary", "multiclass"]:
-        if trial.method.name == "lightgbm":
-            est = GridSearchCV(
-                estimator=LGBMClassifier(random_state=seed),
-                param_grid=lightgbm_parameters,
-            )
-        elif trial.method.name == "aplr":
+        if trial.method.name == "xgboost-base":
+            est = XGBClassifier(enable_categorical=True)
+        elif trial.method.name == "ebm-base":
+            est = ExplainableBoostingClassifier(**extra_params)
+        elif trial.method.name == "aplr-base":
             est = Pipeline(
                 [
                     ("ct", ct),
                     (
                         "est",
-                        APLRTuner(parameters=aplr_parameters, is_regressor=False),
+                        APLRClassifier(),
                     ),
                 ]
             )
@@ -159,18 +152,17 @@ def trial_runner(trial):
 
         predict_fn = est.predict_proba
     elif trial.task.problem == "regression":
-        if trial.method.name == "lightgbm":
-            est = GridSearchCV(
-                estimator=LGBMRegressor(random_state=seed),
-                param_grid=lightgbm_parameters,
-            )
-        elif trial.method.name == "aplr":
+        if trial.method.name == "xgboost-base":
+            est = XGBRegressor(enable_categorical=True)
+        elif trial.method.name == "ebm-base":
+            est = ExplainableBoostingRegressor(**extra_params)
+        elif trial.method.name == "aplr-base":
             est = Pipeline(
                 [
                     ("ct", ct),
                     (
                         "est",
-                        APLRTuner(parameters=aplr_parameters, is_regressor=True),
+                        APLRRegressor(),
                     ),
                 ]
             )
@@ -198,31 +190,18 @@ def trial_runner(trial):
         est.fit(X_train, y_train)
         elapsed_time = time() - start_time
     trial.log("fit_time", elapsed_time)
-    if trial.method.name == "aplr":
-        model: APLRTuner = est[1]
-        best_results = model.get_cv_results()[0]
-        for param in aplr_parameters:
-            trial.log(param, best_results[param])
-        trial.log("rows", X_train.shape[0])
-        trial.log("columns", X_train.shape[1])
-        trial.log("columns_transformed", ct.transform(X_train).shape[1])
 
     # Predict
     start_time = time()
     predictions = predict_fn(X_test)
-    predictions_train = predict_fn(X_train)
     elapsed_time = time() - start_time
     trial.log("predict_time", elapsed_time)
 
     if trial.task.problem == "binary":
         predictions = predictions[:, 1]
-        predictions_train = predictions_train[:, 1]
 
         eval_score = roc_auc_score(y_test, predictions)
         trial.log("auc", eval_score)
-
-        eval_score_train = roc_auc_score(y_train, predictions_train)
-        trial.log("auc_train", eval_score_train)
 
         eval_score2 = log_loss(y_test, predictions)
         trial.log("log_loss", eval_score2)
@@ -232,34 +211,15 @@ def trial_runner(trial):
         )
         trial.log("multi_auc", eval_score)
 
-        eval_score_train = roc_auc_score(
-            y_train, predictions_train, average="weighted", multi_class="ovo"
-        )
-        trial.log("multi_auc_train", eval_score_train)
-
         eval_score2 = log_loss(y_test, predictions)
         trial.log("cross_entropy", eval_score2)
     elif trial.task.problem == "regression":
-        # Use NRMSE-IQR (normalized root mean square error by the interquartile range)
-        # so that datasets with large predicted values do not dominate the benchmark
-        # and the range is not sensitive to outliers. The rank is identical to RMSE.
-        # https://en.wikipedia.org/wiki/Root_mean_square_deviation
-
-        q75, q25 = np.percentile(y_train, [75, 25])
-        interquartile_range = q75 - q25
-
-        eval_score = root_mean_squared_error(y_test, predictions) / interquartile_range
-        trial.log("nrmse", eval_score)
-
-        rsqr = r2_score(y_test, predictions)
-        trial.log("rsqr", rsqr)
-
-        rsqr_train = r2_score(y_train, predictions_train)
-        trial.log("rsqr_train", rsqr_train)
+        eval_score = r2_score(y_test, predictions)
+        trial.log("rsqr", eval_score)
     else:
         raise Exception(f"Unrecognized task problem {trial.task.problem}")
 
-    if trial.method.name == "aplr":
+    if trial.method.name == "aplr-base":
         completed_so_far.add(trial._task.name)
         joblib.dump(completed_so_far, "completed_so_far.zip", 9)
         try:
@@ -323,7 +283,6 @@ print(status_df["status"].value_counts().to_string(index=True, header=False))
 # reload if analyzing later
 results_df = joblib.load("benchmark_results_so_far.zip")
 
-# %%
 import pandas as pd
 
 averages = (
