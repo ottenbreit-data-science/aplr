@@ -10,7 +10,7 @@ except:
 
 def trial_filter(task):
     min_samples = 1
-    max_samples = 1000000000000
+    max_samples = 500000
 
     if task.scalar_measure("n_rows") < min_samples:
         return []
