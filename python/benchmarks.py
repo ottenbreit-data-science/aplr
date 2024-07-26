@@ -62,12 +62,12 @@ def trial_filter(task):
     return [
         "xgboost-base",
         "ebm-base",
-        "aplr-base",
         "aplr-1",
         "aplr-2",
         "aplr-3",
         "aplr-4",
         "aplr-10",
+        "aplr-base",
     ]
 
 
