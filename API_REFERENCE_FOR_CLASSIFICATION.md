@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int = 20000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 2, ineligible_boosting_steps_added:int = 10, max_eligible_terms:int = 5, boosting_steps_before_interactions_are_allowed: int = 500, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 500, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0)
+## class aplr.APLRClassifier(m:int = 20000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 2, ineligible_boosting_steps_added:int = 10, max_eligible_terms:int = 5, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 500, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0)
 
 ### Constructor parameters
 
@@ -8,7 +8,7 @@
 The maximum number of boosting steps. If validation error does not flatten out at the end of the ***m***th boosting step, then try increasing it (or alternatively increase the learning rate).
 
 #### v (default = 0.5)
-The learning rate. Must be greater than zero and not more than one. The higher the faster the algorithm learns and the lower ***m*** is required, reducing computational costs potentially at the expense of predictiveness. Empirical evidence suggests that ***v <= 0.5*** gives good results for APLR (potentially lower for smaller datasets).
+The learning rate. Must be greater than zero and not more than one. The higher the faster the algorithm learns and the lower ***m*** is required, reducing computational costs potentially at the expense of predictiveness. Empirical evidence suggests that ***v <= 0.5*** gives good results for APLR.
 
 #### random_state (default = 0)
 Used to randomly split training observations into cv_folds if ***cv_observations*** is not specified when fitting.
@@ -31,7 +31,7 @@ Specifies the maximum allowed depth of interaction terms. ***0*** means that int
 #### max_interactions (default = 100000)
 The maximum number of interactions allowed in each underlying model. A lower value may be used to reduce computational time or to increase interpretability.
 
-#### min_observations_in_split (default = 2)
+#### min_observations_in_split (default = 20)
 The minimum effective number of observations that a term in the model must rely on. This hyperparameter should be tuned. Larger values are more appropriate for larger datasets. Larger values result in more robust models (lower variance), potentially at the expense of increased bias.
 
 #### ineligible_boosting_steps_added (default = 10)
@@ -40,8 +40,8 @@ Controls how many boosting steps a term that becomes ineligible has to remain in
 #### max_eligible_terms (default = 5)
 Limits 1) the number of terms already in the model that can be considered as interaction partners in a boosting step and 2) how many terms remain eligible in the next boosting step. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
 
-#### boosting_steps_before_interactions_are_allowed (default = 500)
-Specifies how many boosting steps to wait before searching for interactions. If for example 800, then the algorithm will be forced to only fit main effects in the first 800 boosting steps, after which it is allowed to search for interactions (given that other hyperparameters that control interactions also allow this). The motivation for fitting main effects first may be 1) to get a cleaner looking model that puts more emphasis on main effects and 2) to speed up the algorithm since looking for interactions is computationally more demanding. The default value of 500 combined with the default value of ***max_interaction_level*** (1) often works well.    
+#### boosting_steps_before_interactions_are_allowed (default = 0)
+Specifies how many boosting steps to wait before searching for interactions. If for example 800, then the algorithm will be forced to only fit main effects in the first 800 boosting steps, after which it is allowed to search for interactions (given that other hyperparameters that control interactions also allow this). The motivation for fitting main effects first may be 1) to get a cleaner looking model that puts more emphasis on main effects and 2) to speed up the algorithm since looking for interactions is computationally more demanding.
 
 #### monotonic_constraints_ignore_interactions (default = False)
 See ***monotonic_constraints*** in the ***fit*** method.
