@@ -39,7 +39,7 @@ parameters = {
     "max_interaction_level": [0, 1],
     "min_observations_in_split": [1, 20, 40],
     "verbosity": [2],
-    "m": [3000],
+    "m": [1000],
     "v": [0.5],
 }
 aplr_tuner = APLRTuner(parameters=parameters, is_regressor=False)
