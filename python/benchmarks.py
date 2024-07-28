@@ -401,42 +401,7 @@ print(status_df["status"].value_counts().to_string(index=True, header=False))
 
 # reload if analyzing later
 results_df = joblib.load("benchmark_results_so_far.zip")
-
-import pandas as pd
-
 averages = (
     results_df.groupby(["method", "name"])["num_val"].mean().unstack().reset_index()
 )
-
-metric_ranks = results_df.pivot_table("num_val", ["task", "name"], "method")
-metric_ranks = metric_ranks.rank(axis=1, ascending=True, method="min")
-metric_ranks = metric_ranks.groupby("name").mean().transpose()
-metric_ranks.columns = [f"{col}_RANK" for col in metric_ranks.columns]
-metric_ranks = metric_ranks.reset_index()
-
-overall_rank = results_df[
-    results_df["name"].isin(["log_loss", "cross_entropy", "rsqr"])
-]
-overall_rank = overall_rank.pivot_table("num_val", "task", "method")
-overall_rank = overall_rank.rank(axis=1, ascending=True, method="min")
-overall_rank = overall_rank.mean()
-overall_rank = overall_rank.to_frame(name="RANK").reset_index()
-
-desired_columns = [
-    "method",
-    "RANK",
-    "auc",
-    "multi_auc",
-    "rsqr",
-    "log_loss_RANK",
-    "cross_entropy_RANK",
-    "rsqr_RANK",
-    "fit_time",
-    "predict_time",
-]
-combined_df = averages.merge(metric_ranks, on="method").merge(overall_rank, on="method")
-combined_df = combined_df.reindex(columns=desired_columns)
-combined_df = combined_df.sort_values(by="RANK")
-
-print(combined_df.to_string(index=False))
-combined_df.to_excel("combined_df.xlsx")
+averages.to_excel("averages.xlsx")
