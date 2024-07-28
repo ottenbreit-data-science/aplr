@@ -1,10 +1,10 @@
 # APLRTuner
 
-## class aplr.APLRTuner(parameters: Union[Dict[str, List[float]], List[Dict[str, List[float]]]] = {"max_interaction_level": [0, 1], "min_observations_in_split": [5, 10, 20, 100, 500, 1000]}, is_regressor: bool = True)
+## class aplr.APLRTuner(parameters: Union[Dict[str, List[float]], List[Dict[str, List[float]]]] = {"max_interaction_level": [0, 1], "min_observations_in_split": [4, 10, 20, 100, 500, 1000]}, is_regressor: bool = True)
 
 ### Constructor parameters
 
-#### parameters (default = {"max_interaction_level": [0, 1], "min_observations_in_split": [5, 10, 20, 100, 500, 1000]})
+#### parameters (default = {"max_interaction_level": [0, 1], "min_observations_in_split": [4, 10, 20, 100, 500, 1000]})
 The parameters that you wish to tune.
 
 #### is_regressor (default = True)

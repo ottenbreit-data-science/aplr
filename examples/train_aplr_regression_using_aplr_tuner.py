@@ -40,7 +40,7 @@ link_function = (
 parameters = {
     "random_state": [random_state],
     "max_interaction_level": [0, 1],
-    "min_observations_in_split": [1, 10, 20, 50, 100],
+    "min_observations_in_split": [1, 4, 20, 50, 100, 200],
     "verbosity": [2],
     "m": [20000],
     "v": [0.5],

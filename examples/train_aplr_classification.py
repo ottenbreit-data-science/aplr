@@ -39,7 +39,7 @@ best_validation_result = np.inf
 param_grid = ParameterGrid(
     {
         "max_interaction_level": [0, 1],
-        "min_observations_in_split": [1, 20, 40],
+        "min_observations_in_split": [1, 4, 20, 40],
     }
 )
 best_model: APLRClassifier = None

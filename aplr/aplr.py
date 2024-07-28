@@ -22,7 +22,7 @@ class APLRRegressor:
         bins: int = 300,
         max_interaction_level: int = 1,
         max_interactions: int = 100000,
-        min_observations_in_split: int = 20,
+        min_observations_in_split: int = 4,
         ineligible_boosting_steps_added: int = 10,
         max_eligible_terms: int = 5,
         verbosity: int = 0,
@@ -360,7 +360,7 @@ class APLRClassifier:
         verbosity: int = 0,
         max_interaction_level: int = 1,
         max_interactions: int = 100000,
-        min_observations_in_split: int = 20,
+        min_observations_in_split: int = 4,
         ineligible_boosting_steps_added: int = 10,
         max_eligible_terms: int = 5,
         boosting_steps_before_interactions_are_allowed: int = 0,
@@ -539,7 +539,7 @@ class APLRTuner:
         self,
         parameters: Union[Dict[str, List[float]], List[Dict[str, List[float]]]] = {
             "max_interaction_level": [0, 1],
-            "min_observations_in_split": [5, 10, 20, 100, 500, 1000],
+            "min_observations_in_split": [4, 10, 20, 100, 500, 1000],
         },
         is_regressor: bool = True,
     ):
