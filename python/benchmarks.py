@@ -415,7 +415,7 @@ metric_ranks.columns = [f"{col}_RANK" for col in metric_ranks.columns]
 metric_ranks = metric_ranks.reset_index()
 
 overall_rank = results_df[
-    results_df["name"].isin(["log_loss", "cross_entropy", "nrmse"])
+    results_df["name"].isin(["log_loss", "cross_entropy", "rsqr"])
 ]
 overall_rank = overall_rank.pivot_table("num_val", "task", "method")
 overall_rank = overall_rank.rank(axis=1, ascending=True, method="min")
@@ -427,10 +427,10 @@ desired_columns = [
     "RANK",
     "auc",
     "multi_auc",
-    "nrmse",
+    "rsqr",
     "log_loss_RANK",
     "cross_entropy_RANK",
-    "nrmse_RANK",
+    "rsqr_RANK",
     "fit_time",
     "predict_time",
 ]
