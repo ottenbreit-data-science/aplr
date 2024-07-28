@@ -2,10 +2,10 @@ import pandas as pd
 import numpy as np
 from typing import Dict
 import joblib
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import ParameterGrid, train_test_split
 from sklearn.datasets import load_diabetes
 import matplotlib.pyplot as plt
-from aplr import APLRTuner
+from aplr import APLRRegressor
 
 
 # Settings
@@ -33,24 +33,41 @@ response = "target"
 predicted = "predicted"
 
 # Training model
+cv_results = pd.DataFrame()
+best_validation_result = np.inf
+param_grid = ParameterGrid(
+    {
+        "max_interaction_level": [0, 1],
+        "min_observations_in_split": [1, 20, 50, 100, 200],
+    }
+)
+best_model: APLRRegressor = None
 loss_function = "mse"  # Other available loss functions are binomial, poisson, gamma, tweedie, group_mse, mae, quantile, negative_binomial, cauchy, weibull and custom_function.
 link_function = (
     "identity"  # Other available link functions are logit, log and custom_function.
 )
-parameters = {
-        "random_state": [random_state],
-        "max_interaction_level": [0, 1],
-        "min_observations_in_split": [1, 10, 20, 50, 100],
-        "verbosity": [2],
-        "m": [20000],
-        "v": [0.5],
-        "loss_function":[loss_function],
-        "link_function":[link_function],
-    }
-aplr_tuner=APLRTuner(parameters=parameters, is_regressor=True)
-aplr_tuner.fit(X=data_train[predictors].values, y=data_train[response].values, X_names=predictors)
-best_model=aplr_tuner.get_best_estimator()
-cv_results = pd.DataFrame(aplr_tuner.get_cv_results())
+for params in param_grid:
+    model = APLRRegressor(
+        random_state=random_state,
+        verbosity=2,
+        m=20000,
+        v=0.1,
+        loss_function=loss_function,
+        link_function=link_function,
+        boosting_steps_before_interactions_are_allowed=0,
+        # max_terms=10,  # Optionally tune this to find a trade-off between interpretability and predictiveness. May require a higher learning rate for best results.
+        **params,
+    )
+    model.fit(
+        data_train[predictors].values, data_train[response].values, X_names=predictors
+    )
+    cv_error_for_this_model = model.get_cv_error()
+    cv_results_for_this_model = pd.DataFrame(model.get_params(), index=[0])
+    cv_results_for_this_model["cv_error"] = cv_error_for_this_model
+    cv_results = pd.concat([cv_results, cv_results_for_this_model])
+    if cv_error_for_this_model < best_validation_result:
+        best_validation_result = cv_error_for_this_model
+        best_model = model
 print("Done training")
 
 # Saving model
