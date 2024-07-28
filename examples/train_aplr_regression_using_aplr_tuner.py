@@ -38,18 +38,20 @@ link_function = (
     "identity"  # Other available link functions are logit, log and custom_function.
 )
 parameters = {
-        "random_state": [random_state],
-        "max_interaction_level": [0, 1],
-        "min_observations_in_split": [1, 10, 20, 50, 100],
-        "verbosity": [2],
-        "m": [20000],
-        "v": [0.5],
-        "loss_function":[loss_function],
-        "link_function":[link_function],
-    }
-aplr_tuner=APLRTuner(parameters=parameters, is_regressor=True)
-aplr_tuner.fit(X=data_train[predictors].values, y=data_train[response].values, X_names=predictors)
-best_model=aplr_tuner.get_best_estimator()
+    "random_state": [random_state],
+    "max_interaction_level": [0, 1],
+    "min_observations_in_split": [1, 10, 20, 50, 100],
+    "verbosity": [2],
+    "m": [20000],
+    "v": [0.5],
+    "loss_function": [loss_function],
+    "link_function": [link_function],
+}
+aplr_tuner = APLRTuner(parameters=parameters, is_regressor=True)
+aplr_tuner.fit(
+    X=data_train[predictors].values, y=data_train[response].values, X_names=predictors
+)
+best_model = aplr_tuner.get_best_estimator()
 cv_results = pd.DataFrame(aplr_tuner.get_cv_results())
 print("Done training")
 
