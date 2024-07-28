@@ -537,7 +537,10 @@ class APLRClassifier:
 class APLRTuner:
     def __init__(
         self,
-        parameters: Union[Dict[str, List[float]], List[Dict[str, List[float]]]],
+        parameters: Union[Dict[str, List[float]], List[Dict[str, List[float]]]] = {
+            "max_interaction_level": [0, 1],
+            "min_observations_in_split": [5, 10, 20, 100, 500, 1000],
+        },
         is_regressor: bool = True,
     ):
         self.parameters = parameters
