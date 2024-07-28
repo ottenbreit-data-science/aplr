@@ -35,6 +35,7 @@ def trial_filter(task):
                 "mnist_784",
                 "CIFAR_10",
                 "letter",
+                "electricity",
             ]
         )
         if task.name in exclude_set:
