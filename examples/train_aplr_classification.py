@@ -49,7 +49,6 @@ for params in param_grid:
         verbosity=2,
         m=20000,
         v=0.1,
-        boosting_steps_before_interactions_are_allowed=0,
         # max_terms=5,  # Optionally tune this to find a trade-off between interpretability and predictiveness. May require a higher learning rate for best results.
         **params
     )
