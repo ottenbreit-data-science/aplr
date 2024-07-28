@@ -46,6 +46,7 @@ parameters = {
     "v": [0.5],
     "loss_function": [loss_function],
     "link_function": [link_function],
+    # "max_terms": [10],
 }
 aplr_tuner = APLRTuner(parameters=parameters, is_regressor=True)
 aplr_tuner.fit(

@@ -41,6 +41,7 @@ parameters = {
     "verbosity": [2],
     "m": [1000],
     "v": [0.5],
+    # "max_terms": [5],
 }
 aplr_tuner = APLRTuner(parameters=parameters, is_regressor=False)
 aplr_tuner.fit(
