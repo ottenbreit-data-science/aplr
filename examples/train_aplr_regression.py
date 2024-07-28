@@ -51,7 +51,7 @@ for params in param_grid:
         random_state=random_state,
         verbosity=2,
         m=20000,
-        v=0.1,
+        v=0.5,
         loss_function=loss_function,
         link_function=link_function,
         # max_terms=10,  # Optionally tune this to find a trade-off between interpretability and predictiveness. May require a higher learning rate for best results.
