@@ -61,13 +61,10 @@ def trial_filter(task):
         return []
 
     return [
-        "xgboost-base",
-        "ebm-base",
-        "aplr-1",
-        "aplr-2",
+        # "xgboost-base",
+        # "ebm-base",
         "aplr-3",
-        "aplr-4",
-        "aplr-10",
+        "aplr-7",
         "aplr-base",
     ]
 
@@ -147,31 +144,7 @@ def trial_runner(trial):
                     ("ct", ct),
                     (
                         "est",
-                        APLRClassifier(v=0.5),
-                    ),
-                ]
-            )
-            y_train = y_train.astype(str)
-            y_test = y_test.astype(str)
-        elif trial.method.name == "aplr-1":
-            est = Pipeline(
-                [
-                    ("ct", ct),
-                    (
-                        "est",
-                        APLRClassifier(v=0.5, min_observations_in_split=1),
-                    ),
-                ]
-            )
-            y_train = y_train.astype(str)
-            y_test = y_test.astype(str)
-        elif trial.method.name == "aplr-2":
-            est = Pipeline(
-                [
-                    ("ct", ct),
-                    (
-                        "est",
-                        APLRClassifier(v=0.5, min_observations_in_split=2),
+                        APLRClassifier(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15),
                     ),
                 ]
             )
@@ -183,31 +156,19 @@ def trial_runner(trial):
                     ("ct", ct),
                     (
                         "est",
-                        APLRClassifier(v=0.5, min_observations_in_split=3),
+                        APLRClassifier(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=3),
                     ),
                 ]
             )
             y_train = y_train.astype(str)
             y_test = y_test.astype(str)
-        elif trial.method.name == "aplr-4":
+        elif trial.method.name == "aplr-7":
             est = Pipeline(
                 [
                     ("ct", ct),
                     (
                         "est",
-                        APLRClassifier(v=0.5, min_observations_in_split=4),
-                    ),
-                ]
-            )
-            y_train = y_train.astype(str)
-            y_test = y_test.astype(str)
-        elif trial.method.name == "aplr-10":
-            est = Pipeline(
-                [
-                    ("ct", ct),
-                    (
-                        "est",
-                        APLRClassifier(v=0.5, min_observations_in_split=10),
+                        APLRClassifier(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
                     ),
                 ]
             )
@@ -228,27 +189,7 @@ def trial_runner(trial):
                     ("ct", ct),
                     (
                         "est",
-                        APLRRegressor(v=0.5),
-                    ),
-                ]
-            )
-        elif trial.method.name == "aplr-1":
-            est = Pipeline(
-                [
-                    ("ct", ct),
-                    (
-                        "est",
-                        APLRRegressor(v=0.5, min_observations_in_split=1),
-                    ),
-                ]
-            )
-        elif trial.method.name == "aplr-2":
-            est = Pipeline(
-                [
-                    ("ct", ct),
-                    (
-                        "est",
-                        APLRRegressor(v=0.5, min_observations_in_split=2),
+                        APLRRegressor(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15),
                     ),
                 ]
             )
@@ -258,27 +199,17 @@ def trial_runner(trial):
                     ("ct", ct),
                     (
                         "est",
-                        APLRRegressor(v=0.5, min_observations_in_split=3),
+                        APLRRegressor(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=3),
                     ),
                 ]
             )
-        elif trial.method.name == "aplr-4":
+        elif trial.method.name == "aplr-7":
             est = Pipeline(
                 [
                     ("ct", ct),
                     (
                         "est",
-                        APLRRegressor(v=0.5, min_observations_in_split=4),
-                    ),
-                ]
-            )
-        elif trial.method.name == "aplr-10":
-            est = Pipeline(
-                [
-                    ("ct", ct),
-                    (
-                        "est",
-                        APLRRegressor(v=0.5, min_observations_in_split=10),
+                        APLRRegressor(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
                     ),
                 ]
             )

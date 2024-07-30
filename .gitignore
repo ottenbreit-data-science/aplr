@@ -10,3 +10,4 @@ aplr.egg-info/
 *.db
 python/*.xlsx
 python/*.zip
+python/results_min_obs_in_split/
