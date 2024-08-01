@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int = 20000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 4, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 5, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 500, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0)
+## class aplr.APLRClassifier(m:int = 20000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 4, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 500, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0)
 
 ### Constructor parameters
 
@@ -37,7 +37,7 @@ The minimum effective number of observations that a term in the model must rely 
 #### ineligible_boosting_steps_added (default = 15)
 Controls how many boosting steps a term that becomes ineligible has to remain ineligible. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
 
-#### max_eligible_terms (default = 5)
+#### max_eligible_terms (default = 7)
 Limits 1) the number of terms already in the model that can be considered as interaction partners in a boosting step and 2) how many terms remain eligible in the next boosting step. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
 
 #### boosting_steps_before_interactions_are_allowed (default = 0)

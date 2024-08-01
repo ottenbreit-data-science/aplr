@@ -251,7 +251,7 @@ public:
     APLRRegressor(size_t m = 20000, double v = 0.5, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, size_t cv_folds = 5,
                   size_t reserved_terms_times_num_x = 100, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1, size_t max_interactions = 100000,
-                  size_t min_observations_in_split = 4, size_t ineligible_boosting_steps_added = 15, size_t max_eligible_terms = 5, double dispersion_parameter = 1.5,
+                  size_t min_observations_in_split = 4, size_t ineligible_boosting_steps_added = 15, size_t max_eligible_terms = 7, double dispersion_parameter = 1.5,
                   std::string validation_tuning_metric = "default", double quantile = 0.5,
                   const std::function<double(VectorXd, VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_validation_error_function = {},
                   const std::function<double(VectorXd, VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_loss_function = {},

@@ -30,7 +30,7 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("n_jobs") = 0, py::arg("cv_folds") = 5,
              py::arg("reserved_terms_times_num_x") = 100, py::arg("bins") = 300, py::arg("verbosity") = 0,
              py::arg("max_interaction_level") = 1, py::arg("max_interactions") = 100000, py::arg("min_observations_in_split") = 4,
-             py::arg("ineligible_boosting_steps_added") = 15, py::arg("max_eligible_terms") = 5,
+             py::arg("ineligible_boosting_steps_added") = 15, py::arg("max_eligible_terms") = 7,
              py::arg("dispersion_parameter") = 1.5,
              py::arg("validation_tuning_metric") = "default",
              py::arg("quantile") = 0.5,
@@ -287,7 +287,7 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("m") = 20000, py::arg("v") = 0.5, py::arg("random_state") = 0, py::arg("n_jobs") = 0, py::arg("cv_folds") = 5,
              py::arg("reserved_terms_times_num_x") = 100, py::arg("bins") = 300, py::arg("verbosity") = 0,
              py::arg("max_interaction_level") = 1, py::arg("max_interactions") = 100000, py::arg("min_observations_in_split") = 4,
-             py::arg("ineligible_boosting_steps_added") = 15, py::arg("max_eligible_terms") = 5,
+             py::arg("ineligible_boosting_steps_added") = 15, py::arg("max_eligible_terms") = 7,
              py::arg("boosting_steps_before_interactions_are_allowed") = 0, py::arg("monotonic_constraints_ignore_interactions") = false,
              py::arg("early_stopping_rounds") = 500, py::arg("num_first_steps_with_linear_effects_only") = 0,
              py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.0, py::arg("max_terms") = 0)
