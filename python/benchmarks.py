@@ -63,7 +63,7 @@ def trial_filter(task):
     return [
         # "xgboost-base",
         # "ebm-base",
-        "aplr-04",
+        "aplr-07",
         "aplr-06",
         "aplr-base",
     ]
@@ -150,13 +150,13 @@ def trial_runner(trial):
             )
             y_train = y_train.astype(str)
             y_test = y_test.astype(str)
-        elif trial.method.name == "aplr-04":
+        elif trial.method.name == "aplr-07":
             est = Pipeline(
                 [
                     ("ct", ct),
                     (
                         "est",
-                        APLRClassifier(v=0.4, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
+                        APLRClassifier(v=0.7, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
                     ),
                 ]
             )
@@ -193,13 +193,13 @@ def trial_runner(trial):
                     ),
                 ]
             )
-        elif trial.method.name == "aplr-04":
+        elif trial.method.name == "aplr-07":
             est = Pipeline(
                 [
                     ("ct", ct),
                     (
                         "est",
-                        APLRRegressor(v=0.4, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
+                        APLRRegressor(v=0.7, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
                     ),
                 ]
             )
