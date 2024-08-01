@@ -150,6 +150,42 @@ def trial_runner(trial):
             )
             y_train = y_train.astype(str)
             y_test = y_test.astype(str)
+        elif trial.method.name == "aplr-10":
+            est = Pipeline(
+                [
+                    ("ct", ct),
+                    (
+                        "est",
+                        APLRClassifier(v=1.0, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
+                    ),
+                ]
+            )
+            y_train = y_train.astype(str)
+            y_test = y_test.astype(str)
+        elif trial.method.name == "aplr-09":
+            est = Pipeline(
+                [
+                    ("ct", ct),
+                    (
+                        "est",
+                        APLRClassifier(v=0.9, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
+                    ),
+                ]
+            )
+            y_train = y_train.astype(str)
+            y_test = y_test.astype(str)
+        elif trial.method.name == "aplr-08":
+            est = Pipeline(
+                [
+                    ("ct", ct),
+                    (
+                        "est",
+                        APLRClassifier(v=0.8, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
+                    ),
+                ]
+            )
+            y_train = y_train.astype(str)
+            y_test = y_test.astype(str)
         elif trial.method.name == "aplr-07":
             est = Pipeline(
                 [
@@ -190,6 +226,36 @@ def trial_runner(trial):
                     (
                         "est",
                         APLRRegressor(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
+                    ),
+                ]
+            )
+        elif trial.method.name == "aplr-10":
+            est = Pipeline(
+                [
+                    ("ct", ct),
+                    (
+                        "est",
+                        APLRRegressor(v=1.0, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
+                    ),
+                ]
+            )
+        elif trial.method.name == "aplr-09":
+            est = Pipeline(
+                [
+                    ("ct", ct),
+                    (
+                        "est",
+                        APLRRegressor(v=0.9, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
+                    ),
+                ]
+            )
+        elif trial.method.name == "aplr-08":
+            est = Pipeline(
+                [
+                    ("ct", ct),
+                    (
+                        "est",
+                        APLRRegressor(v=0.8, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
                     ),
                 ]
             )
