@@ -144,7 +144,7 @@ def trial_runner(trial):
                     ("ct", ct),
                     (
                         "est",
-                        APLRClassifier(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15),
+                        APLRClassifier(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
                     ),
                 ]
             )
@@ -189,7 +189,7 @@ def trial_runner(trial):
                     ("ct", ct),
                     (
                         "est",
-                        APLRRegressor(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15),
+                        APLRRegressor(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
                     ),
                 ]
             )
