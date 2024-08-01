@@ -63,8 +63,8 @@ def trial_filter(task):
     return [
         # "xgboost-base",
         # "ebm-base",
-        "aplr-3",
-        "aplr-7",
+        "aplr-04",
+        "aplr-06",
         "aplr-base",
     ]
 
@@ -150,25 +150,25 @@ def trial_runner(trial):
             )
             y_train = y_train.astype(str)
             y_test = y_test.astype(str)
-        elif trial.method.name == "aplr-3":
+        elif trial.method.name == "aplr-04":
             est = Pipeline(
                 [
                     ("ct", ct),
                     (
                         "est",
-                        APLRClassifier(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=3),
+                        APLRClassifier(v=0.4, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
                     ),
                 ]
             )
             y_train = y_train.astype(str)
             y_test = y_test.astype(str)
-        elif trial.method.name == "aplr-7":
+        elif trial.method.name == "aplr-06":
             est = Pipeline(
                 [
                     ("ct", ct),
                     (
                         "est",
-                        APLRClassifier(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
+                        APLRClassifier(v=0.6, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
                     ),
                 ]
             )
@@ -193,23 +193,23 @@ def trial_runner(trial):
                     ),
                 ]
             )
-        elif trial.method.name == "aplr-3":
+        elif trial.method.name == "aplr-04":
             est = Pipeline(
                 [
                     ("ct", ct),
                     (
                         "est",
-                        APLRRegressor(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=3),
+                        APLRRegressor(v=0.4, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
                     ),
                 ]
             )
-        elif trial.method.name == "aplr-7":
+        elif trial.method.name == "aplr-06":
             est = Pipeline(
                 [
                     ("ct", ct),
                     (
                         "est",
-                        APLRRegressor(v=0.5, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
+                        APLRRegressor(v=0.6, min_observations_in_split=4, ineligible_boosting_steps_added=15, max_eligible_terms=7),
                     ),
                 ]
             )
