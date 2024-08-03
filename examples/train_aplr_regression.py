@@ -38,7 +38,7 @@ best_validation_result = np.inf
 param_grid = ParameterGrid(
     {
         "max_interaction_level": [0, 1],
-        "min_observations_in_split": [1, 20, 50, 100, 200],
+        "min_observations_in_split": [1, 4, 20, 50, 100, 200],
     }
 )
 best_model: APLRRegressor = None
@@ -51,7 +51,7 @@ for params in param_grid:
         random_state=random_state,
         verbosity=2,
         m=20000,
-        v=0.1,
+        v=0.5,
         loss_function=loss_function,
         link_function=link_function,
         # max_terms=10,  # Optionally tune this to find a trade-off between interpretability and predictiveness. May require a higher learning rate for best results.

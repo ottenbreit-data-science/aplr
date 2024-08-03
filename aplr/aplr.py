@@ -1,6 +1,7 @@
-from typing import List, Callable, Optional, Dict
+from typing import List, Callable, Optional, Dict, Union
 import numpy as np
 import aplr_cpp
+import itertools
 
 FloatVector = np.ndarray
 FloatMatrix = np.ndarray
@@ -12,7 +13,7 @@ class APLRRegressor:
     def __init__(
         self,
         m: int = 20000,
-        v: float = 0.1,
+        v: float = 0.5,
         random_state: int = 0,
         loss_function: str = "mse",
         link_function: str = "identity",
@@ -21,9 +22,9 @@ class APLRRegressor:
         bins: int = 300,
         max_interaction_level: int = 1,
         max_interactions: int = 100000,
-        min_observations_in_split: int = 20,
-        ineligible_boosting_steps_added: int = 10,
-        max_eligible_terms: int = 5,
+        min_observations_in_split: int = 4,
+        ineligible_boosting_steps_added: int = 15,
+        max_eligible_terms: int = 7,
         verbosity: int = 0,
         dispersion_parameter: float = 1.5,
         validation_tuning_metric: str = "default",
@@ -351,7 +352,7 @@ class APLRClassifier:
     def __init__(
         self,
         m: int = 20000,
-        v: float = 0.1,
+        v: float = 0.5,
         random_state: int = 0,
         n_jobs: int = 0,
         cv_folds: int = 5,
@@ -359,9 +360,9 @@ class APLRClassifier:
         verbosity: int = 0,
         max_interaction_level: int = 1,
         max_interactions: int = 100000,
-        min_observations_in_split: int = 20,
-        ineligible_boosting_steps_added: int = 10,
-        max_eligible_terms: int = 5,
+        min_observations_in_split: int = 4,
+        ineligible_boosting_steps_added: int = 15,
+        max_eligible_terms: int = 7,
         boosting_steps_before_interactions_are_allowed: int = 0,
         monotonic_constraints_ignore_interactions: bool = False,
         early_stopping_rounds: int = 500,
@@ -531,3 +532,62 @@ class APLRClassifier:
     # For sklearn
     def predict_proba(self, X: FloatMatrix) -> FloatMatrix:
         return self.predict_class_probabilities(X)
+
+
+class APLRTuner:
+    def __init__(
+        self,
+        parameters: Union[Dict[str, List[float]], List[Dict[str, List[float]]]] = {
+            "max_interaction_level": [0, 1],
+            "min_observations_in_split": [4, 10, 20, 100, 500, 1000],
+        },
+        is_regressor: bool = True,
+    ):
+        self.parameters = parameters
+        self.is_regressor = is_regressor
+        self.parameter_grid = self._create_parameter_grid()
+
+    def _create_parameter_grid(self) -> List[Dict[str, float]]:
+        items = sorted(self.parameters.items())
+        keys, values = zip(*items)
+        combinations = list(itertools.product(*values))
+        grid = [dict(zip(keys, combination)) for combination in combinations]
+        return grid
+
+    def fit(self, X: FloatMatrix, y: FloatVector, **kwargs):
+        self.cv_results: List[Dict[str, float]] = []
+        best_validation_result = np.inf
+        for params in self.parameter_grid:
+            if self.is_regressor:
+                model = APLRRegressor(**params)
+            else:
+                model = APLRClassifier(**params)
+            model.fit(X, y, **kwargs)
+            cv_error_for_this_model = model.get_cv_error()
+            cv_results_for_this_model = model.get_params()
+            cv_results_for_this_model["cv_error"] = cv_error_for_this_model
+            self.cv_results.append(cv_results_for_this_model)
+            if cv_error_for_this_model < best_validation_result:
+                best_validation_result = cv_error_for_this_model
+                self.best_model = model
+        self.cv_results = sorted(self.cv_results, key=lambda x: x["cv_error"])
+
+    def predict(self, X: FloatMatrix, **kwargs) -> Union[FloatVector, List[str]]:
+        return self.best_model.predict(X, **kwargs)
+
+    def predict_class_probabilities(self, X: FloatMatrix, **kwargs) -> FloatMatrix:
+        if self.is_regressor == False:
+            return self.best_model.predict_class_probabilities(X, **kwargs)
+        else:
+            raise TypeError(
+                "predict_class_probabilities is only possible when is_regressor is False"
+            )
+
+    def predict_proba(self, X: FloatMatrix, **kwargs) -> FloatMatrix:
+        return self.predict_class_probabilities(X, **kwargs)
+
+    def get_best_estimator(self) -> Union[APLRClassifier, APLRRegressor]:
+        return self.best_model
+
+    def get_cv_results(self) -> List[Dict[str, float]]:
+        return self.cv_results
