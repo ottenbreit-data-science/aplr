@@ -11,7 +11,7 @@ Build predictive and interpretable parametric regression or classification machi
 Available for Windows, most Linux distributions and MacOS.
 
 # How to use
-Please see the two example Python scripts [here](https://github.com/ottenbreit-data-science/aplr/tree/main/examples). They cover common use cases, but not all of the functionality in this package.
+Please see the example Python scripts [here](https://github.com/ottenbreit-data-science/aplr/tree/main/examples).
 
 # Sponsorship
 Please consider sponsoring Ottenbreit Data Science by clicking on the Sponsor button. Sufficient funding will enable maintenance of APLR and further development.
