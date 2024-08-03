@@ -40,6 +40,7 @@ parameters = {
     "min_observations_in_split": [1, 4, 20, 40],
     "verbosity": [2],
     "m": [1000],
+    # m was reduced from the default value of 20000 for speed in this case. The default value is generally recommended for best predictiveness.
     "v": [0.5],
     # "max_terms": [5],
 }

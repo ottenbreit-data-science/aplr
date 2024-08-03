@@ -47,7 +47,7 @@ for params in param_grid:
     model = APLRClassifier(
         random_state=random_state,
         verbosity=2,
-        m=1000,
+        m=1000,  # Reduced from the default value of 20000 for speed in this case. The default value is generally recommended for best predictiveness.
         v=0.5,
         # max_terms=5,  # Optionally tune this to find a trade-off between interpretability and predictiveness. May require a higher learning rate for best results.
         **params
