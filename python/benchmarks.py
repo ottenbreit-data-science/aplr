@@ -305,15 +305,15 @@ import os
 # Initialize database (if needed).
 store = Store(f"sqlite:///{os.getcwd()}/powerlift.db", force_recreate=force_recreate)
 
-# cache_dir = "~/.powerlift"
-# data_retrieval = chain(
-#     # retrieve_catboost_50k(cache_dir=cache_dir),
-#     retrieve_pmlb(cache_dir=cache_dir),
-#     retrieve_openml(cache_dir=cache_dir),
-# )
+cache_dir = "~/.powerlift"
+data_retrieval = chain(
+    # retrieve_catboost_50k(cache_dir=cache_dir),
+    retrieve_pmlb(cache_dir=cache_dir),
+    # retrieve_openml(cache_dir=cache_dir),
+)
 
-# # This downloads datasets once and feeds into the database.
-# populate_with_datasets(store, data_retrieval, exist_ok=exist_ok)
+# This downloads datasets once and feeds into the database.
+populate_with_datasets(store, data_retrieval, exist_ok=exist_ok)
 
 # Run experiment
 benchmark = Benchmark(store, name=experiment_name)
