@@ -10,7 +10,7 @@ except:
 
 def trial_filter(task):
     min_samples = 1
-    max_samples = 500000
+    max_samples = 1000000000000
 
     if task.scalar_measure("n_rows") < min_samples:
         return []
@@ -18,44 +18,21 @@ def trial_filter(task):
     if max_samples < task.scalar_measure("n_rows"):
         return []
 
-    if task.origin == "openml":
-        exclude_set = set()
-        #        exclude_set = set(['isolet', 'Devnagari-Script', 'CIFAR_10'])
-        exclude_set = set(
-            [
-                "Fashion-MNIST",
-                "mfeat-pixel",
-                "Bioresponse",
-                "mfeat-factors",
-                "isolet",
-                "cnae-9",
-                "Internet-Advertisements",
-                "har",
-                "Devnagari-Script",
-                "mnist_784",
-                "CIFAR_10",
-                "letter",
-                "electricity",
-            ]
-        )
-        if task.name in exclude_set:
-            return []
-        return []
-    elif task.origin == "pmlb":
+    if task.origin == "pmlb":
         if task.problem == "binary":
             pass
         elif task.problem == "multiclass":
             pass
         elif task.problem == "regression":
-            pass  # include PMLB regression datasets
+            pass
         else:
-            raise Exception(f"Unrecognized task problem {task.problem}")
+            return []
 
-        exclude_set = set(["1595_poker"])
+        exclude_set = set()
         if task.name in exclude_set:
             return []
     else:
-        raise Exception(f"Unrecognized task origin {task.origin}")
+        return []
 
     exclude_set = completed_so_far.copy()
     if task.name in exclude_set:
@@ -296,7 +273,7 @@ import uuid
 experiment_name = "myexperiment" + "__" + str(uuid.uuid4())
 print("Experiment name: " + str(experiment_name))
 
-from powerlift.bench import retrieve_openml, retrieve_pmlb, retrieve_catboost_50k
+from powerlift.bench import retrieve_pmlb
 from powerlift.bench import Benchmark, Store, populate_with_datasets
 from powerlift.executors import LocalMachine
 from itertools import chain
@@ -306,11 +283,7 @@ import os
 store = Store(f"sqlite:///{os.getcwd()}/powerlift.db", force_recreate=force_recreate)
 
 cache_dir = "~/.powerlift"
-data_retrieval = chain(
-    # retrieve_catboost_50k(cache_dir=cache_dir),
-    retrieve_pmlb(cache_dir=cache_dir),
-    # retrieve_openml(cache_dir=cache_dir),
-)
+data_retrieval = chain(retrieve_pmlb(cache_dir=cache_dir))
 
 # This downloads datasets once and feeds into the database.
 populate_with_datasets(store, data_retrieval, exist_ok=exist_ok)
@@ -320,9 +293,6 @@ benchmark = Benchmark(store, name=experiment_name)
 benchmark.run(trial_runner, trial_filter, executor=LocalMachine(store, debug_mode=True))
 
 benchmark.wait_until_complete()
-
-# re-establish connection
-# benchmark = Benchmark(conn_str, name=experiment_name)
 
 status_df = benchmark.status()
 for errmsg in status_df["errmsg"]:
