@@ -9,7 +9,7 @@ except:
 
 
 def trial_filter(task):
-    min_samples = 500
+    min_samples = 1
     max_samples = 500000
 
     if task.scalar_measure("n_rows") < min_samples:
@@ -40,11 +40,12 @@ def trial_filter(task):
         )
         if task.name in exclude_set:
             return []
+        return []
     elif task.origin == "pmlb":
         if task.problem == "binary":
-            return []
+            pass
         elif task.problem == "multiclass":
-            return []
+            pass
         elif task.problem == "regression":
             pass  # include PMLB regression datasets
         else:
