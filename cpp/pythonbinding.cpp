@@ -20,7 +20,7 @@ std::function<VectorXd(VectorXd)> empty_calculate_custom_differentiate_predictio
 PYBIND11_MODULE(aplr_cpp, m)
 {
     py::class_<APLRRegressor>(m, "APLRRegressor", py::module_local())
-        .def(py::init<int &, double &, int &, std::string &, std::string &, int &, int &, int &, int &, int &, int &, int &, int &, int &, int &, double &, std::string &,
+        .def(py::init<int &, double &, int &, std::string &, std::string &, int &, int &, int &, int &, int &, int &, int &, int &, int &, double &, std::string &,
                       double &, std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)> &,
                       std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)> &,
                       std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)> &,
@@ -28,7 +28,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                       int &, bool &, int &, int &, int &, int &, double &, double &, int &>(),
              py::arg("m") = 20000, py::arg("v") = 0.5, py::arg("random_state") = 0, py::arg("loss_function") = "mse", py::arg("link_function") = "identity",
              py::arg("n_jobs") = 0, py::arg("cv_folds") = 5,
-             py::arg("reserved_terms_times_num_x") = 100, py::arg("bins") = 300, py::arg("verbosity") = 0,
+             py::arg("bins") = 300, py::arg("verbosity") = 0,
              py::arg("max_interaction_level") = 1, py::arg("max_interactions") = 100000, py::arg("min_observations_in_split") = 4,
              py::arg("ineligible_boosting_steps_added") = 15, py::arg("max_eligible_terms") = 7,
              py::arg("dispersion_parameter") = 1.5,
@@ -201,7 +201,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                 std::map<std::string, size_t> unique_term_affiliation_map = t[46].cast<std::map<std::string, size_t>>();
                 std::vector<std::vector<size_t>> base_predictors_in_each_unique_term_affiliation = t[47].cast<std::vector<std::vector<size_t>>>();
 
-                APLRRegressor a(m, v, random_state, loss_function, link_function, n_jobs, cv_folds, 100, bins, verbosity, max_interaction_level,
+                APLRRegressor a(m, v, random_state, loss_function, link_function, n_jobs, cv_folds, bins, verbosity, max_interaction_level,
                                 max_interactions, min_observations_in_split, ineligible_boosting_steps_added, max_eligible_terms, dispersion_parameter,
                                 validation_tuning_metric, quantile);
                 a.intercept = intercept;
@@ -282,10 +282,10 @@ PYBIND11_MODULE(aplr_cpp, m)
             }));
 
     py::class_<APLRClassifier>(m, "APLRClassifier", py::module_local())
-        .def(py::init<int &, double &, int &, int &, int &, int &, int &, int &, int &, int &, int &, int &, int &, int &, bool &, int &, int &,
+        .def(py::init<int &, double &, int &, int &, int &, int &, int &, int &, int &, int &, int &, int &, int &, bool &, int &, int &,
                       double &, double &, int &>(),
              py::arg("m") = 20000, py::arg("v") = 0.5, py::arg("random_state") = 0, py::arg("n_jobs") = 0, py::arg("cv_folds") = 5,
-             py::arg("reserved_terms_times_num_x") = 100, py::arg("bins") = 300, py::arg("verbosity") = 0,
+             py::arg("bins") = 300, py::arg("verbosity") = 0,
              py::arg("max_interaction_level") = 1, py::arg("max_interactions") = 100000, py::arg("min_observations_in_split") = 4,
              py::arg("ineligible_boosting_steps_added") = 15, py::arg("max_eligible_terms") = 7,
              py::arg("boosting_steps_before_interactions_are_allowed") = 0, py::arg("monotonic_constraints_ignore_interactions") = false,
@@ -380,7 +380,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                 std::map<std::string, size_t> unique_term_affiliation_map = t[25].cast<std::map<std::string, size_t>>();
                 std::vector<std::vector<size_t>> base_predictors_in_each_unique_term_affiliation = t[26].cast<std::vector<std::vector<size_t>>>();
 
-                APLRClassifier a(m, v, random_state, n_jobs, cv_folds, 100, bins, verbosity, max_interaction_level, max_interactions,
+                APLRClassifier a(m, v, random_state, n_jobs, cv_folds, bins, verbosity, max_interaction_level, max_interactions,
                                  min_observations_in_split, ineligible_boosting_steps_added, max_eligible_terms);
                 a.logit_models = logit_models;
                 a.categories = categories;

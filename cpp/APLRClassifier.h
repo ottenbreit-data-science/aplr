@@ -12,7 +12,6 @@ using namespace Eigen;
 class APLRClassifier
 {
 private:
-    size_t reserved_terms_times_num_x;
     std::map<std::string, VectorXd> response_values; // Key is category and value is response vector
 
     void initialize();
@@ -55,7 +54,7 @@ public:
     std::vector<std::vector<size_t>> base_predictors_in_each_unique_term_affiliation;
 
     APLRClassifier(size_t m = 20000, double v = 0.5, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), size_t n_jobs = 0,
-                   size_t cv_folds = 5, size_t reserved_terms_times_num_x = 100, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1,
+                   size_t cv_folds = 5, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1,
                    size_t max_interactions = 100000, size_t min_observations_in_split = 4, size_t ineligible_boosting_steps_added = 15, size_t max_eligible_terms = 7,
                    size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
                    size_t early_stopping_rounds = 500, size_t num_first_steps_with_linear_effects_only = 0,
@@ -81,13 +80,13 @@ public:
 };
 
 APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, size_t n_jobs, size_t cv_folds,
-                               size_t reserved_terms_times_num_x, size_t bins, size_t verbosity, size_t max_interaction_level, size_t max_interactions,
+                               size_t bins, size_t verbosity, size_t max_interaction_level, size_t max_interactions,
                                size_t min_observations_in_split, size_t ineligible_boosting_steps_added, size_t max_eligible_terms,
                                size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
                                size_t early_stopping_rounds, size_t num_first_steps_with_linear_effects_only,
                                double penalty_for_non_linearity, double penalty_for_interactions, size_t max_terms)
     : m{m}, v{v}, random_state{random_state}, n_jobs{n_jobs}, cv_folds{cv_folds},
-      reserved_terms_times_num_x{reserved_terms_times_num_x}, bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
+      bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
       max_interactions{max_interactions}, min_observations_in_split{min_observations_in_split},
       ineligible_boosting_steps_added{ineligible_boosting_steps_added}, max_eligible_terms{max_eligible_terms},
       boosting_steps_before_interactions_are_allowed{boosting_steps_before_interactions_are_allowed},
@@ -99,7 +98,7 @@ APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, s
 
 APLRClassifier::APLRClassifier(const APLRClassifier &other)
     : m{other.m}, v{other.v}, random_state{other.random_state}, n_jobs{other.n_jobs}, cv_folds{other.cv_folds},
-      reserved_terms_times_num_x{other.reserved_terms_times_num_x}, bins{other.bins}, verbosity{other.verbosity},
+      bins{other.bins}, verbosity{other.verbosity},
       max_interaction_level{other.max_interaction_level}, max_interactions{other.max_interactions},
       min_observations_in_split{other.min_observations_in_split}, ineligible_boosting_steps_added{other.ineligible_boosting_steps_added},
       max_eligible_terms{other.max_eligible_terms}, logit_models{other.logit_models}, categories{other.categories},
@@ -134,7 +133,7 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
     bool two_class_case{categories.size() == 2};
     if (two_class_case)
     {
-        logit_models[categories[0]] = APLRRegressor(m, v, random_state, "binomial", "logit", n_jobs, cv_folds, reserved_terms_times_num_x,
+        logit_models[categories[0]] = APLRRegressor(m, v, random_state, "binomial", "logit", n_jobs, cv_folds,
                                                     bins, verbosity, max_interaction_level, max_interactions, min_observations_in_split, ineligible_boosting_steps_added,
                                                     max_eligible_terms, 1.5, "default", 0.5);
         logit_models[categories[0]].boosting_steps_before_interactions_are_allowed = boosting_steps_before_interactions_are_allowed;
@@ -155,7 +154,7 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
     {
         for (auto &category : categories)
         {
-            logit_models[category] = APLRRegressor(m, v, random_state, "binomial", "logit", n_jobs, cv_folds, reserved_terms_times_num_x,
+            logit_models[category] = APLRRegressor(m, v, random_state, "binomial", "logit", n_jobs, cv_folds,
                                                    bins, verbosity, max_interaction_level, max_interactions, min_observations_in_split, ineligible_boosting_steps_added,
                                                    max_eligible_terms, 1.5, "default", 0.5);
             logit_models[category].boosting_steps_before_interactions_are_allowed = boosting_steps_before_interactions_are_allowed;
@@ -212,7 +211,7 @@ void APLRClassifier::create_response_for_each_category(const std::vector<std::st
 
 void APLRClassifier::define_cv_observations(const std::vector<std::string> &y, const MatrixXi &cv_observations_)
 {
-    APLRRegressor aplr_regressor{APLRRegressor(m, v, random_state, "binomial", "logit", n_jobs, cv_folds, reserved_terms_times_num_x,
+    APLRRegressor aplr_regressor{APLRRegressor(m, v, random_state, "binomial", "logit", n_jobs, cv_folds,
                                                bins, verbosity, max_interaction_level, max_interactions, min_observations_in_split, ineligible_boosting_steps_added,
                                                max_eligible_terms, 1.5, "default", 0.5)};
     VectorXd y_dummy_vector{VectorXd(y.size())};

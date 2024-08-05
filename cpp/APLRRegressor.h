@@ -30,7 +30,6 @@ struct ModelForCVFold
 class APLRRegressor
 {
 private:
-    size_t reserved_terms_times_num_x;
     MatrixXd X_train;
     VectorXd y_train;
     VectorXd sample_weight_train;
@@ -250,7 +249,7 @@ public:
 
     APLRRegressor(size_t m = 20000, double v = 0.5, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, size_t cv_folds = 5,
-                  size_t reserved_terms_times_num_x = 100, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1, size_t max_interactions = 100000,
+                  size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1, size_t max_interactions = 100000,
                   size_t min_observations_in_split = 4, size_t ineligible_boosting_steps_added = 15, size_t max_eligible_terms = 7, double dispersion_parameter = 1.5,
                   std::string validation_tuning_metric = "default", double quantile = 0.5,
                   const std::function<double(VectorXd, VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_validation_error_function = {},
@@ -302,7 +301,7 @@ public:
 };
 
 APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std::string loss_function, std::string link_function, size_t n_jobs,
-                             size_t cv_folds, size_t reserved_terms_times_num_x, size_t bins, size_t verbosity, size_t max_interaction_level,
+                             size_t cv_folds, size_t bins, size_t verbosity, size_t max_interaction_level,
                              size_t max_interactions, size_t min_observations_in_split, size_t ineligible_boosting_steps_added, size_t max_eligible_terms, double dispersion_parameter,
                              std::string validation_tuning_metric, double quantile,
                              const std::function<double(VectorXd, VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_validation_error_function,
@@ -314,7 +313,7 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              size_t group_mse_by_prediction_bins, size_t group_mse_cycle_min_obs_in_bin, size_t early_stopping_rounds,
                              size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity, double penalty_for_interactions,
                              size_t max_terms)
-    : reserved_terms_times_num_x{reserved_terms_times_num_x}, intercept{NAN_DOUBLE}, m{m}, v{v},
+    : intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, cv_folds{cv_folds}, n_jobs{n_jobs}, random_state{random_state},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
       max_interactions{max_interactions}, interactions_eligible{0}, validation_error_steps{MatrixXd(0, 0)},
@@ -335,7 +334,7 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
 }
 
 APLRRegressor::APLRRegressor(const APLRRegressor &other)
-    : reserved_terms_times_num_x{other.reserved_terms_times_num_x}, intercept{other.intercept}, terms{other.terms}, m{other.m}, v{other.v},
+    : intercept{other.intercept}, terms{other.terms}, m{other.m}, v{other.v},
       loss_function{other.loss_function}, link_function{other.link_function}, cv_folds{other.cv_folds},
       n_jobs{other.n_jobs}, random_state{other.random_state}, bins{other.bins},
       verbosity{other.verbosity}, term_names{other.term_names}, term_affiliations{other.term_affiliations}, term_coefficients{other.term_coefficients},
@@ -914,9 +913,9 @@ void APLRRegressor::initialize(const std::vector<int> &monotonic_constraints)
     number_of_base_terms = static_cast<size_t>(X_train.cols());
 
     terms.clear();
-    terms.reserve(X_train.cols() * reserved_terms_times_num_x);
+    terms.reserve(m);
 
-    terms_eligible_current.reserve(X_train.cols() * reserved_terms_times_num_x);
+    terms_eligible_current.reserve(m);
     size_t X_train_cols{static_cast<size_t>(X_train.cols())};
     for (size_t i = 0; i < X_train_cols; ++i)
     {

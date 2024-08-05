@@ -28,7 +28,7 @@ def trial_filter(task):
         else:
             return []
 
-        exclude_set = set()
+        exclude_set = set(["kddcup", "poker"])
         if task.name in exclude_set:
             return []
     else:
