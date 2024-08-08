@@ -34,9 +34,6 @@ def trial_filter(task):
                 "poker",
                 "mnist",
                 "parity5",
-                "564_fried",
-                "1191_BNG_pbc",
-                "1196_BNG_pharynx",
                 "1595_poker",
             ]
         )
@@ -50,8 +47,8 @@ def trial_filter(task):
         return []
 
     return [
-        # "xgboost-base",
-        # "ebm-base",
+        "xgboost-base",
+        "ebm-base",
         "aplr-base",
     ]
 
@@ -209,9 +206,23 @@ def trial_runner(trial):
         raise Exception(f"Unrecognized task problem {trial.task.problem}")
 
     if trial.method.name == "aplr-base":
+        if trial.task.problem == "regression":
+            aplr_estimator: APLRRegressor = est.steps[1][1]
+            optimal_m = aplr_estimator.get_optimal_m()
+            terms = len(aplr_estimator.get_term_names())
+        else:
+            aplr_estimator: APLRClassifier = est.steps[1][1]
+            optimal_m = 0
+            terms = 0
+            for category in aplr_estimator.get_categories():
+                model = aplr_estimator.get_logit_model(category)
+                optimal_m = max(model.get_optimal_m(), optimal_m)
+                terms = max(len(model.get_term_names()), terms)
         trial.log("rows", X_train.shape[0])
         trial.log("columns", X_train.shape[1])
         trial.log("columns_transformed", ct.transform(X_train).shape[1])
+        trial.log("optimal_m", optimal_m)
+        trial.log("terms", terms)
         completed_so_far.add(trial._task.name)
         joblib.dump(completed_so_far, "completed_so_far.zip", 9)
         try:
