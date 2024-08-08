@@ -52,8 +52,6 @@ def trial_filter(task):
     return [
         # "xgboost-base",
         # "ebm-base",
-        "aplr-01",
-        "aplr-03",
         "aplr-base",
     ]
 
@@ -138,30 +136,6 @@ def trial_runner(trial):
             )
             y_train = y_train.astype(str).ravel()
             y_test = y_test.astype(str).ravel()
-        elif trial.method.name == "aplr-01":
-            est = Pipeline(
-                [
-                    ("ct", ct),
-                    (
-                        "est",
-                        APLRClassifier(v=0.1),
-                    ),
-                ]
-            )
-            y_train = y_train.astype(str).ravel()
-            y_test = y_test.astype(str).ravel()
-        elif trial.method.name == "aplr-03":
-            est = Pipeline(
-                [
-                    ("ct", ct),
-                    (
-                        "est",
-                        APLRClassifier(v=0.3),
-                    ),
-                ]
-            )
-            y_train = y_train.astype(str).ravel()
-            y_test = y_test.astype(str).ravel()
         else:
             raise RuntimeError(f"Method unavailable for {trial.method.name}")
 
@@ -178,26 +152,6 @@ def trial_runner(trial):
                     (
                         "est",
                         APLRRegressor(),
-                    ),
-                ]
-            )
-        elif trial.method.name == "aplr-01":
-            est = Pipeline(
-                [
-                    ("ct", ct),
-                    (
-                        "est",
-                        APLRRegressor(v=0.1),
-                    ),
-                ]
-            )
-        elif trial.method.name == "aplr-03":
-            est = Pipeline(
-                [
-                    ("ct", ct),
-                    (
-                        "est",
-                        APLRRegressor(v=0.3),
                     ),
                 ]
             )
