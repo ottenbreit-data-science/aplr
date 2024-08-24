@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.18.1
+        uses: pypa/cibuildwheel@v2.17.0
         env:
           CIBW_SKIP: "*musllinux*"
           CIBW_ENVIRONMENT: MACOSX_DEPLOYMENT_TARGET=10.14

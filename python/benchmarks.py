@@ -30,11 +30,13 @@ def trial_filter(task):
 
         exclude_set = set(
             [
-                "kddcup",
-                "poker",
-                "mnist",
+                # "kddcup",
+                # "poker",
+                # "mnist",
                 "parity5",
-                "1595_poker",
+                # "1595_poker",
+                # "1191_BNG_pbc",
+                # "1196_BNG_pharynx",
             ]
         )
         if task.name in exclude_set:
@@ -75,7 +77,6 @@ def trial_runner(trial):
 
     X, y, meta = trial.task.data(["X", "y", "meta"])
 
-    # TODO: move this into powerlift
     import pandas as pd
 
     for col_name in X.columns:

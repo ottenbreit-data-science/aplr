@@ -12,7 +12,7 @@ IntMatrix = np.ndarray
 class APLRRegressor:
     def __init__(
         self,
-        m: int = 20000,
+        m: int = 3000,
         v: float = 0.5,
         random_state: int = 0,
         loss_function: str = "mse",
@@ -351,7 +351,7 @@ class APLRRegressor:
 class APLRClassifier:
     def __init__(
         self,
-        m: int = 20000,
+        m: int = 3000,
         v: float = 0.5,
         random_state: int = 0,
         n_jobs: int = 0,
