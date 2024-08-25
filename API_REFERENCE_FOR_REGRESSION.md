@@ -8,7 +8,7 @@
 The maximum number of boosting steps. If validation error does not flatten out at the end of the ***m***th boosting step, then try increasing it (or alternatively increase the learning rate).
 
 #### v (default = 0.5)
-The learning rate. Must be greater than zero and not more than one. The higher the faster the algorithm learns and the lower ***m*** is required, reducing computational costs potentially at the expense of predictiveness. Empirical evidence suggests that ***v <= 0.5*** gives good results for APLR.
+The learning rate. Must be greater than zero and not more than one. The higher the faster the algorithm learns and the lower ***m*** is required, reducing computational costs potentially at the expense of predictiveness. Empirical evidence suggests that ***v <= 0.5*** gives good results for APLR. For datasets with very weak signals or very small sizes, a low learning rate, such as 0.1, may be beneficial.
 
 #### random_state (default = 0)
 Used to randomly split training observations into cv_folds if ***cv_observations*** is not specified when fitting.
