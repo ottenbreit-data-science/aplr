@@ -1700,7 +1700,7 @@ double APLRRegressor::calculate_validation_error(const VectorXd &predictions)
     else if (validation_tuning_metric == "mae")
         return calculate_mean_error(calculate_errors(y_validation, predictions, sample_weight_validation, "mae"), sample_weight_validation);
     else if (validation_tuning_metric == "negative_gini")
-        return -calculate_gini(y_validation, predictions, sample_weight_validation);
+        return -calculate_gini(y_validation, predictions, sample_weight_validation) / calculate_gini(y_validation, y_validation, sample_weight_validation);
     else if (validation_tuning_metric == "group_mse")
     {
         bool group_is_not_provided{group_validation.rows() == 0};
