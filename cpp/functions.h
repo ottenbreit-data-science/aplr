@@ -212,8 +212,7 @@ VectorXd calculate_cauchy_errors(const VectorXd &y, const VectorXd &predicted, d
 
 VectorXd calculate_weibull_errors(const VectorXd &y, const VectorXd &predicted, double dispersion_parameter)
 {
-    VectorXd errors{dispersion_parameter * predicted.array().log() + (1 - dispersion_parameter) * y.array().log() +
-                    (y.array() / predicted.array()).pow(dispersion_parameter)};
+    VectorXd errors{dispersion_parameter * predicted.array().log() + (y.array() / predicted.array()).pow(dispersion_parameter)};
 
     return errors;
 }
