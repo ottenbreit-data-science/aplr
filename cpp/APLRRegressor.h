@@ -2703,7 +2703,7 @@ void APLRRegressor::set_intercept(double value)
     if (model_has_not_been_trained())
         throw std::runtime_error("The model must be trained with fit() before set_intercept() can be run.");
     if (!std::isfinite(value))
-        throw std::runtime_error("The updated intercept must be finite.");
+        throw std::runtime_error("The new intercept must be finite.");
     intercept = value;
     term_coefficients[0] = value;
 }
