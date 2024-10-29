@@ -353,3 +353,13 @@ Prevents the output from having significantly more than ***max_rows_before_sampl
 ## Method: get_cv_error()
 
 ***Returns the cv error for the model.***
+
+
+## Method: set_intercept(value:float)
+
+***Sets the model's intercept term to value. Use if you want to change the intercept.***
+
+### Parameters
+
+#### value
+A float representing the new intercept.

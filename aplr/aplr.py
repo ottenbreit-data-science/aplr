@@ -304,6 +304,9 @@ class APLRRegressor:
     def get_cv_error(self) -> float:
         return self.APLRRegressor.get_cv_error()
 
+    def set_intercept(self, value: float):
+        self.APLRRegressor.set_intercept(value)
+
     # For sklearn
     def get_params(self, deep=True):
         return {

@@ -1,20 +1,30 @@
 # APLR
-Automatic Piecewise Linear Regression.
+**Automatic Piecewise Linear Regression**
 
-# About
-Build predictive and interpretable parametric regression or classification machine learning models in Python based on the Automatic Piecewise Linear Regression (APLR) methodology developed by Mathias von Ottenbreit. APLR is often able to compete with tree-based methods on predictiveness, but unlike tree-based methods APLR is interpretable. Furthermore, APLR produces smoother predictions than tree-based methods. Please see the [documentation](https://github.com/ottenbreit-data-science/aplr/tree/main/documentation) for more information. Links to published article: [https://link.springer.com/article/10.1007/s00180-024-01475-4](https://link.springer.com/article/10.1007/s00180-024-01475-4) and [https://rdcu.be/dz7bF](https://rdcu.be/dz7bF). More functionality has been added to APLR since the article was published.
+## About
+APLR allows you to build predictive and interpretable regression or classification machine learning models in Python, using the Automatic Piecewise Linear Regression (APLR) methodology developed by Mathias von Ottenbreit. APLR often rivals tree-based methods in predictive accuracy, while offering smoother, more interpretable predictions. 
 
-# How to install
-***pip install aplr***
+For further details, see the [documentation](https://github.com/ottenbreit-data-science/aplr/tree/main/documentation). You may also read the published article for additional insights: [Link 1](https://link.springer.com/article/10.1007/s00180-024-01475-4) and [Link 2](https://rdcu.be/dz7bF). Additional functionality has been added since the article was published.
 
-# Availability
-Available for Windows, most Linux distributions and MacOS.
+## Installation
+To install APLR, use the following command:
 
-# How to use
-Please see example Python scripts [here](https://github.com/ottenbreit-data-science/aplr/tree/main/examples).
+```bash
+pip install aplr
+```
 
-# Sponsorship
-Please consider sponsoring Ottenbreit Data Science by clicking on the Sponsor button. Sufficient funding will enable maintenance of APLR and further development.
+## Availability
+APLR is available for Windows, most Linux distributions, and macOS.
 
-# API reference
-Please see the [API reference for regression](https://github.com/ottenbreit-data-science/aplr/blob/main/API_REFERENCE_FOR_REGRESSION.md) and [API reference for classification](https://github.com/ottenbreit-data-science/aplr/blob/main/API_REFERENCE_FOR_CLASSIFICATION.md).
+## Usage
+Example Python scripts are available [here](https://github.com/ottenbreit-data-science/aplr/tree/main/examples).
+
+## Sponsorship
+Consider sponsoring Von Ottenbreit Data Science by clicking the **Sponsor** button on the repository. Sufficient funding will help maintain and further develop APLR.
+
+## API Reference
+- [API reference for regression](https://github.com/ottenbreit-data-science/aplr/blob/main/API_REFERENCE_FOR_REGRESSION.md)
+- [API reference for classification](https://github.com/ottenbreit-data-science/aplr/blob/main/API_REFERENCE_FOR_CLASSIFICATION.md)
+
+## Contact Information
+For inquiries, please email: [ottenbreitdatascience@gmail.com](mailto:ottenbreitdatascience@gmail.com)

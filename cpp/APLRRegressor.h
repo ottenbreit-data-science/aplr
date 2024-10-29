@@ -296,6 +296,7 @@ public:
     MatrixXd generate_predictor_values_and_contribution(const std::vector<size_t> &relevant_term_indexes,
                                                         size_t unique_term_affiliation_index);
     double get_cv_error();
+    void set_intercept(double value);
 
     friend class APLRClassifier;
 };
@@ -2695,4 +2696,9 @@ MatrixXd APLRRegressor::get_unique_term_affiliation_shape(const std::string &uni
 double APLRRegressor::get_cv_error()
 {
     return cv_error;
+}
+
+void APLRRegressor::set_intercept(double value)
+{
+    intercept = value;
 }
