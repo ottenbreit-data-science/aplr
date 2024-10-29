@@ -2701,4 +2701,5 @@ double APLRRegressor::get_cv_error()
 void APLRRegressor::set_intercept(double value)
 {
     intercept = value;
+    term_coefficients[0] = value;
 }
