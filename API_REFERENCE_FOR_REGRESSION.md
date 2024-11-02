@@ -103,7 +103,7 @@ def calculate_custom_differentiate_predictions_wrt_linear_predictor(linear_predi
 ```
 
 #### boosting_steps_before_interactions_are_allowed (default = 0)
-Specifies how many boosting steps to wait before searching for interactions. If for example 800, then the algorithm will be forced to only fit main effects in the first 800 boosting steps, after which it is allowed to search for interactions (given that other hyperparameters that control interactions also allow this). The motivation for fitting main effects first may be 1) to get a cleaner looking model that puts more emphasis on main effects and 2) to speed up the algorithm since looking for interactions is computationally more demanding.
+Specifies how many boosting steps to wait before searching for interactions. If for example 800, then the algorithm will be forced to only fit main effects in the first 800 boosting steps, after which it is allowed to search for interactions (given that other hyperparameters that control interactions also allow this). The motivation for fitting main effects first may be 1) to get a cleaner looking model that puts more emphasis on main effects and 2) to speed up the algorithm since looking for interactions is computationally more demanding. Please note that when greater than zero then the algorithm chooses the model from the boosting step with the lowest validation error before proceeding to interaction terms. The latter prevents overfitting.
 
 #### monotonic_constraints_ignore_interactions (default = False)
 See ***monotonic_constraints*** in the ***fit*** method.
@@ -118,7 +118,7 @@ When ***loss_function*** equals ***group_mse_cycle*** then ***group_mse_cycle_mi
 If validation loss does not improve during the last ***early_stopping_rounds*** boosting steps then boosting is aborted. The point with this constructor parameter is to speed up the training and make it easier to select a high ***m***.
 
 #### num_first_steps_with_linear_effects_only (default = 0)
-Specifies the number of initial boosting steps that are reserved only for linear effects. 0 means that non-linear effects are allowed from the first boosting step. Reasons for setting this parameter to a higher value than 0 could be to 1) build a more interpretable model with more emphasis on linear effects or 2) build a linear only model by setting ***num_first_steps_with_linear_effects_only*** to no less than ***m***. 
+Specifies the number of initial boosting steps that are reserved only for linear effects. 0 means that non-linear effects are allowed from the first boosting step. Reasons for setting this parameter to a higher value than 0 could be to 1) build a more interpretable model with more emphasis on linear effects or 2) build a linear only model by setting ***num_first_steps_with_linear_effects_only*** to no less than ***m***. Please note that when greater than zero then the algorithm chooses the model from the boosting step with the lowest validation error before proceeding to non-linear effects or interactions. The latter prevents overfitting.
 
 #### penalty_for_non_linearity (default = 0.0)
 Specifies a penalty in the range [0.0, 1.0] on terms that are not linear effects. A higher value increases model interpretability but can hurt predictiveness. Values outside of the [0.0, 1.0] range are rounded to the nearest boundary within the range.

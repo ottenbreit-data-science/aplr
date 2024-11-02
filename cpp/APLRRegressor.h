@@ -76,10 +76,12 @@ private:
     double best_validation_error_so_far;
     size_t best_m_so_far;
     bool linear_effects_only_in_this_boosting_step;
+    bool non_linear_effects_allowed_in_this_boosting_step;
     bool max_terms_reached;
     bool round_robin_update_of_existing_terms;
     size_t term_to_update_in_this_boosting_step;
     size_t cores_to_use;
+    bool stopped_early;
 
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
@@ -1171,11 +1173,26 @@ VectorXd APLRRegressor::differentiate_predictions_wrt_linear_predictor()
 
 void APLRRegressor::execute_boosting_steps(Eigen::Index fold_index)
 {
+    stopped_early = false;
     abort_boosting = false;
     for (size_t boosting_step = 0; boosting_step < m; ++boosting_step)
     {
         linear_effects_only_in_this_boosting_step = num_first_steps_with_linear_effects_only > boosting_step;
+        non_linear_effects_allowed_in_this_boosting_step = boosting_steps_before_interactions_are_allowed > boosting_step && !linear_effects_only_in_this_boosting_step;
+        bool last_linear_effects_only_step{linear_effects_only_in_this_boosting_step && boosting_step == num_first_steps_with_linear_effects_only - 1};
+        bool last_step_before_interactions{non_linear_effects_allowed_in_this_boosting_step && boosting_step == boosting_steps_before_interactions_are_allowed - 1};
         execute_boosting_step(boosting_step, fold_index);
+        if (stopped_early)
+        {
+            if (linear_effects_only_in_this_boosting_step)
+                boosting_step = std::min(num_first_steps_with_linear_effects_only - 1, m - 1);
+            else if (non_linear_effects_allowed_in_this_boosting_step)
+                boosting_step = std::min(boosting_steps_before_interactions_are_allowed - 1, m - 1);
+            best_m_so_far = boosting_step;
+            stopped_early = false;
+        }
+        else if ((last_linear_effects_only_step || last_step_before_interactions) && boosting_step + 1 < m)
+            find_optimal_m_and_update_model_accordingly();
         if (abort_boosting)
             break;
         if (loss_function == "group_mse_cycle")
@@ -1823,9 +1840,17 @@ void APLRRegressor::abort_boosting_when_no_validation_error_improvement_in_the_l
         bool no_improvement_for_too_long{boosting_step > best_m_so_far + early_stopping_rounds};
         if (no_improvement_for_too_long)
         {
-            abort_boosting = true;
-            if (verbosity >= 1)
-                std::cout << "Aborting boosting because of no validation error improvement in the last " << std::to_string(early_stopping_rounds) << " steps.\n";
+            if (linear_effects_only_in_this_boosting_step || non_linear_effects_allowed_in_this_boosting_step)
+            {
+                find_optimal_m_and_update_model_accordingly();
+                stopped_early = true;
+            }
+            else
+            {
+                abort_boosting = true;
+                if (verbosity >= 1)
+                    std::cout << "Aborting boosting because of no validation error improvement in the last " << std::to_string(early_stopping_rounds) << " steps.\n";
+            }
         }
     }
 }

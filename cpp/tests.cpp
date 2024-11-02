@@ -236,7 +236,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.dispersion_parameter = 1.0;
-        model.boosting_steps_before_interactions_are_allowed = 60;
+        model.boosting_steps_before_interactions_are_allowed = 90;
         model.num_first_steps_with_linear_effects_only = 80;
 
         // Data
@@ -271,7 +271,61 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 17.965154984786622));
+        tests.push_back(is_approximately_equal(predictions.mean(), 17.380763842227257));
+    }
+
+    void test_aplrregressor_cauchy_linear_effects_only_first_2()
+    {
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 1.0;
+        model.bins = 200;
+        model.n_jobs = 1;
+        model.loss_function = "cauchy";
+        model.verbosity = 3;
+        model.max_interaction_level = 100;
+        model.min_observations_in_split = 10;
+        model.ineligible_boosting_steps_added = 10;
+        model.max_eligible_terms = 5;
+        model.dispersion_parameter = 1.0;
+        model.boosting_steps_before_interactions_are_allowed = 90;
+        model.num_first_steps_with_linear_effects_only = 80;
+        model.early_stopping_rounds = 1;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
+
+        // Fitting
+        // model.fit(X_train,y_train);
+        model.fit(X_train, y_train, sample_weight);
+        // model.fit(X_train, y_train, sample_weight, {}, cv_observations);
+        std::cout << "feature importance\n"
+                  << model.feature_importance << "\n\n";
+
+        VectorXd predictions{model.predict(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predictions.mean(), 17.886569073729863));
     }
 
     void test_aplrregressor_cauchy_group_mse_validation()
@@ -2354,6 +2408,7 @@ int main()
     tests.test_aplrregressor_cauchy_predictor_specific_penalties_and_learning_rates();
     tests.test_aplrregressor_cauchy_penalties();
     tests.test_aplrregressor_cauchy_linear_effects_only_first();
+    tests.test_aplrregressor_cauchy_linear_effects_only_first_2();
     tests.test_aplrregressor_cauchy_group_mse_validation();
     tests.test_aplrregressor_cauchy_group_mse_by_prediction_validation();
     tests.test_aplrregressor_cauchy();
