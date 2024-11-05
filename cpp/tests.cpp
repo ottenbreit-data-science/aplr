@@ -952,7 +952,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 20.849747430496922));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.900212415566287));
     }
 
     void test_aplrregressor_group_mse_cycle()
@@ -995,7 +995,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.529085584946195));
+        tests.push_back(is_approximately_equal(predictions.mean(), 24.014522054509584));
     }
 
     void test_aplrregressor_int_constr()

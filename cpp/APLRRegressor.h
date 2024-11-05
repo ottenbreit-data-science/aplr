@@ -1134,15 +1134,10 @@ VectorXd APLRRegressor::calculate_neg_gradient_current()
 VectorXd APLRRegressor::calculate_neg_gradient_current_for_group_mse(GroupData &group_residuals_and_count, const VectorXi &group,
                                                                      const std::set<int> &unique_groups)
 {
-    for (int unique_group_value : unique_groups)
-    {
-        group_residuals_and_count.error[unique_group_value] /= group_residuals_and_count.count[unique_group_value];
-    }
-
     VectorXd output{VectorXd(y_train.rows())};
     for (Eigen::Index i = 0; i < y_train.size(); ++i)
     {
-        output[i] = group_residuals_and_count.error[group[i]] * sample_weight_train[i];
+        output[i] = group_residuals_and_count.error[group[i]];
     }
 
     return output;
