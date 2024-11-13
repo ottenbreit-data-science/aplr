@@ -1239,10 +1239,18 @@ void APLRRegressor::execute_boosting_step(size_t boosting_step, Eigen::Index fol
         update_coefficient_steps(boosting_step);
         if (!model_has_changed_in_this_boosting_step)
         {
-            abort_boosting = true;
-            if (verbosity >= 1)
+            if (linear_effects_only_in_this_boosting_step || non_linear_effects_allowed_in_this_boosting_step)
             {
-                std::cout << "No further reduction in training loss was possible. Terminating the boosting procedure.\n";
+                find_optimal_m_and_update_model_accordingly();
+                stopped_early = true;
+            }
+            else
+            {
+                abort_boosting = true;
+                if (verbosity >= 1)
+                {
+                    std::cout << "No further reduction in training loss was possible. Terminating the boosting procedure.\n";
+                }
             }
         }
         abort_boosting_when_no_validation_error_improvement_in_the_last_early_stopping_rounds(boosting_step);
