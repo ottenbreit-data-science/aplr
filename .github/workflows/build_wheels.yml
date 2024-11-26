@@ -13,7 +13,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.22.0
         env:
           CIBW_SKIP: "*musllinux* pp*"
-          CIBW_ENVIRONMENT: MACOSX_DEPLOYMENT_TARGET=10.14
+          CIBW_ENVIRONMENT: MACOSX_DEPLOYMENT_TARGET=11.0
       - uses: actions/upload-artifact@v4
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
