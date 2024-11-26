@@ -12,7 +12,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.22.0
         env:
-          CIBW_SKIP: "*musllinux*"
+          CIBW_SKIP: "*musllinux* pp*"
           CIBW_ENVIRONMENT: MACOSX_DEPLOYMENT_TARGET=10.14
       - uses: actions/upload-artifact@v4
         with:
