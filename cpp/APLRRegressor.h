@@ -59,6 +59,7 @@ private:
     std::vector<double> predictor_learning_rates;
     std::vector<double> predictor_penalties_for_non_linearity;
     std::vector<double> predictor_penalties_for_interactions;
+    std::vector<size_t> predictor_min_observations_in_split;
     VectorXi group_train;
     VectorXi group_validation;
     std::set<int> unique_groups_train;
@@ -103,6 +104,7 @@ private:
     void preprocess_predictor_learning_rates_and_penalties(const MatrixXd &X, const std::vector<double> &predictor_learning_rates,
                                                            const std::vector<double> &predictor_penalties_for_non_linearity,
                                                            const std::vector<double> &predictor_penalties_for_interactions);
+    void preprocess_predictor_min_observations_in_split(const MatrixXd &X, const std::vector<size_t> &predictor_min_observations_in_split);
     void calculate_min_and_max_predictor_values_in_training(const MatrixXd &X);
     std::vector<double> preprocess_predictor_learning_rate_or_penalty(const MatrixXd &X, double general_value,
                                                                       const std::vector<double> &predictor_specific_values);
@@ -270,7 +272,8 @@ public:
              const std::vector<int> &monotonic_constraints = {}, const VectorXi &group = VectorXi(0), const std::vector<std::vector<size_t>> &interaction_constraints = {},
              const MatrixXd &other_data = MatrixXd(0, 0), const std::vector<double> &predictor_learning_rates = {},
              const std::vector<double> &predictor_penalties_for_non_linearity = {},
-             const std::vector<double> &predictor_penalties_for_interactions = {});
+             const std::vector<double> &predictor_penalties_for_interactions = {},
+             const std::vector<size_t> &predictor_min_observations_in_split = {});
     VectorXd predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = true);
     void set_term_names(const std::vector<std::string> &X_names);
     void set_term_affiliations(const std::vector<std::string> &X_names);
@@ -377,7 +380,8 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
                         const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<std::vector<size_t>> &interaction_constraints,
                         const MatrixXd &other_data, const std::vector<double> &predictor_learning_rates,
                         const std::vector<double> &predictor_penalties_for_non_linearity,
-                        const std::vector<double> &predictor_penalties_for_interactions)
+                        const std::vector<double> &predictor_penalties_for_interactions,
+                        const std::vector<size_t> &predictor_min_observations_in_split)
 {
     throw_error_if_loss_function_does_not_exist();
     throw_error_if_link_function_does_not_exist();
@@ -392,6 +396,7 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
     preprocess_penalties();
     preprocess_predictor_learning_rates_and_penalties(X, predictor_learning_rates, predictor_penalties_for_non_linearity,
                                                       predictor_penalties_for_interactions);
+    preprocess_predictor_min_observations_in_split(X, predictor_min_observations_in_split);
     calculate_min_and_max_predictor_values_in_training(X);
     cv_fold_models.resize(cv_observations_used.cols());
     for (Eigen::Index i = 0; i < cv_observations_used.cols(); ++i)
@@ -472,6 +477,24 @@ std::vector<double> APLRRegressor::preprocess_predictor_learning_rate_or_penalty
         }
     }
     return output;
+}
+
+void APLRRegressor::preprocess_predictor_min_observations_in_split(
+    const MatrixXd &X,
+    const std::vector<size_t> &predictor_min_observations_in_split)
+{
+    if (predictor_min_observations_in_split.empty())
+    {
+        this->predictor_min_observations_in_split = std::vector<size_t>(X.cols(), min_observations_in_split);
+    }
+    else if (predictor_min_observations_in_split.size() != X.cols())
+    {
+        throw std::runtime_error("The size of predictor_min_observations_in_split does not match the number of columns in X.");
+    }
+    else
+    {
+        this->predictor_min_observations_in_split = predictor_min_observations_in_split;
+    }
 }
 
 void APLRRegressor::calculate_min_and_max_predictor_values_in_training(const MatrixXd &X)
@@ -1345,7 +1368,8 @@ void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms,
                 {
                     terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins,
                                                                  predictor_learning_rates[terms[terms_indexes[i]].base_term],
-                                                                 min_observations_in_split, linear_effects_only_in_this_boosting_step,
+                                                                 predictor_min_observations_in_split[terms[terms_indexes[i]].base_term],
+                                                                 linear_effects_only_in_this_boosting_step,
                                                                  predictor_penalties_for_non_linearity[terms[terms_indexes[i]].base_term],
                                                                  predictor_penalties_for_interactions[terms[terms_indexes[i]].base_term]);
                 } });
@@ -1365,7 +1389,8 @@ void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms,
         {
             terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins,
                                                          predictor_learning_rates[terms[terms_indexes[i]].base_term],
-                                                         min_observations_in_split, linear_effects_only_in_this_boosting_step,
+                                                         predictor_min_observations_in_split[terms[terms_indexes[i]].base_term],
+                                                         linear_effects_only_in_this_boosting_step,
                                                          predictor_penalties_for_non_linearity[terms[terms_indexes[i]].base_term],
                                                          predictor_penalties_for_interactions[terms[terms_indexes[i]].base_term]);
         }
@@ -1801,7 +1826,7 @@ void APLRRegressor::update_a_term_coefficient_round_robin(size_t boosting_step)
     terms_eligible_current[term_to_update_in_this_boosting_step].estimate_split_point(X_train, neg_gradient_current, sample_weight_train,
                                                                                       bins,
                                                                                       predictor_learning_rates[terms_eligible_current[term_to_update_in_this_boosting_step].base_term],
-                                                                                      min_observations_in_split,
+                                                                                      predictor_min_observations_in_split[terms_eligible_current[term_to_update_in_this_boosting_step].base_term],
                                                                                       linear_effects_only_in_this_boosting_step,
                                                                                       predictor_penalties_for_non_linearity[terms_eligible_current[term_to_update_in_this_boosting_step].base_term],
                                                                                       predictor_penalties_for_interactions[terms_eligible_current[term_to_update_in_this_boosting_step].base_term],

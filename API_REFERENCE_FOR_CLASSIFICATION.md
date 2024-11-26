@@ -32,7 +32,7 @@ Specifies the maximum allowed depth of interaction terms. ***0*** means that int
 The maximum number of interactions allowed in each underlying model. A lower value may be used to reduce computational time or to increase interpretability.
 
 #### min_observations_in_split (default = 4)
-The minimum effective number of observations that a term in the model must rely on. This hyperparameter should be tuned. Larger values are more appropriate for larger datasets. Larger values result in more robust models (lower variance), potentially at the expense of increased bias.
+The minimum effective number of observations that a term in the model must rely on as well as the minimum number of boundary value observations where there cannot be splits. This hyperparameter should be tuned. Larger values are more appropriate for larger datasets. Larger values result in more robust models (lower variance), potentially at the expense of increased bias.
 
 #### ineligible_boosting_steps_added (default = 15)
 Controls how many boosting steps a term that becomes ineligible has to remain ineligible. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
@@ -62,7 +62,7 @@ Specifies a penalty in the range [0.0, 1.0] on interaction terms. A higher value
 Restricts the maximum number of terms in any of the underlying models trained to ***max_terms***. The default value of 0 means no limit. After the limit is reached, the remaining boosting steps are used to further update the coefficients of already included terms. An optional tuning objective could be to find the lowest positive value of ***max_terms*** that does not increase the prediction error significantly. Low positive values can speed up the training process significantly. Setting a limit with ***max_terms*** may require a higher learning rate for best results.
 
 
-## Method: fit(X:FloatMatrix, y:List[str], sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], interaction_constraints:List[List[int]] = [], predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [])
+## Method: fit(X:FloatMatrix, y:List[str], sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], interaction_constraints:List[List[int]] = [], predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [], predictor_min_observations_in_split: List[int] = [])
 
 ***This method fits the model to data.***
 
@@ -100,6 +100,9 @@ An optional list of floats specifying penalties for non-linearity for each predi
 
 #### predictor_penalties_for_interactions
 An optional list of floats specifying interaction penalties for each predictor. If provided then this supercedes ***penalty_for_interactions***. For example, if there are two predictors in ***X***, then predictor_penalties_for_interactions = [0.1,0.2] means that all terms using the first predictor in ***X*** as a main effect will have an interaction penalty of 0.1 and that all terms using the second predictor in ***X*** as a main effect will have an interaction penalty of 0.2.
+
+#### predictor_min_observations_in_split
+An optional list of integers specifying the minimum effective number of observations in a split for each predictor. If provided then this supercedes ***min_observations_in_split***.
 
 
 ## Method: predict_class_probabilities(X:FloatMatrix, cap_predictions_to_minmax_in_training:bool = False)

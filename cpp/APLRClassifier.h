@@ -66,7 +66,8 @@ public:
              const std::vector<size_t> &prioritized_predictors_indexes = {}, const std::vector<int> &monotonic_constraints = {},
              const std::vector<std::vector<size_t>> &interaction_constraints = {}, const std::vector<double> &predictor_learning_rates = {},
              const std::vector<double> &predictor_penalties_for_non_linearity = {},
-             const std::vector<double> &predictor_penalties_for_interactions = {});
+             const std::vector<double> &predictor_penalties_for_interactions = {},
+             const std::vector<size_t> &predictor_min_observations_in_split = {});
     MatrixXd predict_class_probabilities(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = false);
     std::vector<std::string> predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = false);
     MatrixXd calculate_local_feature_contribution(const MatrixXd &X);
@@ -123,7 +124,8 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
                          const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
                          const std::vector<int> &monotonic_constraints, const std::vector<std::vector<size_t>> &interaction_constraints,
                          const std::vector<double> &predictor_learning_rates, const std::vector<double> &predictor_penalties_for_non_linearity,
-                         const std::vector<double> &predictor_penalties_for_interactions)
+                         const std::vector<double> &predictor_penalties_for_interactions,
+                         const std::vector<size_t> &predictor_min_observations_in_split)
 {
     initialize();
     find_categories(y);
@@ -145,7 +147,8 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
         logit_models[categories[0]].max_terms = max_terms;
         logit_models[categories[0]].fit(X, response_values[categories[0]], sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
                                         monotonic_constraints, VectorXi(0), interaction_constraints, MatrixXd(0, 0), predictor_learning_rates,
-                                        predictor_penalties_for_non_linearity, predictor_penalties_for_interactions);
+                                        predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
+                                        predictor_min_observations_in_split);
 
         logit_models[categories[1]] = logit_models[categories[0]];
         invert_second_model_in_two_class_case(logit_models[categories[1]]);
@@ -166,7 +169,8 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
             logit_models[category].max_terms = max_terms;
             logit_models[category].fit(X, response_values[category], sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
                                        monotonic_constraints, VectorXi(0), interaction_constraints, MatrixXd(0, 0), predictor_learning_rates,
-                                       predictor_penalties_for_non_linearity, predictor_penalties_for_interactions);
+                                       predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
+                                       predictor_min_observations_in_split);
         }
     }
 

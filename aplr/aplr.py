@@ -196,6 +196,7 @@ class APLRRegressor:
         predictor_learning_rates: List[float] = [],
         predictor_penalties_for_non_linearity: List[float] = [],
         predictor_penalties_for_interactions: List[float] = [],
+        predictor_min_observations_in_split: List[int] = [],
     ):
         self.__set_params_cpp()
         self.APLRRegressor.fit(
@@ -212,6 +213,7 @@ class APLRRegressor:
             predictor_learning_rates,
             predictor_penalties_for_non_linearity,
             predictor_penalties_for_interactions,
+            predictor_min_observations_in_split,
         )
 
     def predict(
@@ -447,6 +449,7 @@ class APLRClassifier:
         predictor_learning_rates: List[float] = [],
         predictor_penalties_for_non_linearity: List[float] = [],
         predictor_penalties_for_interactions: List[float] = [],
+        predictor_min_observations_in_split: List[int] = [],
     ):
         self.__set_params_cpp()
         self.APLRClassifier.fit(
@@ -461,6 +464,7 @@ class APLRClassifier:
             predictor_learning_rates,
             predictor_penalties_for_non_linearity,
             predictor_penalties_for_interactions,
+            predictor_min_observations_in_split,
         )
         # For sklearn
         self.classes_ = np.arange(len(self.APLRClassifier.get_categories()))

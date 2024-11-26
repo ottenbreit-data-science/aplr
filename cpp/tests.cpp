@@ -60,6 +60,54 @@ public:
                   << "Passed " << std::accumulate(tests.begin(), tests.end(), 0) << " out of " << tests.size() << " tests.";
     }
 
+    void test_aplrregressor_mse_predictor_min_observations_in_split()
+    {
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 1.0;
+        model.bins = 10;
+        model.n_jobs = 1;
+        model.loss_function = "mse";
+        model.verbosity = 3;
+        model.max_interaction_level = 100;
+        model.max_interactions = 30;
+        model.min_observations_in_split = 50;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
+
+        // Fitting
+        model.fit(X_train, y_train, sample_weight, {}, MatrixXi(0, 0), {}, {}, VectorXi(0), {}, MatrixXd(0, 0), {}, {}, {},
+                  {5, 6, 7, 8, 9, 10, 11, 12, 13});
+        std::cout << "feature importance\n"
+                  << model.feature_importance << "\n\n";
+
+        VectorXd predictions{model.predict(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.788775508596238));
+    }
+
     void test_aplrregressor_cauchy_term_limit()
     {
         // Model
@@ -2226,6 +2274,69 @@ public:
         tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.37047735615744898, 0.00001));
     }
 
+    void test_aplrclassifier_two_class_predictor_min_observations_in_split()
+    {
+        // Model
+        APLRClassifier model{APLRClassifier()};
+        model.m = 100;
+        model.v = 0.05;
+        model.bins = 300;
+        model.n_jobs = 0;
+        model.verbosity = 3;
+        model.max_interaction_level = 100;
+        model.max_interactions = 1000;
+        model.min_observations_in_split = 20;
+        model.ineligible_boosting_steps_added = 10;
+        model.max_eligible_terms = 5;
+        model.max_terms = 4;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train_logit.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test_logit.csv")};
+        std::vector<std::string> y_train_str(y_train.rows());
+        std::vector<std::string> y_test_str(y_test.rows());
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        for (Eigen::Index i = 0; i < y_train.size(); ++i)
+        {
+            y_train_str[i] = std::to_string(y_train[i]);
+        }
+        for (Eigen::Index i = 0; i < y_test.size(); ++i)
+        {
+            y_test_str[i] = std::to_string(y_test[i]);
+        }
+
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
+
+        // Fitting
+        model.fit(X_train, y_train_str, sample_weight, {}, MatrixXi(0, 0), {}, {}, {}, {}, {}, {}, {2, 3, 4, 5, 6, 7, 8, 9, 10});
+        MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
+        std::vector<std::string> predictions{model.predict(X_test, false)};
+        MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
+        std::cout << "cv_error\n"
+                  << model.get_cv_error() << "\n\n";
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.18970198357702517, 0.000001));
+
+        std::cout << "predicted_class_prob_mean\n"
+                  << predicted_class_probabilities.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predicted_class_probabilities.mean(), 0.5, 0.00001));
+
+        std::cout << "local_feature_importance_mean\n"
+                  << local_feature_contribution.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.46597769437683995, 0.00001));
+    }
+
     void test_functions()
     {
         // floating point comparisons
@@ -2404,6 +2515,7 @@ public:
 int main()
 {
     Tests tests{Tests()};
+    tests.test_aplrregressor_mse_predictor_min_observations_in_split();
     tests.test_aplrregressor_cauchy_term_limit();
     tests.test_aplrregressor_cauchy_predictor_specific_penalties_and_learning_rates();
     tests.test_aplrregressor_cauchy_penalties();
@@ -2441,6 +2553,7 @@ int main()
     tests.test_aplrclassifier_two_class_penalties();
     tests.test_aplrclassifier_two_class_predictor_specific_penalties_and_learning_rates();
     tests.test_aplrclassifier_two_class_max_terms();
+    tests.test_aplrclassifier_two_class_predictor_min_observations_in_split();
     tests.test_functions();
     tests.test_term();
     tests.summarize_results();
