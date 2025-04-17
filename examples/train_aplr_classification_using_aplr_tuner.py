@@ -41,6 +41,7 @@ parameters = {
     "verbosity": [2],
     "m": [3000],
     "v": [0.5],
+    "ridge_penalty": [0.0001, 0.001],
     # "max_terms": [5],
 }
 aplr_tuner = APLRTuner(parameters=parameters, is_regressor=False)

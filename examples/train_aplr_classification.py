@@ -40,6 +40,7 @@ param_grid = ParameterGrid(
     {
         "max_interaction_level": [0, 1],
         "min_observations_in_split": [1, 4, 20, 40],
+        "ridge_penalty": [0.0001, 0.001],
     }
 )
 best_model: APLRClassifier = None

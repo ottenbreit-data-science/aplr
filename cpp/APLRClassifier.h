@@ -52,13 +52,14 @@ public:
     std::vector<std::string> unique_term_affiliations;
     std::map<std::string, size_t> unique_term_affiliation_map;
     std::vector<std::vector<size_t>> base_predictors_in_each_unique_term_affiliation;
+    double ridge_penalty;
 
     APLRClassifier(size_t m = 3000, double v = 0.5, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), size_t n_jobs = 0,
                    size_t cv_folds = 5, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1,
                    size_t max_interactions = 100000, size_t min_observations_in_split = 4, size_t ineligible_boosting_steps_added = 15, size_t max_eligible_terms = 7,
                    size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
-                   size_t early_stopping_rounds = 500, size_t num_first_steps_with_linear_effects_only = 0,
-                   double penalty_for_non_linearity = 0.0, double penalty_for_interactions = 0.0, size_t max_terms = 0);
+                   size_t early_stopping_rounds = 200, size_t num_first_steps_with_linear_effects_only = 0,
+                   double penalty_for_non_linearity = 0.0, double penalty_for_interactions = 0.0, size_t max_terms = 0, double ridge_penalty = 0.0001);
     APLRClassifier(const APLRClassifier &other);
     ~APLRClassifier();
     void fit(const MatrixXd &X, const std::vector<std::string> &y, const VectorXd &sample_weight = VectorXd(0),
@@ -85,7 +86,7 @@ APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, s
                                size_t min_observations_in_split, size_t ineligible_boosting_steps_added, size_t max_eligible_terms,
                                size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
                                size_t early_stopping_rounds, size_t num_first_steps_with_linear_effects_only,
-                               double penalty_for_non_linearity, double penalty_for_interactions, size_t max_terms)
+                               double penalty_for_non_linearity, double penalty_for_interactions, size_t max_terms, double ridge_penalty)
     : m{m}, v{v}, random_state{random_state}, n_jobs{n_jobs}, cv_folds{cv_folds},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
       max_interactions{max_interactions}, min_observations_in_split{min_observations_in_split},
@@ -93,7 +94,7 @@ APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, s
       boosting_steps_before_interactions_are_allowed{boosting_steps_before_interactions_are_allowed},
       monotonic_constraints_ignore_interactions{monotonic_constraints_ignore_interactions}, early_stopping_rounds{early_stopping_rounds},
       num_first_steps_with_linear_effects_only{num_first_steps_with_linear_effects_only}, penalty_for_non_linearity{penalty_for_non_linearity},
-      penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}
+      penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}, ridge_penalty{ridge_penalty}
 {
 }
 
@@ -112,7 +113,8 @@ APLRClassifier::APLRClassifier(const APLRClassifier &other)
       penalty_for_non_linearity{other.penalty_for_non_linearity}, penalty_for_interactions{other.penalty_for_interactions},
       max_terms{other.max_terms}, unique_term_affiliations{other.unique_term_affiliations},
       unique_term_affiliation_map{other.unique_term_affiliation_map},
-      base_predictors_in_each_unique_term_affiliation{other.base_predictors_in_each_unique_term_affiliation}
+      base_predictors_in_each_unique_term_affiliation{other.base_predictors_in_each_unique_term_affiliation},
+      ridge_penalty{other.ridge_penalty}
 {
 }
 
@@ -145,6 +147,7 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
         logit_models[categories[0]].penalty_for_non_linearity = penalty_for_non_linearity;
         logit_models[categories[0]].penalty_for_interactions = penalty_for_interactions;
         logit_models[categories[0]].max_terms = max_terms;
+        logit_models[categories[0]].ridge_penalty = ridge_penalty;
         logit_models[categories[0]].fit(X, response_values[categories[0]], sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
                                         monotonic_constraints, VectorXi(0), interaction_constraints, MatrixXd(0, 0), predictor_learning_rates,
                                         predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
@@ -167,6 +170,7 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
             logit_models[category].penalty_for_non_linearity = penalty_for_non_linearity;
             logit_models[category].penalty_for_interactions = penalty_for_interactions;
             logit_models[category].max_terms = max_terms;
+            logit_models[category].ridge_penalty = ridge_penalty;
             logit_models[category].fit(X, response_values[category], sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
                                        monotonic_constraints, VectorXi(0), interaction_constraints, MatrixXd(0, 0), predictor_learning_rates,
                                        predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,

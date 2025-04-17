@@ -83,6 +83,7 @@ private:
     size_t term_to_update_in_this_boosting_step;
     size_t cores_to_use;
     bool stopped_early;
+    std::vector<double> ridge_penalty_weights;
 
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
@@ -250,6 +251,7 @@ public:
     size_t max_terms;
     VectorXd min_predictor_values_in_training;
     VectorXd max_predictor_values_in_training;
+    double ridge_penalty;
 
     APLRRegressor(size_t m = 3000, double v = 0.5, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, size_t cv_folds = 5,
@@ -262,9 +264,9 @@ public:
                   const std::function<VectorXd(VectorXd)> &calculate_custom_transform_linear_predictor_to_predictions_function = {},
                   const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {},
                   size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
-                  size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30, size_t early_stopping_rounds = 500,
+                  size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30, size_t early_stopping_rounds = 200,
                   size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0,
-                  double penalty_for_interactions = 0.0, size_t max_terms = 0);
+                  double penalty_for_interactions = 0.0, size_t max_terms = 0, double ridge_penalty = 0.0001);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
@@ -318,7 +320,7 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
                              size_t group_mse_by_prediction_bins, size_t group_mse_cycle_min_obs_in_bin, size_t early_stopping_rounds,
                              size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity, double penalty_for_interactions,
-                             size_t max_terms)
+                             size_t max_terms, double ridge_penalty)
     : intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, cv_folds{cv_folds}, n_jobs{n_jobs}, random_state{random_state},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
@@ -335,7 +337,7 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
       monotonic_constraints_ignore_interactions{monotonic_constraints_ignore_interactions}, group_mse_by_prediction_bins{group_mse_by_prediction_bins},
       group_mse_cycle_min_obs_in_bin{group_mse_cycle_min_obs_in_bin}, cv_error{NAN_DOUBLE}, early_stopping_rounds{early_stopping_rounds},
       num_first_steps_with_linear_effects_only{num_first_steps_with_linear_effects_only}, penalty_for_non_linearity{penalty_for_non_linearity},
-      penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}
+      penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}, ridge_penalty{ridge_penalty}
 {
 }
 
@@ -367,7 +369,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       max_terms{other.max_terms}, min_predictor_values_in_training{other.min_predictor_values_in_training},
       max_predictor_values_in_training{other.max_predictor_values_in_training}, unique_term_affiliations{other.unique_term_affiliations},
       unique_term_affiliation_map{other.unique_term_affiliation_map},
-      base_predictors_in_each_unique_term_affiliation{other.base_predictors_in_each_unique_term_affiliation}
+      base_predictors_in_each_unique_term_affiliation{other.base_predictors_in_each_unique_term_affiliation},
+      ridge_penalty{other.ridge_penalty}
 {
 }
 
@@ -999,6 +1002,12 @@ void APLRRegressor::initialize(const std::vector<int> &monotonic_constraints)
     best_m_so_far = 0;
 
     round_robin_update_of_existing_terms = false;
+
+    ridge_penalty_weights.resize(X_train.cols());
+    for (Eigen::Index i = 0; i < X_train.cols(); ++i)
+    {
+        ridge_penalty_weights[i] = (X_train.col(i).array() * sample_weight_train.array() * X_train.col(i).array()).sum();
+    }
 }
 
 bool APLRRegressor::check_if_base_term_has_only_one_unique_value(size_t base_term)
@@ -1371,7 +1380,9 @@ void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms,
                                                                  predictor_min_observations_in_split[terms[terms_indexes[i]].base_term],
                                                                  linear_effects_only_in_this_boosting_step,
                                                                  predictor_penalties_for_non_linearity[terms[terms_indexes[i]].base_term],
-                                                                 predictor_penalties_for_interactions[terms[terms_indexes[i]].base_term]);
+                                                                 predictor_penalties_for_interactions[terms[terms_indexes[i]].base_term],
+                                                                ridge_penalty, 
+                                                                ridge_penalty_weights[terms[terms_indexes[i]].base_term]);
                 } });
         }
 
@@ -1392,7 +1403,9 @@ void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms,
                                                          predictor_min_observations_in_split[terms[terms_indexes[i]].base_term],
                                                          linear_effects_only_in_this_boosting_step,
                                                          predictor_penalties_for_non_linearity[terms[terms_indexes[i]].base_term],
-                                                         predictor_penalties_for_interactions[terms[terms_indexes[i]].base_term]);
+                                                         predictor_penalties_for_interactions[terms[terms_indexes[i]].base_term],
+                                                         ridge_penalty,
+                                                         ridge_penalty_weights[terms[terms_indexes[i]].base_term]);
         }
     }
 }
@@ -1830,6 +1843,8 @@ void APLRRegressor::update_a_term_coefficient_round_robin(size_t boosting_step)
                                                                                       linear_effects_only_in_this_boosting_step,
                                                                                       predictor_penalties_for_non_linearity[terms_eligible_current[term_to_update_in_this_boosting_step].base_term],
                                                                                       predictor_penalties_for_interactions[terms_eligible_current[term_to_update_in_this_boosting_step].base_term],
+                                                                                      ridge_penalty,
+                                                                                      ridge_penalty_weights[terms_eligible_current[term_to_update_in_this_boosting_step].base_term],
                                                                                       true);
     terms[term_to_update_in_this_boosting_step].coefficient += terms_eligible_current[term_to_update_in_this_boosting_step].coefficient;
     linear_predictor_update = terms_eligible_current[term_to_update_in_this_boosting_step].calculate_contribution_to_linear_predictor(X_train);
@@ -2203,6 +2218,7 @@ void APLRRegressor::cleanup_after_fit()
     unique_prediction_groups.clear();
     group_cycle_train.clear();
     unique_groups_cycle_train.clear();
+    ridge_penalty_weights.resize(0);
 }
 
 void APLRRegressor::check_term_integrity()

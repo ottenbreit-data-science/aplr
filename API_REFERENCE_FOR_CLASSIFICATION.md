@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int = 3000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 4, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 500, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0)
+## class aplr.APLRClassifier(m:int = 3000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 4, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 200, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0, ridge_penalty: float = 0.0001)
 
 ### Constructor parameters
 
@@ -46,7 +46,7 @@ Specifies how many boosting steps to wait before searching for interactions. If 
 #### monotonic_constraints_ignore_interactions (default = False)
 See ***monotonic_constraints*** in the ***fit*** method.
 
-#### early_stopping_rounds (default = 500)
+#### early_stopping_rounds (default = 200)
 If validation loss does not improve during the last ***early_stopping_rounds*** boosting steps then boosting is aborted. The point with this constructor parameter is to speed up the training and make it easier to select a high ***m***.
 
 #### num_first_steps_with_linear_effects_only (default = 0)
@@ -60,6 +60,9 @@ Specifies a penalty in the range [0.0, 1.0] on interaction terms. A higher value
 
 #### max_terms (default = 0)
 Restricts the maximum number of terms in any of the underlying models trained to ***max_terms***. The default value of 0 means no limit. After the limit is reached, the remaining boosting steps are used to further update the coefficients of already included terms. An optional tuning objective could be to find the lowest positive value of ***max_terms*** that does not increase the prediction error significantly. Low positive values can speed up the training process significantly. Setting a limit with ***max_terms*** may require a higher learning rate for best results.
+
+#### ridge_penalty (default = 0.0001)
+Specifies the (weighted) ridge penalty applied to the model. Positive values can smooth model effects and help mitigate boundary problems, such as regression coefficients with excessively high magnitudes near the boundaries. To find the optimal value, consider using a grid search or similar. Negative values are treated as zero.
 
 
 ## Method: fit(X:FloatMatrix, y:List[str], sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], interaction_constraints:List[List[int]] = [], predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [], predictor_min_observations_in_split: List[int] = [])

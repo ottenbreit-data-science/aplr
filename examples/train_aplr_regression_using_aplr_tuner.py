@@ -46,6 +46,7 @@ parameters = {
     "v": [0.5],
     "loss_function": [loss_function],
     "link_function": [link_function],
+    "ridge_penalty": [0.0001, 0.001],
     # "max_terms": [10],
 }
 aplr_tuner = APLRTuner(parameters=parameters, is_regressor=True)

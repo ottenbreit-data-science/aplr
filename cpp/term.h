@@ -47,11 +47,14 @@ private:
     bool linear_effects_only_in_this_boosting_step;
     double penalty_for_non_linearity;
     double penalty_for_interactions;
+    double ridge_penalty;
+    double ridge_penalty_weight;
 
     void calculate_error_where_given_terms_are_zero(const VectorXd &negative_gradient, const VectorXd &sample_weight);
     void initialize_parameters_in_estimate_split_point(size_t bins, double v, size_t min_observations_in_split,
                                                        bool linear_effects_only_in_this_boosting_step,
-                                                       double penalty_for_non_linearity, double penalty_for_interactions);
+                                                       double penalty_for_non_linearity, double penalty_for_interactions,
+                                                       double ridge_penalty, double ridge_penalty_weight);
     void adjust_min_observations_in_split_to_avoid_computational_errors(size_t min_observations_in_split);
     void sort_vectors_ascending_by_base_term(const MatrixXd &X, const VectorXd &negative_gradient, const VectorXd &sample_weight);
     SortedData sort_data(const VectorXd &values_to_sort, const VectorXd &negative_gradient_to_sort, const VectorXd &sample_weight_to_sort);
@@ -101,7 +104,8 @@ public:
     static bool equals_given_terms(const Term &p1, const Term &p2);
     void estimate_split_point(const MatrixXd &X, const VectorXd &negative_gradient, const VectorXd &sample_weight, size_t bins, double v,
                               size_t min_observations_in_split, bool linear_effects_only_in_this_boosting_step,
-                              double penalty_for_non_linearity, double penalty_for_interactions, bool estimate_coefficient_only = false);
+                              double penalty_for_non_linearity, double penalty_for_interactions, double ridge_penalty,
+                              double ridge_penalty_weight, bool estimate_coefficient_only = false);
     size_t get_interaction_level();
     VectorXd calculate_without_interactions(const VectorXd &x);
     void calculate_rows_to_zero_out_and_not_due_to_given_terms(const MatrixXd &X);
@@ -178,7 +182,8 @@ bool operator==(const Term &p1, const Term &p2)
 
 void Term::estimate_split_point(const MatrixXd &X, const VectorXd &negative_gradient, const VectorXd &sample_weight, size_t bins, double v,
                                 size_t min_observations_in_split, bool linear_effects_only_in_this_boosting_step,
-                                double penalty_for_non_linearity, double penalty_for_interactions, bool estimate_coefficient_only)
+                                double penalty_for_non_linearity, double penalty_for_interactions, double ridge_penalty,
+                                double ridge_penalty_weight, bool estimate_coefficient_only)
 {
     bool learning_rate_is_zero{is_approximately_zero(v)};
     if (learning_rate_is_zero)
@@ -197,7 +202,7 @@ void Term::estimate_split_point(const MatrixXd &X, const VectorXd &negative_grad
     }
 
     initialize_parameters_in_estimate_split_point(bins, v, min_observations_in_split, linear_effects_only_in_this_boosting_step,
-                                                  penalty_for_non_linearity, penalty_for_interactions);
+                                                  penalty_for_non_linearity, penalty_for_interactions, ridge_penalty, ridge_penalty_weight);
     calculate_error_where_given_terms_are_zero(negative_gradient, sample_weight);
     sort_vectors_ascending_by_base_term(X, negative_gradient, sample_weight);
     if (!estimate_coefficient_only)
@@ -322,13 +327,15 @@ void Term::calculate_error_where_given_terms_are_zero(const VectorXd &negative_g
 
 void Term::initialize_parameters_in_estimate_split_point(size_t bins, double v, size_t min_observations_in_split,
                                                          bool linear_effects_only_in_this_boosting_step, double penalty_for_non_linearity,
-                                                         double penalty_for_interactions)
+                                                         double penalty_for_interactions, double ridge_penalty, double ridge_penalty_weight)
 {
     this->bins = bins;
     this->v = v;
     this->linear_effects_only_in_this_boosting_step = linear_effects_only_in_this_boosting_step;
     this->penalty_for_non_linearity = penalty_for_non_linearity;
     this->penalty_for_interactions = penalty_for_interactions;
+    this->ridge_penalty = ridge_penalty;
+    this->ridge_penalty_weight = ridge_penalty_weight;
     adjust_min_observations_in_split_to_avoid_computational_errors(min_observations_in_split);
     max_index = calculate_max_index_in_vector(rows_to_zero_out_and_not_due_to_given_terms.not_zeroed);
 }
@@ -619,6 +626,8 @@ double Term::estimate_coefficient(const VectorXd &x, const VectorXd &y, const Ve
         numerator += x[i] * y[i] * sample_weight[i];
         denominator += x[i] * x[i] * sample_weight[i];
     }
+    if (ridge_penalty > 0.0)
+        denominator += ridge_penalty * ridge_penalty_weight;
     return numerator / denominator;
 }
 

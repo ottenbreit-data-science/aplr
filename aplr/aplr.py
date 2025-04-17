@@ -69,11 +69,12 @@ class APLRRegressor:
         monotonic_constraints_ignore_interactions: bool = False,
         group_mse_by_prediction_bins: int = 10,
         group_mse_cycle_min_obs_in_bin: int = 30,
-        early_stopping_rounds: int = 500,
+        early_stopping_rounds: int = 200,
         num_first_steps_with_linear_effects_only: int = 0,
         penalty_for_non_linearity: float = 0.0,
         penalty_for_interactions: float = 0.0,
         max_terms: int = 0,
+        ridge_penalty: float = 0.0001,
     ):
         self.m = m
         self.v = v
@@ -120,6 +121,7 @@ class APLRRegressor:
         self.penalty_for_non_linearity = penalty_for_non_linearity
         self.penalty_for_interactions = penalty_for_interactions
         self.max_terms = max_terms
+        self.ridge_penalty = ridge_penalty
 
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
@@ -180,6 +182,7 @@ class APLRRegressor:
         self.APLRRegressor.penalty_for_non_linearity = self.penalty_for_non_linearity
         self.APLRRegressor.penalty_for_interactions = self.penalty_for_interactions
         self.APLRRegressor.max_terms = self.max_terms
+        self.APLRRegressor.ridge_penalty = self.ridge_penalty
 
     def fit(
         self,
@@ -343,6 +346,7 @@ class APLRRegressor:
             "penalty_for_non_linearity": self.penalty_for_non_linearity,
             "penalty_for_interactions": self.penalty_for_interactions,
             "max_terms": self.max_terms,
+            "ridge_penalty": self.ridge_penalty,
         }
 
     # For sklearn
@@ -370,11 +374,12 @@ class APLRClassifier:
         max_eligible_terms: int = 7,
         boosting_steps_before_interactions_are_allowed: int = 0,
         monotonic_constraints_ignore_interactions: bool = False,
-        early_stopping_rounds: int = 500,
+        early_stopping_rounds: int = 200,
         num_first_steps_with_linear_effects_only: int = 0,
         penalty_for_non_linearity: float = 0.0,
         penalty_for_interactions: float = 0.0,
         max_terms: int = 0,
+        ridge_penalty: float = 0.0001,
     ):
         self.m = m
         self.v = v
@@ -401,6 +406,7 @@ class APLRClassifier:
         self.penalty_for_non_linearity = penalty_for_non_linearity
         self.penalty_for_interactions = penalty_for_interactions
         self.max_terms = max_terms
+        self.ridge_penalty = ridge_penalty
 
         # Creating aplr_cpp and setting parameters
         self.APLRClassifier = aplr_cpp.APLRClassifier()
@@ -435,6 +441,7 @@ class APLRClassifier:
         self.APLRClassifier.penalty_for_non_linearity = self.penalty_for_non_linearity
         self.APLRClassifier.penalty_for_interactions = self.penalty_for_interactions
         self.APLRClassifier.max_terms = self.max_terms
+        self.APLRClassifier.ridge_penalty = self.ridge_penalty
 
     def fit(
         self,
@@ -527,6 +534,7 @@ class APLRClassifier:
             "penalty_for_non_linearity": self.penalty_for_non_linearity,
             "penalty_for_interactions": self.penalty_for_interactions,
             "max_terms": self.max_terms,
+            "ridge_penalty": self.ridge_penalty,
         }
 
     # For sklearn

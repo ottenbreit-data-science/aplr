@@ -25,7 +25,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                       std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)> &,
                       std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)> &,
                       std::function<VectorXd(const VectorXd &linear_predictor)> &, std::function<VectorXd(const VectorXd &linear_predictor)> &,
-                      int &, bool &, int &, int &, int &, int &, double &, double &, int &>(),
+                      int &, bool &, int &, int &, int &, int &, double &, double &, int &, double &>(),
              py::arg("m") = 3000, py::arg("v") = 0.5, py::arg("random_state") = 0, py::arg("loss_function") = "mse", py::arg("link_function") = "identity",
              py::arg("n_jobs") = 0, py::arg("cv_folds") = 5,
              py::arg("bins") = 300, py::arg("verbosity") = 0,
@@ -42,8 +42,9 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("boosting_steps_before_interactions_are_allowed") = 0,
              py::arg("monotonic_constraints_ignore_interactions") = false,
              py::arg("group_mse_by_prediction_bins") = 10, py::arg("group_mse_cycle_min_obs_in_bin") = 30,
-             py::arg("early_stopping_rounds") = 500, py::arg("num_first_steps_with_linear_effects_only") = 0,
-             py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.0, py::arg("max_terms") = 0)
+             py::arg("early_stopping_rounds") = 200, py::arg("num_first_steps_with_linear_effects_only") = 0,
+             py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.0, py::arg("max_terms") = 0,
+             py::arg("ridge_penalty") = 0.0001)
         .def("fit", &APLRRegressor::fit, py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("cv_observations") = MatrixXd(0, 0), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),
              py::arg("monotonic_constraints") = std::vector<int>(), py::arg("group") = VectorXi(0),
@@ -132,6 +133,7 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def_readwrite("max_terms", &APLRRegressor::max_terms)
         .def_readwrite("min_predictor_values_in_training", &APLRRegressor::min_predictor_values_in_training)
         .def_readwrite("max_predictor_values_in_training", &APLRRegressor::max_predictor_values_in_training)
+        .def_readwrite("ridge_penalty", &APLRRegressor::ridge_penalty)
         .def(py::pickle(
             [](const APLRRegressor &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
@@ -147,11 +149,11 @@ PYBIND11_MODULE(aplr_cpp, m)
                                       a.penalty_for_non_linearity, a.penalty_for_interactions, a.max_terms,
                                       a.min_predictor_values_in_training, a.max_predictor_values_in_training,
                                       a.term_affiliations, a.number_of_unique_term_affiliations, a.unique_term_affiliations,
-                                      a.unique_term_affiliation_map, a.base_predictors_in_each_unique_term_affiliation);
+                                      a.unique_term_affiliation_map, a.base_predictors_in_each_unique_term_affiliation, a.ridge_penalty);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 48)
-                    throw std::runtime_error("Invalid state!");
+                if (t.size() < 48)
+                    throw std::runtime_error("The pickled APLRRegressor is too old. The oldest compatible version is 10.6.1.");
 
                 /* Create a new C++ instance */
                 size_t m = t[0].cast<size_t>();
@@ -202,6 +204,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                 std::vector<std::string> unique_term_affiliations = t[45].cast<std::vector<std::string>>();
                 std::map<std::string, size_t> unique_term_affiliation_map = t[46].cast<std::map<std::string, size_t>>();
                 std::vector<std::vector<size_t>> base_predictors_in_each_unique_term_affiliation = t[47].cast<std::vector<std::vector<size_t>>>();
+                double ridge_penalty = (t.size() > 48) ? t[48].cast<double>() : 0.0;
 
                 APLRRegressor a(m, v, random_state, loss_function, link_function, n_jobs, cv_folds, bins, verbosity, max_interaction_level,
                                 max_interactions, min_observations_in_split, ineligible_boosting_steps_added, max_eligible_terms, dispersion_parameter,
@@ -237,6 +240,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                 a.unique_term_affiliations = unique_term_affiliations;
                 a.unique_term_affiliation_map = unique_term_affiliation_map;
                 a.base_predictors_in_each_unique_term_affiliation = base_predictors_in_each_unique_term_affiliation;
+                a.ridge_penalty = ridge_penalty;
 
                 return a;
             }));
@@ -285,14 +289,15 @@ PYBIND11_MODULE(aplr_cpp, m)
 
     py::class_<APLRClassifier>(m, "APLRClassifier", py::module_local())
         .def(py::init<int &, double &, int &, int &, int &, int &, int &, int &, int &, int &, int &, int &, int &, bool &, int &, int &,
-                      double &, double &, int &>(),
+                      double &, double &, int &, double &>(),
              py::arg("m") = 3000, py::arg("v") = 0.5, py::arg("random_state") = 0, py::arg("n_jobs") = 0, py::arg("cv_folds") = 5,
              py::arg("bins") = 300, py::arg("verbosity") = 0,
              py::arg("max_interaction_level") = 1, py::arg("max_interactions") = 100000, py::arg("min_observations_in_split") = 4,
              py::arg("ineligible_boosting_steps_added") = 15, py::arg("max_eligible_terms") = 7,
              py::arg("boosting_steps_before_interactions_are_allowed") = 0, py::arg("monotonic_constraints_ignore_interactions") = false,
-             py::arg("early_stopping_rounds") = 500, py::arg("num_first_steps_with_linear_effects_only") = 0,
-             py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.0, py::arg("max_terms") = 0)
+             py::arg("early_stopping_rounds") = 200, py::arg("num_first_steps_with_linear_effects_only") = 0,
+             py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.0, py::arg("max_terms") = 0,
+             py::arg("ridge_penalty") = 0.0001)
         .def("fit", &APLRClassifier::fit, py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("cv_observations") = MatrixXd(0, 0), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),
              py::arg("monotonic_constraints") = std::vector<int>(), py::arg("interaction_constraints") = std::vector<std::vector<size_t>>(),
@@ -338,6 +343,7 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def_readwrite("unique_term_affiliations", &APLRClassifier::unique_term_affiliations)
         .def_readwrite("unique_term_affiliation_map", &APLRClassifier::unique_term_affiliation_map)
         .def_readwrite("base_predictors_in_each_unique_term_affiliation", &APLRClassifier::base_predictors_in_each_unique_term_affiliation)
+        .def_readwrite("ridge_penalty", &APLRClassifier::ridge_penalty)
         .def(py::pickle(
             [](const APLRClassifier &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
@@ -348,11 +354,11 @@ PYBIND11_MODULE(aplr_cpp, m)
                                       a.monotonic_constraints_ignore_interactions, a.early_stopping_rounds,
                                       a.num_first_steps_with_linear_effects_only, a.penalty_for_non_linearity, a.penalty_for_interactions,
                                       a.max_terms, a.unique_term_affiliations, a.unique_term_affiliation_map,
-                                      a.base_predictors_in_each_unique_term_affiliation);
+                                      a.base_predictors_in_each_unique_term_affiliation, a.ridge_penalty);
             },
             [](py::tuple t) { // __setstate__
-                if (t.size() != 27)
-                    throw std::runtime_error("Invalid state!");
+                if (t.size() < 27)
+                    throw std::runtime_error("The pickled APLRClassifier is too old. The oldest compatible version is 10.6.1.");
 
                 /* Create a new C++ instance */
                 size_t m = t[0].cast<size_t>();
@@ -382,6 +388,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                 std::vector<std::string> unique_term_affiliations = t[24].cast<std::vector<std::string>>();
                 std::map<std::string, size_t> unique_term_affiliation_map = t[25].cast<std::map<std::string, size_t>>();
                 std::vector<std::vector<size_t>> base_predictors_in_each_unique_term_affiliation = t[26].cast<std::vector<std::vector<size_t>>>();
+                double ridge_penalty = (t.size() > 27) ? t[27].cast<double>() : 0.0;
 
                 APLRClassifier a(m, v, random_state, n_jobs, cv_folds, bins, verbosity, max_interaction_level, max_interactions,
                                  min_observations_in_split, ineligible_boosting_steps_added, max_eligible_terms);
@@ -400,6 +407,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                 a.unique_term_affiliations = unique_term_affiliations;
                 a.unique_term_affiliation_map = unique_term_affiliation_map;
                 a.base_predictors_in_each_unique_term_affiliation = base_predictors_in_each_unique_term_affiliation;
+                a.ridge_penalty = ridge_penalty;
 
                 return a;
             }));

@@ -60,6 +60,44 @@ public:
                   << "Passed " << std::accumulate(tests.begin(), tests.end(), 0) << " out of " << tests.size() << " tests.";
     }
 
+    void test_aplrregressor_ridge()
+    {
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 0.1;
+        model.bins = 300;
+        model.n_jobs = 0;
+        model.loss_function = "mse";
+        model.link_function = "identity";
+        model.verbosity = 3;
+        model.max_interaction_level = 1;
+        model.n_jobs = 1;
+        model.ridge_penalty = 0.1;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        // Fitting
+        // model.fit(X_train,y_train);
+        model.fit(X_train, y_train, sample_weight);
+        std::cout << "feature importance\n"
+                  << model.feature_importance << "\n\n";
+
+        VectorXd predictions{model.predict(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.570526180335573));
+    }
+
     void test_aplrregressor_mse_predictor_min_observations_in_split()
     {
         // Model
@@ -73,6 +111,7 @@ public:
         model.max_interaction_level = 100;
         model.max_interactions = 30;
         model.min_observations_in_split = 50;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -125,6 +164,7 @@ public:
         model.max_eligible_terms = 5;
         model.dispersion_parameter = 1.0;
         model.max_terms = 5;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -178,6 +218,7 @@ public:
         model.dispersion_parameter = 1.0;
         model.penalty_for_non_linearity = 0.05;
         model.penalty_for_interactions = 0.1;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -233,6 +274,7 @@ public:
         model.dispersion_parameter = 1.0;
         model.penalty_for_non_linearity = 0.05;
         model.penalty_for_interactions = 0.1;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -286,6 +328,7 @@ public:
         model.dispersion_parameter = 1.0;
         model.boosting_steps_before_interactions_are_allowed = 90;
         model.num_first_steps_with_linear_effects_only = 80;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -340,6 +383,7 @@ public:
         model.boosting_steps_before_interactions_are_allowed = 90;
         model.num_first_steps_with_linear_effects_only = 80;
         model.early_stopping_rounds = 1;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -392,6 +436,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "group_mse";
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -472,6 +517,7 @@ public:
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "group_mse_by_prediction";
         model.group_mse_by_prediction_bins = 7;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -528,6 +574,7 @@ public:
         model.max_eligible_terms = 5;
         model.dispersion_parameter = 1.0;
         model.boosting_steps_before_interactions_are_allowed = 60;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -583,6 +630,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "custom_function";
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -641,6 +689,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.early_stopping_rounds = 10;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -699,6 +748,7 @@ public:
         model.max_eligible_terms = 5;
         model.calculate_custom_transform_linear_predictor_to_predictions_function = calculate_custom_transform_linear_predictor_to_predictions;
         model.calculate_custom_differentiate_predictions_wrt_linear_predictor_function = calculate_custom_differentiate_predictions_wrt_linear_predictor;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -753,6 +803,7 @@ public:
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "custom_function";
         model.calculate_custom_validation_error_function = calculate_custom_validation_error_2;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -806,6 +857,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "negative_gini";
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -859,6 +911,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "negative_gini";
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -912,6 +965,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "mse";
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -963,6 +1017,7 @@ public:
         model.min_observations_in_split = 50;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1020,6 +1075,7 @@ public:
         model.max_eligible_terms = 5;
         model.group_mse_by_prediction_bins = 8;
         model.group_mse_cycle_min_obs_in_bin = 28;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1061,6 +1117,7 @@ public:
         model.min_observations_in_split = 50;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1116,6 +1173,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.validation_tuning_metric = "mae";
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1168,6 +1226,7 @@ public:
         model.min_observations_in_split = 20;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1219,6 +1278,7 @@ public:
         model.min_observations_in_split = 50;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1271,6 +1331,7 @@ public:
         model.min_observations_in_split = 50;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1324,6 +1385,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.monotonic_constraints_ignore_interactions = true;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1378,6 +1440,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.dispersion_parameter = 1.0;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1430,6 +1493,7 @@ public:
         model.min_observations_in_split = 20;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1483,6 +1547,7 @@ public:
         model.min_observations_in_split = 20;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1535,6 +1600,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.quantile = 0.5;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1588,6 +1654,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.dispersion_parameter = 1.5;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1639,6 +1706,7 @@ public:
         model.min_observations_in_split = 50;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1726,6 +1794,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.monotonic_constraints_ignore_interactions = true;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1795,6 +1864,7 @@ public:
         model.min_observations_in_split = 20;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1866,6 +1936,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.monotonic_constraints_ignore_interactions = true;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -1937,6 +2008,7 @@ public:
         model.max_eligible_terms = 5;
         model.boosting_steps_before_interactions_are_allowed = 50;
         model.num_first_steps_with_linear_effects_only = 60;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -2005,6 +2077,7 @@ public:
         model.min_observations_in_split = 20;
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -2075,6 +2148,7 @@ public:
         model.max_eligible_terms = 5;
         model.penalty_for_non_linearity = 0.05;
         model.penalty_for_interactions = 0.1;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -2151,6 +2225,7 @@ public:
         model.max_eligible_terms = 5;
         model.penalty_for_non_linearity = 0.05;
         model.penalty_for_interactions = 0.1;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -2220,6 +2295,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.max_terms = 4;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -2289,6 +2365,7 @@ public:
         model.ineligible_boosting_steps_added = 10;
         model.max_eligible_terms = 5;
         model.max_terms = 4;
+        model.ridge_penalty = 0.0;
 
         // Data
         MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
@@ -2335,6 +2412,70 @@ public:
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
         tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.46597769437683995, 0.00001));
+    }
+
+    void test_aplrclassifier_two_class_ridge()
+    {
+        // Model
+        APLRClassifier model{APLRClassifier()};
+        model.m = 100;
+        model.v = 0.5;
+        model.n_jobs = 0;
+        model.verbosity = 3;
+        model.max_interaction_level = 1;
+        model.ridge_penalty = 0.2;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train_logit.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test_logit.csv")};
+        std::vector<std::string> y_train_str(y_train.rows());
+        std::vector<std::string> y_test_str(y_test.rows());
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        for (Eigen::Index i = 0; i < y_train.size(); ++i)
+        {
+            y_train_str[i] = std::to_string(y_train[i]);
+        }
+        for (Eigen::Index i = 0; i < y_test.size(); ++i)
+        {
+            y_test_str[i] = std::to_string(y_test[i]);
+        }
+
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
+
+        // Fitting
+        // model.fit(X_train,y_train_str);
+        model.fit(X_train, y_train_str, sample_weight);
+        model.fit(X_train, y_train_str, sample_weight);
+        // model.fit(X_train, y_train_str, sample_weight, {}, cv_observations);
+        MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
+        std::vector<std::string> predictions{model.predict(X_test, false)};
+        MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
+
+        std::cout << "cv_error\n"
+                  << model.get_cv_error() << "\n\n";
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.18274188043364559));
+
+        std::cout << "predicted_class_prob_mean\n"
+                  << predicted_class_probabilities.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predicted_class_probabilities.mean(), 0.5));
+
+        std::cout << "local_feature_importance_mean\n"
+                  << local_feature_contribution.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(local_feature_contribution.mean(), 0.027256376715801025));
     }
 
     void test_functions()
@@ -2515,6 +2656,7 @@ public:
 int main()
 {
     Tests tests{Tests()};
+    tests.test_aplrregressor_ridge();
     tests.test_aplrregressor_mse_predictor_min_observations_in_split();
     tests.test_aplrregressor_cauchy_term_limit();
     tests.test_aplrregressor_cauchy_predictor_specific_penalties_and_learning_rates();
@@ -2554,6 +2696,7 @@ int main()
     tests.test_aplrclassifier_two_class_predictor_specific_penalties_and_learning_rates();
     tests.test_aplrclassifier_two_class_max_terms();
     tests.test_aplrclassifier_two_class_predictor_min_observations_in_split();
+    tests.test_aplrclassifier_two_class_ridge();
     tests.test_functions();
     tests.test_term();
     tests.summarize_results();
