@@ -40,14 +40,19 @@ link_function = (
 parameters = {
     "random_state": [random_state],
     "max_interaction_level": [0, 1],
-    "min_observations_in_split": [1, 4, 20, 50, 100, 200],
+    "min_observations_in_split": [1, 4, 20, 50],
     "verbosity": [2],
     "m": [3000],
     "v": [0.5],
     "loss_function": [loss_function],
     "link_function": [link_function],
-    "ridge_penalty": [0.0001, 0.001],
-    # "max_terms": [10],
+    "ridge_penalty": [0, 0.0001, 0.001],
+    "num_first_steps_with_linear_effects_only": [
+        0
+    ],  # Increasing num_first_steps_with_linear_effects_only will increase interpretabilty but may decrease predictiveness.
+    "boosting_steps_before_interactions_are_allowed": [
+        0
+    ],  # Increasing boosting_steps_before_interactions_are_allowed will increase interpretabilty but may decrease predictiveness.
 }
 aplr_tuner = APLRTuner(parameters=parameters, is_regressor=True)
 aplr_tuner.fit(
@@ -90,10 +95,9 @@ estimated_feature_importance = estimated_feature_importance.sort_values(
     by="importance", ascending=False
 )
 
-# Shapes for all term affiliations in the model. For each term affiliation, contains predictor values and the corresponding
+# Shapes for all term affiliations in the model. For each term affiliation, shape_df contains predictor values and the corresponding
 # contributions to the linear predictor. Plots are created for main effects and two-way interactions.
 # This is probably the most useful method to use for understanding how the model works.
-shapes: Dict[str, pd.DataFrame] = {}
 predictors_in_each_affiliation = (
     best_model.get_base_predictors_in_each_unique_term_affiliation()
 )
@@ -106,7 +110,6 @@ for affiliation_index, affiliation in enumerate(
         shape,
         columns=[predictors[i] for i in predictor_indexes_used] + ["contribution"],
     )
-    shapes.update({affiliation: shape_df})
     is_main_effect: bool = len(predictor_indexes_used) == 1
     is_two_way_interaction: bool = len(predictor_indexes_used) == 2
     if is_main_effect:

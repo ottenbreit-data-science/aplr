@@ -37,12 +37,17 @@ predicted = "predicted"
 parameters = {
     "random_state": [random_state],
     "max_interaction_level": [0, 1],
-    "min_observations_in_split": [1, 4, 20, 40],
+    "min_observations_in_split": [1, 4, 20],
     "verbosity": [2],
     "m": [3000],
     "v": [0.5],
-    "ridge_penalty": [0.0001, 0.001],
-    # "max_terms": [5],
+    "ridge_penalty": [0, 0.0001, 0.001],
+    "num_first_steps_with_linear_effects_only": [
+        0
+    ],  # Increasing num_first_steps_with_linear_effects_only will increase interpretabilty but may decrease predictiveness.
+    "boosting_steps_before_interactions_are_allowed": [
+        0
+    ],  # Increasing boosting_steps_before_interactions_are_allowed will increase interpretabilty but may decrease predictiveness.
 }
 aplr_tuner = APLRTuner(parameters=parameters, is_regressor=False)
 aplr_tuner.fit(

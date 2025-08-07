@@ -39,8 +39,8 @@ best_validation_result = np.inf
 param_grid = ParameterGrid(
     {
         "max_interaction_level": [0, 1],
-        "min_observations_in_split": [1, 4, 20, 40],
-        "ridge_penalty": [0.0001, 0.001],
+        "min_observations_in_split": [1, 4, 20],
+        "ridge_penalty": [0, 0.0001, 0.001],
     }
 )
 best_model: APLRClassifier = None
@@ -50,7 +50,8 @@ for params in param_grid:
         verbosity=2,
         m=3000,
         v=0.5,
-        # max_terms=5,  # Optionally tune this to find a trade-off between interpretability and predictiveness. May require a higher learning rate for best results.
+        num_first_steps_with_linear_effects_only=0,  # Increasing this will increase interpretabilty but may decrease predictiveness.
+        boosting_steps_before_interactions_are_allowed=0,  # Increasing this will increase interpretabilty but may decrease predictiveness.
         **params
     )
     model.fit(
