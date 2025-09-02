@@ -369,3 +369,7 @@ Prevents the output from having significantly more than ***max_rows_before_sampl
 
 #### value
 A float representing the new intercept.
+
+## Method: remove_provided_custom_functions()
+
+***Removes any custom functions provided for calculating the loss, negative gradient, or validation error. This is useful after model training with custom functions, ensuring that the APLRRegressor object no longer depends on these functions—so they do not need to be present in the Python environment when loading a saved model.***

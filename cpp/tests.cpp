@@ -661,7 +661,7 @@ public:
         model.fit(X_train, y_train, sample_weight, {}, cv_observations, prioritized_predictor_indexes, {}, VectorXi(0), {}, X_train);
         std::cout << "feature importance\n"
                   << model.feature_importance << "\n\n";
-
+        model.remove_provided_custom_functions();
         VectorXd predictions{model.predict(X_test)};
 
         // Saving results

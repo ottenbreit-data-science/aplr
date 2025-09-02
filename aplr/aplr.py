@@ -312,6 +312,12 @@ class APLRRegressor:
     def set_intercept(self, value: float):
         self.APLRRegressor.set_intercept(value)
 
+    def remove_provided_custom_functions(self):
+        self.APLRRegressor.remove_provided_custom_functions()
+        self.calculate_custom_validation_error_function = None
+        self.calculate_custom_loss_function = None
+        self.calculate_custom_negative_gradient_function = None
+
     # For sklearn
     def get_params(self, deep=True):
         return {

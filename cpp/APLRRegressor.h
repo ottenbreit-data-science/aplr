@@ -304,6 +304,7 @@ public:
                                                         size_t unique_term_affiliation_index);
     double get_cv_error();
     void set_intercept(double value);
+    void remove_provided_custom_functions();
 
     friend class APLRClassifier;
 };
@@ -2775,4 +2776,11 @@ void APLRRegressor::set_intercept(double value)
         throw std::runtime_error("The new intercept must be finite.");
     intercept = value;
     term_coefficients[0] = value;
+}
+
+void APLRRegressor::remove_provided_custom_functions()
+{
+    calculate_custom_validation_error_function = {};
+    calculate_custom_loss_function = {};
+    calculate_custom_negative_gradient_function = {};
 }
