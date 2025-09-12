@@ -2730,7 +2730,7 @@ MatrixXd APLRRegressor::get_unique_term_affiliation_shape(const std::string &uni
     {
         split_points_in_each_predictor[i] = compute_split_points(base_predictors_in_each_unique_term_affiliation[unique_term_affiliation_index][i], relevant_term_indexes);
 
-        if (num_predictors_used_in_the_affiliation > 1 && additional_points > 0)
+        if (num_predictors_used_in_the_affiliation > 1 && additional_points > 0 && !split_points_in_each_predictor[i].empty())
         {
             double min_val = *std::min_element(split_points_in_each_predictor[i].begin(), split_points_in_each_predictor[i].end());
             double max_val = *std::max_element(split_points_in_each_predictor[i].begin(), split_points_in_each_predictor[i].end());
@@ -2741,9 +2741,9 @@ MatrixXd APLRRegressor::get_unique_term_affiliation_shape(const std::string &uni
                 double val = min_val + (max_val - min_val) * j / (additional_points + 1);
                 interpolated.push_back(val);
             }
+            split_points_in_each_predictor[i].reserve(split_points_in_each_predictor[i].size() + additional_points);
             split_points_in_each_predictor[i].insert(split_points_in_each_predictor[i].end(), interpolated.begin(), interpolated.end());
-            std::sort(split_points_in_each_predictor[i].begin(), split_points_in_each_predictor[i].end());
-            split_points_in_each_predictor[i].erase(std::unique(split_points_in_each_predictor[i].begin(), split_points_in_each_predictor[i].end()), split_points_in_each_predictor[i].end());
+            split_points_in_each_predictor[i] = remove_duplicate_elements_from_vector(split_points_in_each_predictor[i]);
         }
     }
 
@@ -2762,6 +2762,7 @@ MatrixXd APLRRegressor::get_unique_term_affiliation_shape(const std::string &uni
         {
             size_t current_num_observations = split_points.size();
             size_t num_observations_to_keep = std::round(factor * std::sqrt(current_num_observations));
+            num_observations_to_keep = std::max<size_t>(1, num_observations_to_keep);
             if (current_num_observations > num_observations_to_keep)
             {
                 std::shuffle(split_points.begin(), split_points.end(), seed);
