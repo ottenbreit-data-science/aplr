@@ -300,10 +300,13 @@ class APLRRegressor:
         return self.APLRRegressor.get_main_effect_shape(predictor_index)
 
     def get_unique_term_affiliation_shape(
-        self, unique_term_affiliation: str, max_rows_before_sampling: int = 100000
+        self,
+        unique_term_affiliation: str,
+        max_rows_before_sampling: int = 500000,
+        additional_points: int = 250,
     ) -> FloatMatrix:
         return self.APLRRegressor.get_unique_term_affiliation_shape(
-            unique_term_affiliation, max_rows_before_sampling
+            unique_term_affiliation, max_rows_before_sampling, additional_points
         )
 
     def get_cv_error(self) -> float:

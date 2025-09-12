@@ -120,17 +120,28 @@ for affiliation_index, affiliation in enumerate(
         plt.savefig(f"shape of {affiliation}.png")
         plt.close()
     elif is_two_way_interaction:
-        plt.figure()
-        ax = plt.axes(projection="3d")
-        ax.plot_trisurf(
-            shape_df.iloc[:, 0],
-            shape_df.iloc[:, 1],
-            shape_df.iloc[:, 2],
-            cmap="Greys",
+        pivot_table = shape_df.pivot_table(
+            index=shape_df.columns[0],
+            columns=shape_df.columns[1],
+            values=shape_df.columns[2],
+            aggfunc="mean",
         )
-        ax.set_xlabel(shape_df.columns[0])
-        ax.set_ylabel(shape_df.columns[1])
-        ax.set_zlabel("contribution")
+        plt.figure(figsize=(8, 6))
+        plt.imshow(
+            pivot_table.values,
+            aspect="auto",
+            origin="lower",
+            extent=[
+                pivot_table.columns.min(),
+                pivot_table.columns.max(),
+                pivot_table.index.min(),
+                pivot_table.index.max(),
+            ],
+            cmap="Blues_r",
+        )
+        plt.colorbar(label="contribution")
+        plt.xlabel(shape_df.columns[1])
+        plt.ylabel(shape_df.columns[0])
         plt.title("Contribution to the linear predictor")
         plt.savefig(f"shape of {affiliation}.png")
         plt.close()
@@ -174,7 +185,7 @@ correlation = pd.DataFrame(
 mse = ((data_test[response] - data_test[predicted]) ** 2).mean()
 mae = (data_test[response] - data_test[predicted]).abs().mean()
 goodness_of_fit = pd.DataFrame(
-    {"mse": [mse], "mae": [mae], "correlation": [correlation["prediction"][0]]}
+    {"mse": [mse], "mae": [mae], "correlation": [correlation["prediction"].iloc[0]]}
 )
 goodness_of_fit["r_squared"] = goodness_of_fit["correlation"] ** 2
 

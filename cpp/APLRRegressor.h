@@ -299,7 +299,7 @@ public:
     size_t get_optimal_m();
     std::string get_validation_tuning_metric();
     std::map<double, double> get_main_effect_shape(size_t predictor_index);
-    MatrixXd get_unique_term_affiliation_shape(const std::string &unique_term_affiliation, size_t max_rows_before_sampling = 100000);
+    MatrixXd get_unique_term_affiliation_shape(const std::string &unique_term_affiliation, size_t max_rows_before_sampling = 500000, size_t additional_points = 250);
     MatrixXd generate_predictor_values_and_contribution(const std::vector<size_t> &relevant_term_indexes,
                                                         size_t unique_term_affiliation_index);
     double get_cv_error();
@@ -2705,7 +2705,7 @@ VectorXd APLRRegressor::compute_contribution_to_linear_predictor_from_specific_t
     return contribution_from_specific_terms;
 }
 
-MatrixXd APLRRegressor::get_unique_term_affiliation_shape(const std::string &unique_term_affiliation, size_t max_rows_before_sampling)
+MatrixXd APLRRegressor::get_unique_term_affiliation_shape(const std::string &unique_term_affiliation, size_t max_rows_before_sampling, size_t additional_points)
 {
     if (model_has_not_been_trained())
         throw std::runtime_error("The model must have been trained before using get_unique_term_affiliation_shape().");
@@ -2729,6 +2729,22 @@ MatrixXd APLRRegressor::get_unique_term_affiliation_shape(const std::string &uni
     for (size_t i = 0; i < num_predictors_used_in_the_affiliation; ++i)
     {
         split_points_in_each_predictor[i] = compute_split_points(base_predictors_in_each_unique_term_affiliation[unique_term_affiliation_index][i], relevant_term_indexes);
+
+        if (num_predictors_used_in_the_affiliation > 1 && additional_points > 0)
+        {
+            double min_val = *std::min_element(split_points_in_each_predictor[i].begin(), split_points_in_each_predictor[i].end());
+            double max_val = *std::max_element(split_points_in_each_predictor[i].begin(), split_points_in_each_predictor[i].end());
+            std::vector<double> interpolated;
+            interpolated.reserve(additional_points);
+            for (size_t j = 1; j <= additional_points; ++j)
+            {
+                double val = min_val + (max_val - min_val) * j / (additional_points + 1);
+                interpolated.push_back(val);
+            }
+            split_points_in_each_predictor[i].insert(split_points_in_each_predictor[i].end(), interpolated.begin(), interpolated.end());
+            std::sort(split_points_in_each_predictor[i].begin(), split_points_in_each_predictor[i].end());
+            split_points_in_each_predictor[i].erase(std::unique(split_points_in_each_predictor[i].begin(), split_points_in_each_predictor[i].end()), split_points_in_each_predictor[i].end());
+        }
     }
 
     size_t num_split_point_combinations = 1;

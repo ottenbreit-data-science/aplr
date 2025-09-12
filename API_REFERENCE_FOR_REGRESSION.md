@@ -343,7 +343,7 @@ A numpy matrix with predictor values.
 The index of the predictor. So if ***predictor_index*** is ***1*** then the second predictor in ***X*** is used.
 
 
-## Method: get_unique_term_affiliation_shape(unique_term_affiliation:str, max_rows_before_sampling:int = 100000)
+## Method: get_unique_term_affiliation_shape(unique_term_affiliation:str, max_rows_before_sampling:int = 500000, additional_points: int = 250)
 
 ***Returns a matrix containing one column for each predictor used in the unique term affiliation, in addition to one column for the contribution to the linear predictor. For main effects or two-way interactions this can be visualized in for example line plots and surface plots respectively. See this [example](https://github.com/ottenbreit-data-science/aplr/blob/main/examples/train_aplr_regression.py).***
 
@@ -354,6 +354,9 @@ A string specifying which unique_term_affiliation to use.
 
 #### max_rows_before_sampling
 Prevents the output from having significantly more than ***max_rows_before_sampling*** rows by randomly sampling if necessary. This threshold can be triggered for example in interaction terms in larger models.
+
+#### additional_points
+Used for two-way or higher-order interactions. Specifies the number of evenly spaced points to add to the output - on top of split points for each predictor and nearby points - before any random sampling is applied. Valid values are zero or greater. This helps generate enough points to visualize the interaction effect smoothly and avoid artifacts from sparse data. If set to 0 then no points are added. A default of 250 is typically sufficient for most use cases, but this may be too high if the number of points is already high enough without added points or if the interaction order is high.
 
 
 ## Method: get_cv_error()

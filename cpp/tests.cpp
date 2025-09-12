@@ -1772,8 +1772,8 @@ public:
         tests.push_back(li_for_particular_terms_mean_is_correct);
         tests.push_back(base_predictors_in_the_second_affiliation == correct_base_predictors_in_the_second_affiliation);
         tests.push_back(the_second_unique_term_affiliation == the_correct_second_unique_term_affiliation);
-        tests.push_back(is_approximately_equal(unique_term_affiliation_shape.mean(), 85.582024243321399));
-        tests.push_back(unique_term_affiliation_shape.rows() == 36);
+        tests.push_back(is_approximately_equal(unique_term_affiliation_shape.mean(), 85.239971686680235));
+        tests.push_back(unique_term_affiliation_shape.rows() == 65536);
         tests.push_back(unique_term_affiliation_shape.cols() == 3);
         tests.push_back(main_effect_shape_keys == unique_term_affiliation_shape_for_X2.col(0));
         tests.push_back(main_effect_shape_values == unique_term_affiliation_shape_for_X2.col(1));
