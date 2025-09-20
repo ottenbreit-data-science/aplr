@@ -143,6 +143,7 @@ private:
     void update_gradient_and_errors();
     void add_new_term(size_t boosting_step);
     void update_coefficient_steps(size_t boosting_step);
+    double calculate_quantile_mean_response(const VectorXd &predictions, bool top_quantile);
     void calculate_and_validate_validation_error(size_t boosting_step);
     double calculate_validation_error(const VectorXd &predictions);
     double calculate_group_mse_by_prediction_validation_error(const VectorXd &predictions);
@@ -190,6 +191,7 @@ private:
     std::string compute_raw_base_term_name(const Term &term, const std::string &X_name);
     void throw_error_if_m_is_invalid();
     bool model_has_not_been_trained();
+    void throw_error_if_quantile_is_invalid();
     std::vector<size_t> compute_relevant_term_indexes(const std::string &unique_term_affiliation);
     std::vector<double> compute_split_points(size_t predictor_index, const std::vector<size_t> &relevant_term_indexes);
     VectorXd compute_contribution_to_linear_predictor_from_specific_terms(const MatrixXd &X, const std::vector<size_t> &term_indexes,
@@ -390,6 +392,7 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
     throw_error_if_loss_function_does_not_exist();
     throw_error_if_link_function_does_not_exist();
     throw_error_if_dispersion_parameter_is_invalid();
+    throw_error_if_quantile_is_invalid();
     throw_error_if_m_is_invalid();
     validate_input_to_fit(X, y, sample_weight, X_names, cv_observations, prioritized_predictors_indexes, monotonic_constraints, group,
                           interaction_constraints, other_data, predictor_learning_rates, predictor_penalties_for_non_linearity,
@@ -604,6 +607,17 @@ void APLRRegressor::throw_error_if_m_is_invalid()
 {
     if (m < 1)
         throw std::runtime_error("The maximum number of boosting steps, m, must be at least 1.");
+}
+
+void APLRRegressor::throw_error_if_quantile_is_invalid()
+{
+    if (loss_function == "quantile" || validation_tuning_metric == "neg_top_quantile_mean_response" || validation_tuning_metric == "bottom_quantile_mean_response")
+    {
+        if (quantile < 0.0 || quantile > 1.0)
+        {
+            throw std::runtime_error("Quantile must be between 0.0 and 1.0.");
+        }
+    }
 }
 
 void APLRRegressor::validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight,
@@ -1720,6 +1734,31 @@ void APLRRegressor::update_coefficient_steps(size_t boosting_step)
     }
 }
 
+double APLRRegressor::calculate_quantile_mean_response(const VectorXd &predictions, bool top_quantile)
+{
+    double quantile_value{calculate_quantile(predictions, quantile, sample_weight_validation)};
+
+    VectorXd predictions_in_quantile;
+    if (top_quantile)
+    {
+        predictions_in_quantile = (predictions.array() >= quantile_value).cast<double>();
+    }
+    else
+    {
+        predictions_in_quantile = (predictions.array() <= quantile_value).cast<double>();
+    }
+
+    VectorXd y_in_quantile{y_validation.array() * predictions_in_quantile.array()};
+    VectorXd weights_in_quantile{sample_weight_validation.array() * predictions_in_quantile.array()};
+
+    double mean_response{calculate_weighted_average(y_in_quantile, weights_in_quantile)};
+
+    if (std::isnan(mean_response))
+        return std::numeric_limits<double>::infinity();
+
+    return mean_response;
+}
+
 void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step)
 {
     validation_error_steps.col(0)[boosting_step] = calculate_validation_error(predictions_current_validation);
@@ -1783,6 +1822,19 @@ double APLRRegressor::calculate_validation_error(const VectorXd &predictions)
             std::string error_msg{"Error when calculating custom validation error function: " + static_cast<std::string>(e.what())};
             throw std::runtime_error(error_msg);
         }
+    }
+    else if (validation_tuning_metric == "neg_top_quantile_mean_response")
+    {
+        double mean_response{calculate_quantile_mean_response(predictions, true)};
+        if (std::isinf(mean_response))
+        {
+            return mean_response;
+        }
+        return -mean_response;
+    }
+    else if (validation_tuning_metric == "bottom_quantile_mean_response")
+    {
+        return calculate_quantile_mean_response(predictions, false);
     }
     else
         throw std::runtime_error(validation_tuning_metric + " is an invalid validation_tuning_metric.");

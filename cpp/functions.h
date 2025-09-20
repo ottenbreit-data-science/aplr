@@ -280,6 +280,27 @@ double calculate_mean_error(const VectorXd &errors, const VectorXd &sample_weigh
     return error;
 }
 
+double calculate_weighted_average(const VectorXd &values, const VectorXd &weights)
+{
+    if (values.size() != weights.size())
+    {
+        throw std::runtime_error("Values and weights must have the same size for weighted average calculation.");
+    }
+    if (values.size() == 0)
+    {
+        return NAN_DOUBLE;
+    }
+
+    double total_weight = weights.sum();
+    if (is_approximately_zero(total_weight))
+    {
+        return NAN_DOUBLE;
+    }
+
+    double weighted_sum = (values.array() * weights.array()).sum();
+    return weighted_sum / total_weight;
+}
+
 double calculate_sum_error(const VectorXd &errors)
 {
     double error{errors.sum()};
@@ -566,4 +587,96 @@ MatrixXd generate_combinations_and_one_additional_column(const std::vector<std::
         }
     }
     return result;
+}
+
+double calculate_quantile(const VectorXd &vector, double quantile, const VectorXd &sample_weight = VectorXd(0))
+{
+    if (quantile < 0.0 || quantile > 1.0)
+    {
+        throw std::runtime_error("Quantile must be between 0.0 and 1.0.");
+    }
+
+    const Eigen::Index n = vector.size();
+    if (n == 0)
+    {
+        return NAN_DOUBLE;
+    }
+
+    VectorXd sample_weight_used;
+    if (sample_weight.size() > 0)
+    {
+        if (sample_weight.size() != n)
+        {
+            throw std::runtime_error("Vector and sample_weight must have the same size.");
+        }
+        sample_weight_used = sample_weight;
+    }
+    else
+    {
+        sample_weight_used = VectorXd::Constant(n, 1.0);
+    }
+
+    if ((sample_weight_used.array() < 0.0).any())
+    {
+        throw std::runtime_error("Sample weights must be non-negative.");
+    }
+
+    double total_weight = sample_weight_used.sum();
+    if (is_approximately_zero(total_weight))
+    {
+        return NAN_DOUBLE;
+    }
+
+    if (n == 1)
+    {
+        return vector[0];
+    }
+
+    std::vector<std::pair<double, double>> weighted_values(n);
+    for (Eigen::Index i = 0; i < n; ++i)
+    {
+        weighted_values[i] = {vector[i], sample_weight_used[i]};
+    }
+
+    std::sort(weighted_values.begin(), weighted_values.end(),
+              [](const auto &a, const auto &b)
+              {
+                  return a.first < b.first;
+              });
+
+    VectorXd quantile_positions(n);
+    double cum_weight = 0.0;
+    for (Eigen::Index i = 0; i < n; ++i)
+    {
+        double current_weight = weighted_values[i].second;
+        cum_weight += current_weight;
+        quantile_positions[i] = (cum_weight - 0.5 * current_weight) / total_weight;
+    }
+
+    auto it = std::upper_bound(quantile_positions.data(), quantile_positions.data() + n, quantile);
+    Eigen::Index upper_index = std::distance(quantile_positions.data(), it);
+
+    if (upper_index == 0)
+    {
+        return weighted_values[0].first;
+    }
+    if (upper_index >= n)
+    {
+        return weighted_values[n - 1].first;
+    }
+
+    Eigen::Index lower_index = upper_index - 1;
+
+    double q_lower = quantile_positions[lower_index];
+    double q_upper = quantile_positions[upper_index];
+    double val_lower = weighted_values[lower_index].first;
+    double val_upper = weighted_values[upper_index].first;
+
+    if (is_approximately_equal(q_lower, q_upper))
+    {
+        return val_lower;
+    }
+
+    double fraction = (quantile - q_lower) / (q_upper - q_lower);
+    return val_lower + fraction * (val_upper - val_lower);
 }

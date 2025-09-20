@@ -1637,6 +1637,88 @@ public:
         tests.push_back(is_approximately_equal(predictions.mean(), 23.646255799722155));
     }
 
+    void test_aplrregressor_neg_top_quantile_mean_response()
+    {
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 1.0;
+        model.bins = 10;
+        model.n_jobs = 1;
+        model.loss_function = "mse";
+        model.validation_tuning_metric = "neg_top_quantile_mean_response";
+        model.verbosity = 3;
+        model.max_interaction_level = 100;
+        model.max_interactions = 30;
+        model.min_observations_in_split = 50;
+        model.ineligible_boosting_steps_added = 10;
+        model.max_eligible_terms = 5;
+        model.quantile = 0.8;
+        model.ridge_penalty = 0.0;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 0.5)};
+
+        // Fitting
+        model.fit(X_train, y_train, sample_weight);
+        std::cout << "feature importance\n"
+                  << model.feature_importance << "\n\n";
+
+        VectorXd predictions{model.predict(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.609343969688034));
+    }
+
+    void test_aplrregressor_bottom_quantile_mean_response()
+    {
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 1.0;
+        model.bins = 10;
+        model.n_jobs = 1;
+        model.loss_function = "mse";
+        model.validation_tuning_metric = "bottom_quantile_mean_response";
+        model.verbosity = 3;
+        model.max_interaction_level = 100;
+        model.max_interactions = 30;
+        model.min_observations_in_split = 50;
+        model.ineligible_boosting_steps_added = 10;
+        model.max_eligible_terms = 5;
+        model.quantile = 0.2;
+        model.ridge_penalty = 0.0;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 0.5)};
+
+        // Fitting
+        model.fit(X_train, y_train, sample_weight);
+        std::cout << "feature importance\n"
+                  << model.feature_importance << "\n\n";
+
+        VectorXd predictions{model.predict(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.273887245225175));
+    }
+
     void test_aplrregressor_weibull()
     {
         // Model
@@ -2685,6 +2767,8 @@ int main()
     tests.test_aplrregressor_poisson();
     tests.test_aplrregressor_poissongamma();
     tests.test_aplrregressor_quantile();
+    tests.test_aplrregressor_neg_top_quantile_mean_response();
+    tests.test_aplrregressor_bottom_quantile_mean_response();
     tests.test_aplrregressor_weibull();
     tests.test_aplrregressor();
     tests.test_aplr_classifier_multi_class_other_params();
