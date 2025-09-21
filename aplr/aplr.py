@@ -315,6 +315,108 @@ class APLRRegressor:
     def set_intercept(self, value: float):
         self.APLRRegressor.set_intercept(value)
 
+    def plot_affiliation_shape(
+        self,
+        affiliation: str,
+        plot: bool = True,
+        save: bool = False,
+        path: str = "",
+    ):
+        """
+        Plots or saves the shape of a given unique term affiliation.
+
+        For main effects, it produces a line plot. For two-way interactions, it produces a heatmap.
+        Plotting for higher-order interactions is not supported.
+
+        :param affiliation: A string specifying which unique_term_affiliation to use.
+        :param plot: If True, displays the plot.
+        :param save: If True, saves the plot to a file.
+        :param path: The file path to save the plot. If empty and save is True, a default path will be used.
+        """
+        try:
+            import pandas as pd
+            import matplotlib.pyplot as plt
+        except ImportError:
+            raise ImportError(
+                "pandas and matplotlib are required for plotting. Please install them."
+            )
+
+        all_affiliations = self.get_unique_term_affiliations()
+        if affiliation not in all_affiliations:
+            raise ValueError(
+                f"Affiliation '{affiliation}' not found in model. "
+                f"Available affiliations are: {all_affiliations}"
+            )
+
+        affiliation_index = all_affiliations.index(affiliation)
+
+        predictors_in_each_affiliation = (
+            self.get_base_predictors_in_each_unique_term_affiliation()
+        )
+        predictor_indexes_used = predictors_in_each_affiliation[affiliation_index]
+
+        shape = self.get_unique_term_affiliation_shape(affiliation)
+        if shape.shape[0] == 0:
+            print(f"No shape data available for affiliation '{affiliation}'.")
+            return
+
+        predictor_names = affiliation.split(" & ")
+
+        shape_df = pd.DataFrame(shape, columns=predictor_names + ["contribution"])
+
+        is_main_effect: bool = len(predictor_indexes_used) == 1
+        is_two_way_interaction: bool = len(predictor_indexes_used) == 2
+
+        if is_main_effect:
+            fig = plt.figure()
+            plt.plot(shape_df.iloc[:, 0], shape_df.iloc[:, 1])
+            plt.xlabel(shape_df.columns[0])
+            plt.ylabel("Contribution to linear predictor")
+            plt.title(f"Main effect of {shape_df.columns[0]}")
+            plt.grid(True)
+        elif is_two_way_interaction:
+            fig = plt.figure(figsize=(8, 6))
+            pivot_table = shape_df.pivot_table(
+                index=shape_df.columns[0],
+                columns=shape_df.columns[1],
+                values=shape_df.columns[2],
+                aggfunc="mean",
+            )
+            plt.imshow(
+                pivot_table.values,
+                aspect="auto",
+                origin="lower",
+                extent=[
+                    pivot_table.columns.min(),
+                    pivot_table.columns.max(),
+                    pivot_table.index.min(),
+                    pivot_table.index.max(),
+                ],
+                cmap="Blues_r",
+            )
+            plt.colorbar(label="Contribution to the linear predictor")
+            plt.xlabel(shape_df.columns[1])
+            plt.ylabel(shape_df.columns[0])
+            plt.title(
+                f"Interaction between {shape_df.columns[0]} and {shape_df.columns[1]}"
+            )
+        else:
+            print(
+                f"Plotting for interaction level > 2 is not supported. Affiliation: {affiliation}"
+            )
+            return
+
+        if save:
+            save_path = (
+                path if path else f"shape_of_{affiliation.replace(' & ', '_')}.png"
+            )
+            plt.savefig(save_path)
+
+        if plot:
+            plt.show()
+
+        plt.close(fig)
+
     def remove_provided_custom_functions(self):
         self.APLRRegressor.remove_provided_custom_functions()
         self.calculate_custom_validation_error_function = None
@@ -504,7 +606,36 @@ class APLRClassifier:
         return self.APLRClassifier.get_categories()
 
     def get_logit_model(self, category: str) -> APLRRegressor:
-        return self.APLRClassifier.get_logit_model(category)
+        logit_model_cpp = self.APLRClassifier.get_logit_model(category)
+
+        logit_model_py = APLRRegressor(
+            m=self.m,
+            v=self.v,
+            random_state=self.random_state,
+            loss_function="binomial",
+            link_function="logit",
+            n_jobs=self.n_jobs,
+            cv_folds=self.cv_folds,
+            bins=self.bins,
+            max_interaction_level=self.max_interaction_level,
+            max_interactions=self.max_interactions,
+            min_observations_in_split=self.min_observations_in_split,
+            ineligible_boosting_steps_added=self.ineligible_boosting_steps_added,
+            max_eligible_terms=self.max_eligible_terms,
+            verbosity=self.verbosity,
+            boosting_steps_before_interactions_are_allowed=self.boosting_steps_before_interactions_are_allowed,
+            monotonic_constraints_ignore_interactions=self.monotonic_constraints_ignore_interactions,
+            early_stopping_rounds=self.early_stopping_rounds,
+            num_first_steps_with_linear_effects_only=self.num_first_steps_with_linear_effects_only,
+            penalty_for_non_linearity=self.penalty_for_non_linearity,
+            penalty_for_interactions=self.penalty_for_interactions,
+            max_terms=self.max_terms,
+            ridge_penalty=self.ridge_penalty,
+        )
+
+        logit_model_py.APLRRegressor = logit_model_cpp
+
+        return logit_model_py
 
     def get_validation_error_steps(self) -> FloatMatrix:
         return self.APLRClassifier.get_validation_error_steps()

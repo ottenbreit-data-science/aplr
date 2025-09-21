@@ -13,6 +13,12 @@ To install APLR, use the following command:
 pip install aplr
 ```
 
+To include dependencies for plotting, use this command instead:
+
+```bash
+pip install aplr[plots]
+```
+
 ## Availability
 APLR is available for Windows, most Linux distributions, and macOS.
 

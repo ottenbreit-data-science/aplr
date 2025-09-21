@@ -373,6 +373,25 @@ Used for two-way or higher-order interactions. Specifies the number of evenly sp
 #### value
 A float representing the new intercept.
 
+## Method: plot_affiliation_shape(affiliation:str, plot:bool = True, save:bool = False, path:str = "")
+
+***Plots or saves the shape of a given unique term affiliation. For main effects, it produces a line plot. For two-way interactions, it produces a heatmap. Plotting for higher-order interactions is not supported. This method provides a convenient way to visualize model components.***
+
+### Parameters
+
+#### affiliation
+A string specifying which unique_term_affiliation to use.
+
+#### plot (default = True)
+If True, displays the plot.
+
+#### save (default = False)
+If True, saves the plot to a file.
+
+#### path (default = "")
+The file path to save the plot. If empty and save is True, a default path will be used, for example "shape_of_my_predictor.png".
+
+
 ## Method: remove_provided_custom_functions()
 
 ***Removes any custom functions provided for calculating the loss, negative gradient, or validation error. This is useful after model training with custom functions, ensuring that the APLRRegressor object no longer depends on these functions—so they do not need to be present in the Python environment when loading a saved model.***

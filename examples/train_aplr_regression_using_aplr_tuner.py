@@ -95,66 +95,11 @@ estimated_feature_importance = estimated_feature_importance.sort_values(
     by="importance", ascending=False
 )
 
-# Shapes for all term affiliations in the model. For each term affiliation, shape_df contains predictor values and the corresponding
-# contributions to the linear predictor. Plots are created for main effects and two-way interactions.
-# This is probably the most useful method to use for understanding how the model works.
-predictors_in_each_affiliation = (
-    best_model.get_base_predictors_in_each_unique_term_affiliation()
-)
-for affiliation_index, affiliation in enumerate(
-    best_model.get_unique_term_affiliations()
-):
-    shape = best_model.get_unique_term_affiliation_shape(affiliation)
-    predictor_indexes_used = predictors_in_each_affiliation[affiliation_index]
-    shape_df = pd.DataFrame(
-        shape,
-        columns=[predictors[i] for i in predictor_indexes_used] + ["contribution"],
+# Generate and save plots of main effects and two-way interactions. This is probably the most useful method for model interpretation.
+for affiliation in best_model.get_unique_term_affiliations():
+    best_model.plot_affiliation_shape(
+        affiliation, plot=False, save=True, path=f"shape of {affiliation}.png"
     )
-    is_main_effect: bool = len(predictor_indexes_used) == 1
-    is_two_way_interaction: bool = len(predictor_indexes_used) == 2
-    if is_main_effect:
-        plt.plot(shape_df.iloc[:, 0], shape_df.iloc[:, 1])
-        plt.xlabel(shape_df.columns[0])
-        plt.ylabel(shape_df.columns[1])
-        plt.title("Contribution to the linear predictor")
-        plt.savefig(f"shape of {affiliation}.png")
-        plt.close()
-    elif is_two_way_interaction:
-        pivot_table = shape_df.pivot_table(
-            index=shape_df.columns[0],
-            columns=shape_df.columns[1],
-            values=shape_df.columns[2],
-            aggfunc="mean",
-        )
-        plt.figure(figsize=(8, 6))
-        plt.imshow(
-            pivot_table.values,
-            aspect="auto",
-            origin="lower",
-            extent=[
-                pivot_table.columns.min(),
-                pivot_table.columns.max(),
-                pivot_table.index.min(),
-                pivot_table.index.max(),
-            ],
-            cmap="Blues_r",
-        )
-        plt.colorbar(label="contribution")
-        plt.xlabel(shape_df.columns[1])
-        plt.ylabel(shape_df.columns[0])
-        plt.title("Contribution to the linear predictor")
-        plt.savefig(f"shape of {affiliation}.png")
-        plt.close()
-
-# Main effect shape for the third predictor. This can be visualized in a line plot.
-# Will be empty if the third predictor is not used as a main effect in the model.
-main_effect_shape = best_model.get_main_effect_shape(predictor_index=2)
-main_effect_shape = pd.DataFrame(
-    {
-        "predictor_value": main_effect_shape.keys(),
-        "contribution_to_linear_predictor": main_effect_shape.values(),
-    }
-)
 
 # Local contribution to the linear predictor for each prediction in the training data. This can be used to interpret the model,
 # for example by visualizing two-way interactions versus predictor values in a 3D surface plot. This method can also be used on new data.

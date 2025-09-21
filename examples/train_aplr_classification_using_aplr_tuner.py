@@ -86,10 +86,20 @@ estimated_feature_importance = estimated_feature_importance.sort_values(
     by="importance", ascending=False
 )
 
+# Generate and save plots of main effects and two-way interactions for each category. This is probably the most useful method for model interpretation.
+for category in categories:
+    logit_model = best_model.get_logit_model(category)
+    for affiliation in logit_model.get_unique_term_affiliations():
+        logit_model.plot_affiliation_shape(
+            affiliation,
+            plot=False,
+            save=True,
+            path=f"shape of {affiliation} for category {category}.png",
+        )
+
 # Local feature contribution for each prediction. For each prediction, uses calculate_local_feature_contribution() in the logit APLRRegressor model
 # for the category that corresponds to the prediction. Example in this data: If a prediction is "2" then using calculate_local_feature_contribution()
-# in the logit model that predicts whether an observation belongs to class "2" or not. This can be used to interpret the model, for example
-# by creating 3D surface plots against predictor values to interpret two-way interactions. This method can also be used on new data.
+# in the logit model that predicts whether an observation belongs to class "2" or not. This method can also be used on new data.
 local_feature_contribution = pd.DataFrame(
     best_model.calculate_local_feature_contribution(data_train[predictors]),
     columns=best_model.get_unique_term_affiliations(),
