@@ -945,7 +945,6 @@ void APLRRegressor::scale_response_if_using_log_link_function()
         {
             scaling_factor_for_log_link_function = 1 / inverse_scaling_factor;
             y_train *= scaling_factor_for_log_link_function;
-            y_validation *= scaling_factor_for_log_link_function;
         }
         else
             scaling_factor_for_log_link_function = 1.0;
@@ -1773,13 +1772,19 @@ void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step
 
 double APLRRegressor::calculate_validation_error(const VectorXd &predictions)
 {
+    VectorXd predictions_used{predictions};
+    if (link_function == "log")
+    {
+        predictions_used /= scaling_factor_for_log_link_function;
+    }
+
     if (validation_tuning_metric == "default")
     {
         if (loss_function == "custom_function")
         {
             try
             {
-                return calculate_custom_loss_function(y_validation, predictions, sample_weight_validation, group_validation, other_data_validation);
+                return calculate_custom_loss_function(y_validation, predictions_used, sample_weight_validation, group_validation, other_data_validation);
             }
             catch (const std::exception &e)
             {
@@ -1789,33 +1794,33 @@ double APLRRegressor::calculate_validation_error(const VectorXd &predictions)
         }
         else if (loss_function == "group_mse_cycle")
         {
-            return calculate_group_mse_by_prediction_validation_error(predictions);
+            return calculate_group_mse_by_prediction_validation_error(predictions_used);
         }
         else
-            return calculate_mean_error(calculate_errors(y_validation, predictions, sample_weight_validation, loss_function, dispersion_parameter, group_validation, unique_groups_validation, quantile), sample_weight_validation);
+            return calculate_mean_error(calculate_errors(y_validation, predictions_used, sample_weight_validation, loss_function, dispersion_parameter, group_validation, unique_groups_validation, quantile), sample_weight_validation);
     }
     else if (validation_tuning_metric == "mse")
-        return calculate_mean_error(calculate_errors(y_validation, predictions, sample_weight_validation, MSE_LOSS_FUNCTION), sample_weight_validation);
+        return calculate_mean_error(calculate_errors(y_validation, predictions_used, sample_weight_validation, MSE_LOSS_FUNCTION), sample_weight_validation);
     else if (validation_tuning_metric == "mae")
-        return calculate_mean_error(calculate_errors(y_validation, predictions, sample_weight_validation, "mae"), sample_weight_validation);
+        return calculate_mean_error(calculate_errors(y_validation, predictions_used, sample_weight_validation, "mae"), sample_weight_validation);
     else if (validation_tuning_metric == "negative_gini")
-        return -calculate_gini(y_validation, predictions, sample_weight_validation) / calculate_gini(y_validation, y_validation, sample_weight_validation);
+        return -calculate_gini(y_validation, predictions_used, sample_weight_validation) / calculate_gini(y_validation, y_validation, sample_weight_validation);
     else if (validation_tuning_metric == "group_mse")
     {
         bool group_is_not_provided{group_validation.rows() == 0};
         if (group_is_not_provided)
             throw std::runtime_error("When validation_tuning_metric is group_mse then the group argument in fit() must be provided.");
-        return calculate_mean_error(calculate_errors(y_validation, predictions, sample_weight_validation, "group_mse", dispersion_parameter, group_validation, unique_groups_validation, quantile), sample_weight_validation);
+        return calculate_mean_error(calculate_errors(y_validation, predictions_used, sample_weight_validation, "group_mse", dispersion_parameter, group_validation, unique_groups_validation, quantile), sample_weight_validation);
     }
     else if (validation_tuning_metric == "group_mse_by_prediction")
     {
-        return calculate_group_mse_by_prediction_validation_error(predictions);
+        return calculate_group_mse_by_prediction_validation_error(predictions_used);
     }
     else if (validation_tuning_metric == "custom_function")
     {
         try
         {
-            return calculate_custom_validation_error_function(y_validation, predictions, sample_weight_validation, group_validation, other_data_validation);
+            return calculate_custom_validation_error_function(y_validation, predictions_used, sample_weight_validation, group_validation, other_data_validation);
         }
         catch (const std::exception &e)
         {
@@ -1825,7 +1830,7 @@ double APLRRegressor::calculate_validation_error(const VectorXd &predictions)
     }
     else if (validation_tuning_metric == "neg_top_quantile_mean_response")
     {
-        double mean_response{calculate_quantile_mean_response(predictions, true)};
+        double mean_response{calculate_quantile_mean_response(predictions_used, true)};
         if (std::isinf(mean_response))
         {
             return mean_response;
@@ -1834,7 +1839,7 @@ double APLRRegressor::calculate_validation_error(const VectorXd &predictions)
     }
     else if (validation_tuning_metric == "bottom_quantile_mean_response")
     {
-        return calculate_quantile_mean_response(predictions, false);
+        return calculate_quantile_mean_response(predictions_used, false);
     }
     else
         throw std::runtime_error(validation_tuning_metric + " is an invalid validation_tuning_metric.");
@@ -2025,7 +2030,6 @@ void APLRRegressor::revert_scaling_if_using_log_link_function()
     if (link_function == "log")
     {
         y_train /= scaling_factor_for_log_link_function;
-        y_validation /= scaling_factor_for_log_link_function;
         intercept += std::log(1 / scaling_factor_for_log_link_function);
         for (Eigen::Index i = 0; i < intercept_steps.size(); ++i)
         {
