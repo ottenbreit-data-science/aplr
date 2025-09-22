@@ -334,12 +334,9 @@ class APLRRegressor:
         :param path: The file path to save the plot. If empty and save is True, a default path will be used.
         """
         try:
-            import pandas as pd
             import matplotlib.pyplot as plt
         except ImportError:
-            raise ImportError(
-                "pandas and matplotlib are required for plotting. Please install them."
-            )
+            raise ImportError("matplotlib is required for plotting. Please install it.")
 
         all_affiliations = self.get_unique_term_affiliations()
         if affiliation not in all_affiliations:
@@ -362,43 +359,55 @@ class APLRRegressor:
 
         predictor_names = affiliation.split(" & ")
 
-        shape_df = pd.DataFrame(shape, columns=predictor_names + ["contribution"])
-
         is_main_effect: bool = len(predictor_indexes_used) == 1
         is_two_way_interaction: bool = len(predictor_indexes_used) == 2
 
         if is_main_effect:
             fig = plt.figure()
-            plt.plot(shape_df.iloc[:, 0], shape_df.iloc[:, 1])
-            plt.xlabel(shape_df.columns[0])
+            # Sort by predictor value for a clean line plot
+            sorted_indices = np.argsort(shape[:, 0])
+            plt.plot(shape[sorted_indices, 0], shape[sorted_indices, 1])
+            plt.xlabel(predictor_names[0])
             plt.ylabel("Contribution to linear predictor")
-            plt.title(f"Main effect of {shape_df.columns[0]}")
+            plt.title(f"Main effect of {predictor_names[0]}")
             plt.grid(True)
         elif is_two_way_interaction:
             fig = plt.figure(figsize=(8, 6))
-            pivot_table = shape_df.pivot_table(
-                index=shape_df.columns[0],
-                columns=shape_df.columns[1],
-                values=shape_df.columns[2],
-                aggfunc="mean",
-            )
+
+            # Get unique coordinates and their inverse mapping
+            y_unique, y_inv = np.unique(shape[:, 0], return_inverse=True)
+            x_unique, x_inv = np.unique(shape[:, 1], return_inverse=True)
+
+            # Create grid for sums and counts
+            grid_sums = np.zeros((len(y_unique), len(x_unique)))
+            grid_counts = np.zeros((len(y_unique), len(x_unique)))
+
+            # Populate sums and counts to later calculate the mean
+            np.add.at(grid_sums, (y_inv, x_inv), shape[:, 2])
+            np.add.at(grid_counts, (y_inv, x_inv), 1)
+
+            # Calculate mean, avoiding division by zero
+            with np.errstate(divide="ignore", invalid="ignore"):
+                pivot_table_values = np.true_divide(grid_sums, grid_counts)
+                # Where there's no data, pivot_table_values will be nan, which is fine for imshow.
+
             plt.imshow(
-                pivot_table.values,
+                pivot_table_values,
                 aspect="auto",
                 origin="lower",
                 extent=[
-                    pivot_table.columns.min(),
-                    pivot_table.columns.max(),
-                    pivot_table.index.min(),
-                    pivot_table.index.max(),
+                    x_unique.min(),
+                    x_unique.max(),
+                    y_unique.min(),
+                    y_unique.max(),
                 ],
                 cmap="Blues_r",
             )
             plt.colorbar(label="Contribution to the linear predictor")
-            plt.xlabel(shape_df.columns[1])
-            plt.ylabel(shape_df.columns[0])
+            plt.xlabel(predictor_names[1])
+            plt.ylabel(predictor_names[0])
             plt.title(
-                f"Interaction between {shape_df.columns[0]} and {shape_df.columns[1]}"
+                f"Interaction between {predictor_names[0]} and {predictor_names[1]}"
             )
         else:
             print(
@@ -407,9 +416,7 @@ class APLRRegressor:
             return
 
         if save:
-            save_path = (
-                path if path else f"shape_of_{affiliation.replace(' & ', '_')}.png"
-            )
+            save_path = path or f"shape_of_{affiliation.replace(' & ', '_')}.png"
             plt.savefig(save_path)
 
         if plot:
