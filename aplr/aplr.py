@@ -75,6 +75,7 @@ class APLRRegressor:
         penalty_for_interactions: float = 0.0,
         max_terms: int = 0,
         ridge_penalty: float = 0.0001,
+        mean_bias_correction: bool = False,
     ):
         self.m = m
         self.v = v
@@ -122,6 +123,7 @@ class APLRRegressor:
         self.penalty_for_interactions = penalty_for_interactions
         self.max_terms = max_terms
         self.ridge_penalty = ridge_penalty
+        self.mean_bias_correction = mean_bias_correction
 
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
@@ -183,6 +185,7 @@ class APLRRegressor:
         self.APLRRegressor.penalty_for_interactions = self.penalty_for_interactions
         self.APLRRegressor.max_terms = self.max_terms
         self.APLRRegressor.ridge_penalty = self.ridge_penalty
+        self.APLRRegressor.mean_bias_correction = self.mean_bias_correction
 
     def fit(
         self,
@@ -465,6 +468,7 @@ class APLRRegressor:
             "penalty_for_interactions": self.penalty_for_interactions,
             "max_terms": self.max_terms,
             "ridge_penalty": self.ridge_penalty,
+            "mean_bias_correction": self.mean_bias_correction,
         }
 
     # For sklearn

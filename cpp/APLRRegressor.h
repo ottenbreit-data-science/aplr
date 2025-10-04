@@ -84,6 +84,7 @@ private:
     size_t cores_to_use;
     bool stopped_early;
     std::vector<double> ridge_penalty_weights;
+    double min_validation_error_for_current_fold;
 
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
@@ -185,6 +186,7 @@ private:
     void throw_error_if_vector_contains_non_positive_values(const VectorXd &y, const std::string &error_message);
     void throw_error_if_dispersion_parameter_is_invalid();
     VectorXd differentiate_predictions_wrt_linear_predictor();
+    void correct_mean_bias();
     void scale_response_if_using_log_link_function();
     void revert_scaling_if_using_log_link_function();
     void cap_predictions_to_minmax_in_training(VectorXd &predictions);
@@ -254,6 +256,7 @@ public:
     VectorXd min_predictor_values_in_training;
     VectorXd max_predictor_values_in_training;
     double ridge_penalty;
+    bool mean_bias_correction;
 
     APLRRegressor(size_t m = 3000, double v = 0.5, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, size_t cv_folds = 5,
@@ -267,8 +270,8 @@ public:
                   const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {},
                   size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
                   size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30, size_t early_stopping_rounds = 200,
-                  size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0,
-                  double penalty_for_interactions = 0.0, size_t max_terms = 0, double ridge_penalty = 0.0001);
+                  size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0, double penalty_for_interactions = 0.0,
+                  size_t max_terms = 0, double ridge_penalty = 0.0001, bool mean_bias_correction = false);
     APLRRegressor(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
@@ -322,8 +325,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate_predictions_wrt_linear_predictor_function,
                              size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
                              size_t group_mse_by_prediction_bins, size_t group_mse_cycle_min_obs_in_bin, size_t early_stopping_rounds,
-                             size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity, double penalty_for_interactions,
-                             size_t max_terms, double ridge_penalty)
+                             size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity, double penalty_for_interactions, size_t max_terms,
+                             double ridge_penalty, bool mean_bias_correction)
     : intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, cv_folds{cv_folds}, n_jobs{n_jobs}, random_state{random_state},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
@@ -340,7 +343,7 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
       monotonic_constraints_ignore_interactions{monotonic_constraints_ignore_interactions}, group_mse_by_prediction_bins{group_mse_by_prediction_bins},
       group_mse_cycle_min_obs_in_bin{group_mse_cycle_min_obs_in_bin}, cv_error{NAN_DOUBLE}, early_stopping_rounds{early_stopping_rounds},
       num_first_steps_with_linear_effects_only{num_first_steps_with_linear_effects_only}, penalty_for_non_linearity{penalty_for_non_linearity},
-      penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}, ridge_penalty{ridge_penalty}
+      penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}, ridge_penalty{ridge_penalty}, mean_bias_correction{mean_bias_correction}
 {
 }
 
@@ -372,8 +375,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       max_terms{other.max_terms}, min_predictor_values_in_training{other.min_predictor_values_in_training},
       max_predictor_values_in_training{other.max_predictor_values_in_training}, unique_term_affiliations{other.unique_term_affiliations},
       unique_term_affiliation_map{other.unique_term_affiliation_map},
-      base_predictors_in_each_unique_term_affiliation{other.base_predictors_in_each_unique_term_affiliation},
-      ridge_penalty{other.ridge_penalty}
+      base_predictors_in_each_unique_term_affiliation{other.base_predictors_in_each_unique_term_affiliation}, ridge_penalty{other.ridge_penalty},
+      mean_bias_correction{other.mean_bias_correction}
 {
 }
 
@@ -528,6 +531,8 @@ void APLRRegressor::fit_model_for_cv_fold(const MatrixXd &X, const VectorXd &y, 
     find_optimal_m_and_update_model_accordingly();
     merge_similar_terms(X_train);
     remove_unused_terms();
+    if (mean_bias_correction)
+        correct_mean_bias();
     revert_scaling_if_using_log_link_function();
     set_term_coefficients();
     name_terms(X, X_names);
@@ -564,6 +569,8 @@ void APLRRegressor::throw_error_if_loss_function_does_not_exist()
         loss_function_exists = true;
     else if (loss_function == "weibull")
         loss_function_exists = true;
+    else if (loss_function == "huber")
+        loss_function_exists = true;
     else if (loss_function == "custom_function")
         loss_function_exists = true;
     if (!loss_function_exists)
@@ -595,7 +602,7 @@ void APLRRegressor::throw_error_if_dispersion_parameter_is_invalid()
         if (dispersion_parameter_is_invalid)
             throw std::runtime_error("Invalid dispersion_parameter (variance power). It must not equal 1.0 or 2.0 and cannot be below 1.0.");
     }
-    else if (loss_function == "negative_binomial" || loss_function == "cauchy" || loss_function == "weibull")
+    else if (loss_function == "negative_binomial" || loss_function == "cauchy" || loss_function == "weibull" || loss_function == "huber")
     {
         bool dispersion_parameter_is_in_invalid{std::islessequal(dispersion_parameter, 0.0)};
         if (dispersion_parameter_is_in_invalid)
@@ -1157,6 +1164,13 @@ VectorXd APLRRegressor::calculate_neg_gradient_current()
     else if (loss_function == "weibull")
     {
         output = dispersion_parameter / predictions_current.array() * ((y_train.array() / predictions_current.array()).pow(dispersion_parameter) - 1);
+    }
+    else if (loss_function == "huber")
+    {
+        double delta = dispersion_parameter;
+        if (link_function == "log")
+            delta *= scaling_factor_for_log_link_function;
+        output = (y_train - predictions_current).array().max(-delta).min(delta);
     }
     else if (loss_function == "custom_function")
     {
@@ -1812,6 +1826,8 @@ double APLRRegressor::calculate_validation_error(const VectorXd &predictions)
             throw std::runtime_error("When validation_tuning_metric is group_mse then the group argument in fit() must be provided.");
         return calculate_mean_error(calculate_errors(y_validation, predictions_used, sample_weight_validation, "group_mse", dispersion_parameter, group_validation, unique_groups_validation, quantile), sample_weight_validation);
     }
+    else if (validation_tuning_metric == "huber")
+        return calculate_mean_error(calculate_errors(y_validation, predictions_used, sample_weight_validation, "huber", dispersion_parameter), sample_weight_validation);
     else if (validation_tuning_metric == "group_mse_by_prediction")
     {
         return calculate_group_mse_by_prediction_validation_error(predictions_used);
@@ -1967,7 +1983,7 @@ void APLRRegressor::print_final_summary()
 void APLRRegressor::find_optimal_m_and_update_model_accordingly()
 {
     size_t best_boosting_step_index;
-    validation_error_steps.col(0).minCoeff(&best_boosting_step_index);
+    min_validation_error_for_current_fold = validation_error_steps.col(0).minCoeff(&best_boosting_step_index);
     intercept = intercept_steps[best_boosting_step_index];
     for (size_t i = 0; i < terms.size(); ++i)
     {
@@ -2023,6 +2039,32 @@ void APLRRegressor::remove_unused_terms()
             terms_new.push_back(terms[i]);
     }
     terms = std::move(terms_new);
+}
+
+void APLRRegressor::correct_mean_bias()
+{
+    if (link_function == "identity" || link_function == "log")
+    {
+        VectorXd predictions_train{predict(X_train, false)};
+        double mean_y = calculate_weighted_average(y_train, sample_weight_train);
+        double mean_pred = calculate_weighted_average(predictions_train, sample_weight_train);
+
+        double bias_adjustment = 0.0;
+        if (link_function == "identity")
+        {
+            bias_adjustment = mean_y - mean_pred;
+        }
+        else if (link_function == "log")
+        {
+            if (mean_pred > 0 && mean_y > 0)
+                bias_adjustment = std::log(mean_y / mean_pred);
+        }
+
+        intercept += bias_adjustment;
+
+        VectorXd predictions_validation{predict(X_validation, false)};
+        min_validation_error_for_current_fold = calculate_validation_error(predictions_validation);
+    }
 }
 
 void APLRRegressor::revert_scaling_if_using_log_link_function()
@@ -2231,7 +2273,7 @@ void APLRRegressor::write_output_to_cv_fold_models(Eigen::Index fold_index)
     cv_fold_models[fold_index].intercept = intercept;
     cv_fold_models[fold_index].terms = terms;
     cv_fold_models[fold_index].validation_error_steps = validation_error_steps;
-    cv_fold_models[fold_index].validation_error = validation_error_steps.col(0).minCoeff();
+    cv_fold_models[fold_index].validation_error = min_validation_error_for_current_fold;
     cv_fold_models[fold_index].m_optimal = get_optimal_m();
     cv_fold_models[fold_index].fold_index = fold_index;
     cv_fold_models[fold_index].min_training_prediction_or_response = min_training_prediction_or_response;

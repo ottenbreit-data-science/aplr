@@ -60,6 +60,134 @@ public:
                   << "Passed " << std::accumulate(tests.begin(), tests.end(), 0) << " out of " << tests.size() << " tests.";
     }
 
+    void test_aplrregressor_huber()
+    {
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 1.0;
+        model.bins = 10;
+        model.n_jobs = 1;
+        model.loss_function = "huber";
+        model.verbosity = 3;
+        model.max_interaction_level = 100;
+        model.max_interactions = 30;
+        model.min_observations_in_split = 50;
+        model.ineligible_boosting_steps_added = 10;
+        model.max_eligible_terms = 5;
+        model.dispersion_parameter = 1.0; // This is delta for huber loss
+        model.ridge_penalty = 0.0;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        // Fitting
+        model.fit(X_train, y_train, sample_weight);
+        std::cout << "feature importance\n"
+                  << model.feature_importance << "\n\n";
+
+        VectorXd predictions{model.predict(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.652393228773949));
+
+        // Also test huber as a validation metric
+        model.validation_tuning_metric = "huber";
+        model.fit(X_train, y_train, sample_weight);
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 1.6696312268620679));
+    }
+
+    void test_aplrregressor_huber_log_link()
+    {
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 0.1;
+        model.bins = 10;
+        model.n_jobs = 1;
+        model.loss_function = "huber";
+        model.link_function = "log";
+        model.verbosity = 3;
+        model.max_interaction_level = 1;
+        model.max_interactions = 30;
+        model.min_observations_in_split = 20;
+        model.ineligible_boosting_steps_added = 10;
+        model.max_eligible_terms = 5;
+        model.dispersion_parameter = 1.0; // This is delta for huber loss
+        model.ridge_penalty = 0.0;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train_poisson.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test_poisson.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        // Fitting
+        model.fit(X_train, y_train, sample_weight);
+        std::cout << "feature importance\n"
+                  << model.feature_importance << "\n\n";
+
+        VectorXd predictions{model.predict(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predictions.mean(), 1.9060494063077187));
+
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 0.080814921153113131));
+    }
+
+    void test_aplrregressor_mean_bias_correction()
+    {
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 1.0;
+        model.bins = 10;
+        model.n_jobs = 1;
+        model.loss_function = "mae";
+        model.verbosity = 3;
+        model.max_interaction_level = 100;
+        model.max_interactions = 30;
+        model.min_observations_in_split = 50;
+        model.ineligible_boosting_steps_added = 10;
+        model.max_eligible_terms = 5;
+        model.mean_bias_correction = true;
+        model.ridge_penalty = 0.0;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        // Fitting
+        model.fit(X_train, y_train, sample_weight);
+        std::cout << "feature importance\n"
+                  << model.feature_importance << "\n\n";
+
+        VectorXd predictions{model.predict(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.640483777279176));
+    }
+
     void test_aplrregressor_ridge()
     {
         // Model
@@ -2738,6 +2866,9 @@ public:
 int main()
 {
     Tests tests{Tests()};
+    tests.test_aplrregressor_huber();
+    tests.test_aplrregressor_huber_log_link();
+    tests.test_aplrregressor_mean_bias_correction();
     tests.test_aplrregressor_ridge();
     tests.test_aplrregressor_mse_predictor_min_observations_in_split();
     tests.test_aplrregressor_cauchy_term_limit();

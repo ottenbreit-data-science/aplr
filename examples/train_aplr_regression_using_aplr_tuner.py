@@ -33,7 +33,7 @@ response = "target"
 predicted = "predicted"
 
 # Training model
-loss_function = "mse"  # Other available loss functions are binomial, poisson, gamma, tweedie, group_mse, mae, quantile, negative_binomial, cauchy, weibull and custom_function.
+loss_function = "mse"  # Other available loss functions are binomial, poisson, gamma, tweedie, group_mse, mae, quantile, negative_binomial, cauchy, weibull, huber and custom_function.
 link_function = (
     "identity"  # Other available link functions are logit, log and custom_function.
 )
