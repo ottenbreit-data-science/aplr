@@ -10,6 +10,7 @@
 #include "functions.h"
 #include "term.h"
 #include "constants.h"
+#include "ThreadPool.h"
 
 using namespace Eigen;
 
@@ -82,6 +83,7 @@ private:
     bool round_robin_update_of_existing_terms;
     size_t term_to_update_in_this_boosting_step;
     size_t cores_to_use;
+    std::unique_ptr<ThreadPool> thread_pool;
     bool stopped_early;
     std::vector<double> ridge_penalty_weights;
     double min_validation_error_for_current_fold;
@@ -273,6 +275,7 @@ public:
                   size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0, double penalty_for_interactions = 0.0,
                   size_t max_terms = 0, double ridge_penalty = 0.0001, bool mean_bias_correction = false);
     APLRRegressor(const APLRRegressor &other);
+    APLRRegressor &operator=(const APLRRegressor &other);
     ~APLRRegressor();
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
              const MatrixXi &cv_observations = MatrixXi(0, 0), const std::vector<size_t> &prioritized_predictors_indexes = {},
@@ -380,6 +383,74 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
 {
 }
 
+APLRRegressor &APLRRegressor::operator=(const APLRRegressor &other)
+{
+    if (this == &other)
+    {
+        return *this;
+    }
+
+    intercept = other.intercept;
+    terms = other.terms;
+    m = other.m;
+    v = other.v;
+    loss_function = other.loss_function;
+    link_function = other.link_function;
+    cv_folds = other.cv_folds;
+    n_jobs = other.n_jobs;
+    random_state = other.random_state;
+    bins = other.bins;
+    verbosity = other.verbosity;
+    term_names = other.term_names;
+    term_affiliations = other.term_affiliations;
+    term_coefficients = other.term_coefficients;
+    max_interaction_level = other.max_interaction_level;
+    max_interactions = other.max_interactions;
+    interactions_eligible = other.interactions_eligible;
+    validation_error_steps = other.validation_error_steps;
+    min_observations_in_split = other.min_observations_in_split;
+    ineligible_boosting_steps_added = other.ineligible_boosting_steps_added;
+    max_eligible_terms = other.max_eligible_terms;
+    number_of_base_terms = other.number_of_base_terms;
+    number_of_unique_term_affiliations = other.number_of_unique_term_affiliations;
+    feature_importance = other.feature_importance;
+    term_importance = other.term_importance;
+    dispersion_parameter = other.dispersion_parameter;
+    min_training_prediction_or_response = other.min_training_prediction_or_response;
+    max_training_prediction_or_response = other.max_training_prediction_or_response;
+    validation_tuning_metric = other.validation_tuning_metric;
+    quantile = other.quantile;
+    m_optimal = other.m_optimal;
+    calculate_custom_validation_error_function = other.calculate_custom_validation_error_function;
+    calculate_custom_loss_function = other.calculate_custom_loss_function;
+    calculate_custom_negative_gradient_function = other.calculate_custom_negative_gradient_function;
+    calculate_custom_transform_linear_predictor_to_predictions_function = other.calculate_custom_transform_linear_predictor_to_predictions_function;
+    calculate_custom_differentiate_predictions_wrt_linear_predictor_function = other.calculate_custom_differentiate_predictions_wrt_linear_predictor_function;
+    boosting_steps_before_interactions_are_allowed = other.boosting_steps_before_interactions_are_allowed;
+    monotonic_constraints_ignore_interactions = other.monotonic_constraints_ignore_interactions;
+    group_mse_by_prediction_bins = other.group_mse_by_prediction_bins;
+    group_mse_cycle_min_obs_in_bin = other.group_mse_cycle_min_obs_in_bin;
+    cv_error = other.cv_error;
+    term_main_predictor_indexes = other.term_main_predictor_indexes;
+    term_interaction_levels = other.term_interaction_levels;
+    early_stopping_rounds = other.early_stopping_rounds;
+    num_first_steps_with_linear_effects_only = other.num_first_steps_with_linear_effects_only;
+    penalty_for_non_linearity = other.penalty_for_non_linearity;
+    penalty_for_interactions = other.penalty_for_interactions;
+    max_terms = other.max_terms;
+    min_predictor_values_in_training = other.min_predictor_values_in_training;
+    max_predictor_values_in_training = other.max_predictor_values_in_training;
+    unique_term_affiliations = other.unique_term_affiliations;
+    unique_term_affiliation_map = other.unique_term_affiliation_map;
+    base_predictors_in_each_unique_term_affiliation = other.base_predictors_in_each_unique_term_affiliation;
+    ridge_penalty = other.ridge_penalty;
+    mean_bias_correction = other.mean_bias_correction;
+
+    thread_pool.reset();
+
+    return *this;
+}
+
 APLRRegressor::~APLRRegressor()
 {
 }
@@ -442,6 +513,8 @@ void APLRRegressor::initialize_multithreading()
         cores_to_use = available_cores;
     else
         cores_to_use = std::min(n_jobs, available_cores);
+    if (cores_to_use > 1)
+        thread_pool = std::make_unique<ThreadPool>(cores_to_use);
 }
 
 void APLRRegressor::preprocess_penalties()
@@ -1387,39 +1460,28 @@ std::vector<size_t> APLRRegressor::find_terms_eligible_current_indexes_for_a_bas
 
 void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms, std::vector<size_t> &terms_indexes)
 {
-    bool multithreading{n_jobs != 1 && terms_indexes.size() > 1};
+    bool multithreading{cores_to_use > 1 && terms_indexes.size() > 1};
 
     if (multithreading)
     {
-        size_t num_threads{std::min(cores_to_use, terms_indexes.size())};
-        std::vector<std::thread> threads;
-        size_t chunk_size{(terms_indexes.size() + num_threads - 1) / num_threads};
-
-        for (size_t t = 0; t < num_threads; ++t)
+        std::vector<std::future<void>> results;
+        for (size_t i = 0; i < terms_indexes.size(); ++i)
         {
-            threads.emplace_back([&, t]()
-                                 {
-                size_t start = t * chunk_size;
-                size_t end = std::min(start + chunk_size, terms_indexes.size());
-                for (size_t i = start; i < end; ++i)
-                {
-                    terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins,
-                                                                 predictor_learning_rates[terms[terms_indexes[i]].base_term],
-                                                                 predictor_min_observations_in_split[terms[terms_indexes[i]].base_term],
-                                                                 linear_effects_only_in_this_boosting_step,
-                                                                 predictor_penalties_for_non_linearity[terms[terms_indexes[i]].base_term],
-                                                                 predictor_penalties_for_interactions[terms[terms_indexes[i]].base_term],
-                                                                ridge_penalty, 
-                                                                ridge_penalty_weights[terms[terms_indexes[i]].base_term]);
-                } });
+            results.emplace_back(
+                thread_pool->enqueue([&terms, &terms_indexes, i, this]
+                                     { terms[terms_indexes[i]].estimate_split_point(
+                                           this->X_train, this->neg_gradient_current, this->sample_weight_train, this->bins,
+                                           this->predictor_learning_rates[terms[terms_indexes[i]].base_term],
+                                           this->predictor_min_observations_in_split[terms[terms_indexes[i]].base_term],
+                                           this->linear_effects_only_in_this_boosting_step,
+                                           this->predictor_penalties_for_non_linearity[terms[terms_indexes[i]].base_term],
+                                           this->predictor_penalties_for_interactions[terms[terms_indexes[i]].base_term],
+                                           this->ridge_penalty,
+                                           this->ridge_penalty_weights[terms[terms_indexes[i]].base_term]); }));
         }
-
-        for (auto &thread : threads)
+        for (auto &&result : results)
         {
-            if (thread.joinable())
-            {
-                thread.join();
-            }
+            result.get();
         }
     }
     else
