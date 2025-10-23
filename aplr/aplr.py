@@ -76,6 +76,7 @@ class APLRRegressor:
         max_terms: int = 0,
         ridge_penalty: float = 0.0001,
         mean_bias_correction: bool = False,
+        faster_convergence: bool = False,
     ):
         self.m = m
         self.v = v
@@ -124,6 +125,7 @@ class APLRRegressor:
         self.max_terms = max_terms
         self.ridge_penalty = ridge_penalty
         self.mean_bias_correction = mean_bias_correction
+        self.faster_convergence = faster_convergence
 
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
@@ -186,6 +188,7 @@ class APLRRegressor:
         self.APLRRegressor.max_terms = self.max_terms
         self.APLRRegressor.ridge_penalty = self.ridge_penalty
         self.APLRRegressor.mean_bias_correction = self.mean_bias_correction
+        self.APLRRegressor.faster_convergence = self.faster_convergence
 
     def fit(
         self,
@@ -469,6 +472,7 @@ class APLRRegressor:
             "max_terms": self.max_terms,
             "ridge_penalty": self.ridge_penalty,
             "mean_bias_correction": self.mean_bias_correction,
+            "faster_convergence": self.faster_convergence,
         }
 
     # For sklearn

@@ -43,10 +43,8 @@ param_grid = ParameterGrid(
     }
 )
 best_model: APLRRegressor = None
-loss_function = "mse"  # Other available loss functions are binomial, poisson, gamma, tweedie, group_mse, mae, quantile, negative_binomial, cauchy, weibull, huber and custom_function.
-link_function = (
-    "identity"  # Other available link functions are logit, log and custom_function.
-)
+loss_function = "mse"
+link_function = "identity"
 for params in param_grid:
     model = APLRRegressor(
         random_state=random_state,
@@ -55,6 +53,7 @@ for params in param_grid:
         v=0.5,
         loss_function=loss_function,
         link_function=link_function,
+        validation_tuning_metric="mse",
         num_first_steps_with_linear_effects_only=0,  # Increasing this will increase interpretabilty but may decrease predictiveness.
         boosting_steps_before_interactions_are_allowed=0,  # Increasing this will increase interpretabilty but may decrease predictivenes.
         **params,

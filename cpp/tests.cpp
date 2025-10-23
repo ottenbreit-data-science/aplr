@@ -626,6 +626,7 @@ public:
         tests.push_back(is_approximately_equal(term_importance_first, 1.0431553101537596));
         tests.push_back(term_base_predictor_index_max == 6);
         tests.push_back(term_interaction_level_max == 1);
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 25.955566623662232));
     }
 
     void test_aplrregressor_cauchy_group_mse_by_prediction_validation()
@@ -682,7 +683,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 19.804431518585918));
+        tests.push_back(is_approximately_equal(predictions.mean(), 20.096177156192478));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 26.68005452713048));
     }
 
     void test_aplrregressor_cauchy()
@@ -796,7 +798,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.87336747209412));
+        tests.push_back(is_approximately_equal(predictions.mean(), 24.301339246925711));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), -64.887393290901031));
     }
 
     void test_aplrregressor_custom_loss()
@@ -965,7 +968,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.551175298027964, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.555068816303912));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 7.539966404559836));
     }
 
     void test_aplrregressor_gamma_gini_weighted()
@@ -1019,7 +1023,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.319789512734854, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.555068816303912));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), -0.94130723051226006));
     }
 
     void test_aplrregressor_gamma_gini()
@@ -1073,7 +1078,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.319789512734854, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.555068816303912));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), -0.94130723051226006));
     }
 
     void test_aplrregressor_gamma()
@@ -1127,7 +1133,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.551175298027964, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.555068816303912));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 7.539966404559836));
     }
 
     void test_aplrregressor_group_mse()
@@ -1335,7 +1342,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.31977985222057, 0.00001));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.320673705115034));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 2.0657033975879591));
     }
 
     void test_aplrregressor_logit()
@@ -1803,7 +1811,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.609343969688034));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.592285396936951));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), -33.517015579716308));
     }
 
     void test_aplrregressor_bottom_quantile_mean_response()
@@ -1844,7 +1853,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        tests.push_back(is_approximately_equal(predictions.mean(), 23.273887245225175));
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.592285396936951));
+        tests.push_back(is_approximately_equal(model.get_cv_error(), 13.922224916203017));
     }
 
     void test_aplrregressor_weibull()
@@ -1987,6 +1997,118 @@ public:
         tests.push_back(unique_term_affiliation_shape.cols() == 3);
         tests.push_back(main_effect_shape_keys == unique_term_affiliation_shape_for_X2.col(0));
         tests.push_back(main_effect_shape_values == unique_term_affiliation_shape_for_X2.col(1));
+    }
+
+    void test_aplrregressor_faster_convergence_identity()
+    {
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 1.0;
+        model.bins = 10;
+        model.n_jobs = 1;
+        model.loss_function = "mse";
+        model.link_function = "identity";
+        model.verbosity = 3;
+        model.max_interaction_level = 1;
+        model.min_observations_in_split = 50;
+        model.faster_convergence = true;
+        model.ridge_penalty = 0.0;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        // Fitting
+        model.fit(X_train, y_train, sample_weight);
+
+        VectorXd predictions{model.predict(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.656267332497631));
+    }
+
+    void test_aplrregressor_faster_convergence_log()
+    {
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 0.1;
+        model.bins = 10;
+        model.n_jobs = 1;
+        model.loss_function = "poisson";
+        model.link_function = "log";
+        model.verbosity = 3;
+        model.max_interaction_level = 1;
+        model.min_observations_in_split = 20;
+        model.faster_convergence = true;
+        model.ridge_penalty = 0.0;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train_poisson.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test_poisson.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        // Fitting
+        model.fit(X_train, y_train, sample_weight);
+
+        VectorXd predictions{model.predict(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predictions.mean(), 1.8989834541884052));
+    }
+
+    void test_aplrregressor_exponential_power()
+    {
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 1.0;
+        model.bins = 10;
+        model.n_jobs = 1;
+        model.loss_function = "exponential_power";
+        model.verbosity = 3;
+        model.max_interaction_level = 100;
+        model.max_interactions = 30;
+        model.min_observations_in_split = 50;
+        model.ineligible_boosting_steps_added = 10;
+        model.max_eligible_terms = 5;
+        model.dispersion_parameter = 1.5;
+        model.ridge_penalty = 0.0;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        // Fitting
+        model.fit(X_train, y_train, sample_weight);
+        std::cout << "feature importance\n"
+                  << model.feature_importance << "\n\n";
+
+        VectorXd predictions{model.predict(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        tests.push_back(is_approximately_equal(predictions.mean(), 23.576861785661166));
     }
 
     void test_aplr_classifier_multi_class_other_params()
@@ -2902,6 +3024,9 @@ int main()
     tests.test_aplrregressor_bottom_quantile_mean_response();
     tests.test_aplrregressor_weibull();
     tests.test_aplrregressor();
+    tests.test_aplrregressor_faster_convergence_identity();
+    tests.test_aplrregressor_faster_convergence_log();
+    tests.test_aplrregressor_exponential_power();
     tests.test_aplr_classifier_multi_class_other_params();
     tests.test_aplrclassifier_multi_class();
     tests.test_aplrclassifier_two_class_other_params();

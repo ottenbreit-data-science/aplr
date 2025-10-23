@@ -33,10 +33,8 @@ response = "target"
 predicted = "predicted"
 
 # Training model
-loss_function = "mse"  # Other available loss functions are binomial, poisson, gamma, tweedie, group_mse, mae, quantile, negative_binomial, cauchy, weibull, huber and custom_function.
-link_function = (
-    "identity"  # Other available link functions are logit, log and custom_function.
-)
+loss_function = "mse"
+link_function = "identity"
 parameters = {
     "random_state": [random_state],
     "max_interaction_level": [0, 1],
@@ -46,6 +44,7 @@ parameters = {
     "v": [0.5],
     "loss_function": [loss_function],
     "link_function": [link_function],
+    "validation_tuning_metric": ["mse"],
     "ridge_penalty": [0, 0.0001, 0.001],
     "num_first_steps_with_linear_effects_only": [
         0

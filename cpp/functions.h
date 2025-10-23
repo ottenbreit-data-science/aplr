@@ -227,6 +227,12 @@ VectorXd calculate_huber_errors(const VectorXd &y, const VectorXd &predicted, do
     return errors.matrix();
 }
 
+VectorXd calculate_exponential_power_errors(const VectorXd &y, const VectorXd &predicted, double dispersion_parameter)
+{
+    VectorXd errors{(y.array() - predicted.array()).cwiseAbs().pow(dispersion_parameter)};
+    return errors;
+}
+
 VectorXd calculate_errors(const VectorXd &y, const VectorXd &predicted, const VectorXd &sample_weight, const std::string &loss_function = "mse",
                           double dispersion_parameter = 1.5, const VectorXi &group = VectorXi(0), const std::set<int> &unique_groups = {}, double quantile = 0.5)
 {
@@ -255,6 +261,8 @@ VectorXd calculate_errors(const VectorXd &y, const VectorXd &predicted, const Ve
         errors = calculate_weibull_errors(y, predicted, dispersion_parameter);
     else if (loss_function == "huber")
         errors = calculate_huber_errors(y, predicted, dispersion_parameter);
+    else if (loss_function == "exponential_power")
+        errors = calculate_exponential_power_errors(y, predicted, dispersion_parameter);
 
     errors = errors.array() * sample_weight.array();
 

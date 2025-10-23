@@ -22,10 +22,10 @@ PYBIND11_MODULE(aplr_cpp, m)
     py::class_<APLRRegressor>(m, "APLRRegressor", py::module_local())
         .def(py::init<int &, double &, int &, std::string &, std::string &, int &, int &, int &, int &, int &, int &, int &, int &, int &, double &, std::string &,
                       double &, std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)> &,
-                      std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)> &,
+                      std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)> &, // 20
                       std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)> &,
                       std::function<VectorXd(const VectorXd &linear_predictor)> &, std::function<VectorXd(const VectorXd &linear_predictor)> &,
-                      int &, bool &, int &, int &, int &, int &, double &, double &, int &, double &, bool &>(),
+                      int &, bool &, int &, int &, int &, int &, double &, double &, int &, double &, bool &, bool &>(),
              py::arg("m") = 3000, py::arg("v") = 0.5, py::arg("random_state") = 0, py::arg("loss_function") = "mse", py::arg("link_function") = "identity",
              py::arg("n_jobs") = 0, py::arg("cv_folds") = 5,
              py::arg("bins") = 300, py::arg("verbosity") = 0,
@@ -45,7 +45,7 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("early_stopping_rounds") = 200, py::arg("num_first_steps_with_linear_effects_only") = 0,
              py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.0, py::arg("max_terms") = 0,
              py::arg("ridge_penalty") = 0.0001,
-             py::arg("mean_bias_correction") = false)
+             py::arg("mean_bias_correction") = false, py::arg("faster_convergence") = true)
         .def("fit", &APLRRegressor::fit, py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("cv_observations") = MatrixXd(0, 0), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),
              py::arg("monotonic_constraints") = std::vector<int>(), py::arg("group") = VectorXi(0),
@@ -137,6 +137,7 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def_readwrite("max_predictor_values_in_training", &APLRRegressor::max_predictor_values_in_training)
         .def_readwrite("ridge_penalty", &APLRRegressor::ridge_penalty)
         .def_readwrite("mean_bias_correction", &APLRRegressor::mean_bias_correction)
+        .def_readwrite("faster_convergence", &APLRRegressor::faster_convergence)
         .def(py::pickle(
             [](const APLRRegressor &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
@@ -152,7 +153,8 @@ PYBIND11_MODULE(aplr_cpp, m)
                                       a.penalty_for_non_linearity, a.penalty_for_interactions, a.max_terms,
                                       a.min_predictor_values_in_training, a.max_predictor_values_in_training,
                                       a.term_affiliations, a.number_of_unique_term_affiliations, a.unique_term_affiliations,
-                                      a.unique_term_affiliation_map, a.base_predictors_in_each_unique_term_affiliation, a.ridge_penalty, a.mean_bias_correction);
+                                      a.unique_term_affiliation_map, a.base_predictors_in_each_unique_term_affiliation, a.ridge_penalty, a.mean_bias_correction,
+                                      a.faster_convergence);
             },
             [](py::tuple t) { // __setstate__
                 if (t.size() < 48)
@@ -209,6 +211,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                 std::vector<std::vector<size_t>> base_predictors_in_each_unique_term_affiliation = t[47].cast<std::vector<std::vector<size_t>>>();
                 double ridge_penalty = (t.size() > 48) ? t[48].cast<double>() : 0.0;
                 bool mean_bias_correction = (t.size() > 49) ? t[49].cast<bool>() : false;
+                bool faster_convergence = (t.size() > 50) ? t[50].cast<bool>() : false;
 
                 APLRRegressor a(m, v, random_state, loss_function, link_function, n_jobs, cv_folds, bins, verbosity, max_interaction_level,
                                 max_interactions, min_observations_in_split, ineligible_boosting_steps_added, max_eligible_terms, dispersion_parameter,
@@ -246,6 +249,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                 a.base_predictors_in_each_unique_term_affiliation = base_predictors_in_each_unique_term_affiliation;
                 a.ridge_penalty = ridge_penalty;
                 a.mean_bias_correction = mean_bias_correction;
+                a.faster_convergence = faster_convergence;
 
                 return a;
             }));
