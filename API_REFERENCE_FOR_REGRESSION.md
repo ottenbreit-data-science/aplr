@@ -136,7 +136,7 @@ Specifies the (weighted) ridge penalty applied to the model. Positive values can
 If true, then a mean bias correction is applied to the model's intercept term. This can be useful for some loss functions, such as "huber", that can otherwise produce biased predictions. The correction is only applied for the "identity" and "log" link functions.
 
 #### faster_convergence (default = False)
-If true, then a scaling is applied to the negative gradient to speed up convergence. This should primarily be used when the algorithm otherwise converges too slowly. This is only applied for the "identity" and "log" link functions.
+If true, then a scaling is applied to the negative gradient to speed up convergence. This should primarily be used when the algorithm otherwise converges too slowly or prematurely. This is only applied for the "identity" and "log" link functions.
 This will not speed up the combination of "mse" loss with an "identity" link, as this combination is already optimized for speed within the algorithm. Furthermore, this option is not effective for all loss functions, such as "mae" and "quantile".
 
 ## Method: fit(X:FloatMatrix, y:FloatVector, sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], group:FloatVector = np.empty(0), interaction_constraints:List[List[int]] = [], other_data:FloatMatrix = np.empty([0, 0]), predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [], predictor_min_observations_in_split: List[int] = [])

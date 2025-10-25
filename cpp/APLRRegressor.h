@@ -196,6 +196,7 @@ private:
     void throw_error_if_m_is_invalid();
     bool model_has_not_been_trained();
     void throw_error_if_quantile_is_invalid();
+    void throw_error_if_validation_tuning_metric_is_invalid();
     std::vector<size_t> compute_relevant_term_indexes(const std::string &unique_term_affiliation);
     std::vector<double> compute_split_points(size_t predictor_index, const std::vector<size_t> &relevant_term_indexes);
     VectorXd compute_contribution_to_linear_predictor_from_specific_terms(const MatrixXd &X, const std::vector<size_t> &term_indexes,
@@ -471,6 +472,7 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
     throw_error_if_dispersion_parameter_is_invalid();
     throw_error_if_quantile_is_invalid();
     throw_error_if_m_is_invalid();
+    throw_error_if_validation_tuning_metric_is_invalid();
     validate_input_to_fit(X, y, sample_weight, X_names, cv_observations, prioritized_predictors_indexes, monotonic_constraints, group,
                           interaction_constraints, other_data, predictor_learning_rates, predictor_penalties_for_non_linearity,
                           predictor_penalties_for_interactions);
@@ -705,6 +707,34 @@ void APLRRegressor::throw_error_if_quantile_is_invalid()
             throw std::runtime_error("Quantile must be between 0.0 and 1.0.");
         }
     }
+}
+
+void APLRRegressor::throw_error_if_validation_tuning_metric_is_invalid()
+{
+    bool metric_exists{false};
+    if (validation_tuning_metric == "default")
+        metric_exists = true;
+    else if (validation_tuning_metric == "mse")
+        metric_exists = true;
+    else if (validation_tuning_metric == "mae")
+        metric_exists = true;
+    else if (validation_tuning_metric == "huber")
+        metric_exists = true;
+    else if (validation_tuning_metric == "negative_gini")
+        metric_exists = true;
+    else if (validation_tuning_metric == "group_mse")
+        metric_exists = true;
+    else if (validation_tuning_metric == "group_mse_by_prediction")
+        metric_exists = true;
+    else if (validation_tuning_metric == "neg_top_quantile_mean_response")
+        metric_exists = true;
+    else if (validation_tuning_metric == "bottom_quantile_mean_response")
+        metric_exists = true;
+    else if (validation_tuning_metric == "custom_function")
+        metric_exists = true;
+
+    if (!metric_exists)
+        throw std::runtime_error("validation_tuning_metric " + validation_tuning_metric + " is not available in APLR.");
 }
 
 void APLRRegressor::validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight,
