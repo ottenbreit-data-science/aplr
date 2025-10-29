@@ -15,15 +15,6 @@ iris = load_iris()
 data = pd.DataFrame(iris.data, columns=iris.feature_names)
 data["target"] = pd.Series(iris.target).astype("str")
 
-# Please note that APLRClassifier requires that all predictor columns in the data have numerical values,
-# This means that if you have missing values in the data then you need to either drop rows with missing data or impute them.
-# This also means that if you have a categorical text variable then you need to convert it to for example dummy variables for each category.
-
-# However, APLRClassifier requires that the response variable is a list of strings.
-
-# Please also note that APLR may be vulnerable to outliers in predictor values. If you experience this problem then please consider winsorising
-# the predictors (or similar methods) before passing them to APLR.
-
 # Randomly splitting data into training and test sets
 data_train, data_test = train_test_split(data, test_size=0.3, random_state=random_state)
 del data
@@ -54,9 +45,7 @@ for params in param_grid:
         boosting_steps_before_interactions_are_allowed=0,  # Increasing this will increase interpretabilty but may decrease predictiveness.
         **params,
     )
-    model.fit(
-        data_train[predictors].values, data_train[response].values, X_names=predictors
-    )
+    model.fit(data_train[predictors], data_train[response].values)
     cv_error_for_this_model = model.get_cv_error()  # Based on log loss.
     cv_results_for_this_model = pd.DataFrame(model.get_params(), index=[0])
     cv_results_for_this_model["cv_error"] = cv_error_for_this_model
@@ -116,9 +105,9 @@ local_feature_contribution = pd.DataFrame(
 
 
 # PREDICTING AND TESTING ON THE TEST SET
-data_test[predicted] = best_model.predict(data_test[predictors].values)
+data_test[predicted] = best_model.predict(data_test[predictors])
 predicted_class_probabilities = pd.DataFrame(
-    data=best_model.predict_class_probabilities(data_test[predictors].values),
+    data=best_model.predict_class_probabilities(data_test[predictors]),
     columns=categories,
 )
 data_test = pd.concat(

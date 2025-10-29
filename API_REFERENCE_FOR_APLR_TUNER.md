@@ -11,14 +11,14 @@ The parameters that you wish to tune.
 Whether you want to use APLRRegressor (True) or APLRClassifier (False).
 
 
-## Method: fit(X: FloatMatrix, y: FloatVector, **kwargs)
+## Method: fit(X: Union[pd.DataFrame, FloatMatrix], y: FloatVector, **kwargs)
 
 ***This method tunes the model to data.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values.
 
 #### y
 A numpy vector with response values.
@@ -27,40 +27,40 @@ A numpy vector with response values.
 Optional parameters sent to the fit methods in the underlying APLRRegressor or APLRClassifier models.
 
 
-## Method: predict(X: FloatMatrix, **kwargs)
+## Method: predict(X: Union[pd.DataFrame, FloatMatrix], **kwargs)
 
 ***Returns the predictions of the best tuned model as a numpy array if regression or as a list of strings if classification.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values.
 
 #### kwargs
 Optional parameters sent to the predict method in the best tuned model.
 
 
-## Method: predict_class_probabilities(X: FloatMatrix, **kwargs)
+## Method: predict_class_probabilities(X: Union[pd.DataFrame, FloatMatrix], **kwargs)
 
 ***This method returns predicted class probabilities of the best tuned model as a numpy matrix.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values.
 
 #### kwargs
 Optional parameters sent to the predict_class_probabilities method in the best tuned model.
 
 
-## Method: predict_proba(X: FloatMatrix, **kwargs)
+## Method: predict_proba(X: Union[pd.DataFrame, FloatMatrix], **kwargs)
 
 ***This method returns predicted class probabilities of the best tuned model as a numpy matrix. Similar to the predict_class_probabilities method but the name predict_proba is compatible with scikit-learn.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values.
 
 #### kwargs
 Optional parameters sent to the predict_class_probabilities method in the best tuned model.

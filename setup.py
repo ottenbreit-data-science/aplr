@@ -23,20 +23,17 @@ sfc_module = setuptools.Extension(
     extra_link_args=extra_link_args,
 )
 
-this_directory = Path(__file__).parent
-long_description = (this_directory / "README.md").read_text()
-
 setuptools.setup(
     name="aplr",
-    version="10.17.1",
+    version="10.18.0",
     description="Automatic Piecewise Linear Regression",
     ext_modules=[sfc_module],
     author="Mathias von Ottenbreit",
     author_email="ottenbreitdatascience@gmail.com",
-    long_description=long_description,
+    long_description="The documentation for Automatic Piecewise Linear Regression is available at [https://github.com/ottenbreit-data-science/aplr](https://github.com/ottenbreit-data-science/aplr).",
     long_description_content_type="text/markdown",
     packages=["aplr"],
-    install_requires=["numpy>=1.11"],
+    install_requires=["numpy>=1.11", "pandas>=1.0.0"],
     extras_require={"plots": ["matplotlib>=3.0"]},
     python_requires=">=3.8",
     classifiers=["License :: OSI Approved :: MIT License"],

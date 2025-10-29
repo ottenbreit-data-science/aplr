@@ -139,14 +139,14 @@ If true, then a mean bias correction is applied to the model's intercept term. T
 If true, then a scaling is applied to the negative gradient to speed up convergence. This should primarily be used when the algorithm otherwise converges too slowly or prematurely. This is only applied for the "identity" and "log" link functions.
 This will not speed up the combination of "mse" loss with an "identity" link, as this combination is already optimized for speed within the algorithm. Furthermore, this option is not effective for all loss functions, such as "mae" and "quantile".
 
-## Method: fit(X:FloatMatrix, y:FloatVector, sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], group:FloatVector = np.empty(0), interaction_constraints:List[List[int]] = [], other_data:FloatMatrix = np.empty([0, 0]), predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [], predictor_min_observations_in_split: List[int] = [])
+## Method: fit(X:Union[pd.DataFrame, FloatMatrix], y:FloatVector, sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], group:FloatVector = np.empty(0), interaction_constraints:List[List[int]] = [], other_data:FloatMatrix = np.empty([0, 0]), predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [], predictor_min_observations_in_split: List[int] = [])
 
 ***This method fits the model to data.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values. If a pandas DataFrame is provided, the model will automatically handle categorical features and missing values. Categorical features will be one-hot encoded. Missing values will be imputed with the median of the column, and a new binary feature will be added to indicate that the value was missing.
 
 #### y
 A numpy vector with response values.
@@ -155,7 +155,7 @@ A numpy vector with response values.
 An optional numpy vector with sample weights. If not specified then the observations are weighted equally.
 
 #### X_names
-An optional list of strings containing names for each predictor in ***X***. Naming predictors may increase model readability because model terms get names based on ***X_names***.
+An optional list of strings containing names for each predictor in ***X***. Naming predictors may increase model readability because model terms get names based on ***X_names***. **Note:** This parameter is ignored if ***X*** is a pandas DataFrame; the DataFrame's column names will be used instead.
 
 #### cv_observations
 An optional integer matrix specifying how each training observation is used in cross validation. If this is specified then ***cv_folds*** is not used. Specifying ***cv_observations*** may be useful for example when modelling time series data (you can place more recent observations in the holdout folds). ***cv_observations*** must contain a column for each desired fold combination. For a given column, row values equalling 1 specify that these rows will be used for training, while row values equalling -1 specify that these rows will be used for validation. Row values equalling 0 will not be used.
@@ -188,14 +188,14 @@ An optional list of floats specifying interaction penalties for each predictor. 
 An optional list of integers specifying the minimum effective number of observations in a split for each predictor. If provided then this supercedes ***min_observations_in_split***.
 
 
-## Method: predict(X:FloatMatrix, cap_predictions_to_minmax_in_training:bool = True)
+## Method: predict(X:Union[pd.DataFrame, FloatMatrix], cap_predictions_to_minmax_in_training:bool = True)
 
 ***Returns a numpy vector containing predictions of the data in X. Requires that the model has been fitted with the fit method.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values.
 
 #### cap_predictions_to_minmax_in_training
 If ***True*** then predictions are capped so that they are not less than the minimum and not greater than the maximum prediction or response in the training dataset. This is recommended especially if ***max_interaction_level*** is high. However, if you need the model to extrapolate then set this parameter to ***False***.
@@ -211,67 +211,67 @@ If ***True*** then predictions are capped so that they are not less than the min
 A list of strings containing names for each predictor in the ***X*** matrix that the model was trained on.
 
 
-## Method: calculate_feature_importance(X:FloatMatrix, sample_weight:FloatVector = np.empty(0))
+## Method: calculate_feature_importance(X:Union[pd.DataFrame, FloatMatrix], sample_weight:FloatVector = np.empty(0))
 
 ***Returns a numpy matrix containing estimated feature importance in X for each predictor.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values.
 
 
-## Method: calculate_term_importance(X:FloatMatrix, sample_weight:FloatVector = np.empty(0))
+## Method: calculate_term_importance(X:Union[pd.DataFrame, FloatMatrix], sample_weight:FloatVector = np.empty(0))
 
 ***Returns a numpy matrix containing estimated term importance in X for each term in the model.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values.
 
 
-## Method: calculate_local_feature_contribution(X:FloatMatrix)
+## Method: calculate_local_feature_contribution(X:Union[pd.DataFrame, FloatMatrix])
 
 ***Returns a numpy matrix containing feature contribution to the linear predictor in X for each predictor.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values.
 
 
-## Method: calculate_local_term_contribution(X:FloatMatrix)
+## Method: calculate_local_term_contribution(X:Union[pd.DataFrame, FloatMatrix])
 
 ***Returns a numpy matrix containing term contribution to the linear predictor in X for each term in the model.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values.
 
 
-## Method: calculate_local_contribution_from_selected_terms(X:FloatMatrix, predictor_indexes:List[int])
+## Method: calculate_local_contribution_from_selected_terms(X:Union[pd.DataFrame, FloatMatrix], predictor_indexes:List[int])
 
 ***Returns a numpy vector containing the contribution to the linear predictor from an user specified combination of interacting predictors for each observation in X. This makes it easier to interpret interactions (or main effects if just one predictor is specified), for example by plotting predictor values against the term contribution.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values.
 
 #### predictor_indexes
 A list of integers specifying the indexes of predictors in X to use. For example, [1, 3] means the second and fourth predictors in X.
 
 
-## Method: calculate_terms(X:FloatMatrix)
+## Method: calculate_terms(X:Union[pd.DataFrame, FloatMatrix])
 
 ***Returns a numpy matrix containing values of model terms calculated on X.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values.
 
 
 ## Method: get_term_names()

@@ -15,15 +15,6 @@ iris = load_iris()
 data = pd.DataFrame(iris.data, columns=iris.feature_names)
 data["target"] = pd.Series(iris.target).astype("str")
 
-# Please note that APLRClassifier requires that all predictor columns in the data have numerical values,
-# This means that if you have missing values in the data then you need to either drop rows with missing data or impute them.
-# This also means that if you have a categorical text variable then you need to convert it to for example dummy variables for each category.
-
-# However, APLRClassifier requires that the response variable is a list of strings.
-
-# Please also note that APLR may be vulnerable to outliers in predictor values. If you experience this problem then please consider winsorising
-# the predictors (or similar methods) before passing them to APLR.
-
 # Randomly splitting data into training and test sets
 data_train, data_test = train_test_split(data, test_size=0.3, random_state=random_state)
 del data
@@ -50,9 +41,7 @@ parameters = {
     ],  # Increasing boosting_steps_before_interactions_are_allowed will increase interpretabilty but may decrease predictiveness.
 }
 aplr_tuner = APLRTuner(parameters=parameters, is_regressor=False)
-aplr_tuner.fit(
-    X=data_train[predictors].values, y=data_train[response].values, X_names=predictors
-)
+aplr_tuner.fit(X=data_train[predictors], y=data_train[response].values)
 best_model = aplr_tuner.get_best_estimator()
 cv_results = pd.DataFrame(aplr_tuner.get_cv_results())
 print("Done training")
@@ -107,9 +96,9 @@ local_feature_contribution = pd.DataFrame(
 
 
 # PREDICTING AND TESTING ON THE TEST SET
-data_test[predicted] = best_model.predict(data_test[predictors].values)
+data_test[predicted] = best_model.predict(data_test[predictors])
 predicted_class_probabilities = pd.DataFrame(
-    data=best_model.predict_class_probabilities(data_test[predictors].values),
+    data=best_model.predict_class_probabilities(data_test[predictors]),
     columns=categories,
 )
 data_test = pd.concat(

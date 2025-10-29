@@ -65,23 +65,23 @@ Restricts the maximum number of terms in any of the underlying models trained to
 Specifies the (weighted) ridge penalty applied to the model. Positive values can smooth model effects and help mitigate boundary problems, such as regression coefficients with excessively high magnitudes near the boundaries. To find the optimal value, consider using a grid search or similar. Negative values are treated as zero.
 
 
-## Method: fit(X:FloatMatrix, y:List[str], sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], interaction_constraints:List[List[int]] = [], predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [], predictor_min_observations_in_split: List[int] = [])
+## Method: fit(X:Union[pd.DataFrame, FloatMatrix], y:Union[FloatVector, List[str]], sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], interaction_constraints:List[List[int]] = [], predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [], predictor_min_observations_in_split: List[int] = [])
 
 ***This method fits the model to data.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values. If a pandas DataFrame is provided, the model will automatically handle categorical features and missing values. Categorical features will be one-hot encoded. Missing values will be imputed with the median of the column, and a new binary feature will be added to indicate that the value was missing.
 
 #### y
-A list of strings with response values (class names).
+A numpy array or list of strings with response values (class names). Other data types will be converted to strings.
 
 #### sample_weight
 An optional numpy vector with sample weights. If not specified then the observations are weighted equally.
 
 #### X_names
-An optional list of strings containing names for each predictor in ***X***. Naming predictors may increase model readability because model terms get names based on ***X_names***.
+An optional list of strings containing names for each predictor in ***X***. Naming predictors may increase model readability because model terms get names based on ***X_names***. **Note:** This parameter is ignored if ***X*** is a pandas DataFrame; the DataFrame's column names will be used instead.
 
 #### cv_observations
 An optional integer matrix specifying how each training observation is used in cross validation. If this is specified then ***cv_folds*** is not used. Specifying ***cv_observations*** may be useful for example when modelling time series data (you can place more recent observations in the holdout folds). ***cv_observations*** must contain a column for each desired fold combination. For a given column, row values equalling 1 specify that these rows will be used for training, while row values equalling -1 specify that these rows will be used for validation. Row values equalling 0 will not be used.
@@ -108,20 +108,20 @@ An optional list of floats specifying interaction penalties for each predictor. 
 An optional list of integers specifying the minimum effective number of observations in a split for each predictor. If provided then this supercedes ***min_observations_in_split***.
 
 
-## Method: predict_class_probabilities(X:FloatMatrix, cap_predictions_to_minmax_in_training:bool = False)
+## Method: predict_class_probabilities(X:Union[pd.DataFrame, FloatMatrix], cap_predictions_to_minmax_in_training:bool = False)
 
 ***Returns a numpy matrix containing predictions of the data in X. Requires that the model has been fitted with the fit method.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values.
 
 #### cap_predictions_to_minmax_in_training
 If ***True*** then for each underlying logit model the predictions are capped so that they are not less than the minimum and not greater than the maximum prediction or response in the training dataset.
 
 
-## Method: predict(X:FloatMatrix, cap_predictions_to_minmax_in_training:bool = False)
+## Method: predict(X:Union[pd.DataFrame, FloatMatrix], cap_predictions_to_minmax_in_training:bool = False)
 
 ***Returns a list of strings containing predictions of the data in X. An observation is classified to the category with the highest predicted class probability. Requires that the model has been fitted with the fit method.***
 
@@ -129,14 +129,14 @@ If ***True*** then for each underlying logit model the predictions are capped so
 Parameters are the same as in ***predict_class_probabilities()***.
 
 
-## Method: calculate_local_feature_contribution(X:FloatMatrix)
+## Method: calculate_local_feature_contribution(X:Union[pd.DataFrame, FloatMatrix])
 
 ***Returns a numpy matrix containing feature contribution to the linear predictor in X for each predictor. For each prediction this method uses calculate_local_feature_contribution() in the logit APLRRegressor model for the category that corresponds to the prediction. Example: If a prediction is "myclass" then the method uses calculate_local_feature_contribution() in the logit model that predicts whether an observation belongs to class "myclass" or not.***
 
 ### Parameters
 
 #### X
-A numpy matrix with predictor values.
+A numpy matrix or pandas DataFrame with predictor values.
 
 
 ## Method: get_categories()

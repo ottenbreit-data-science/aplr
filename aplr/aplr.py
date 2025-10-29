@@ -1,5 +1,6 @@
 from typing import List, Callable, Optional, Dict, Union
 import numpy as np
+import pandas as pd
 import aplr_cpp
 import itertools
 
@@ -9,7 +10,134 @@ IntVector = np.ndarray
 IntMatrix = np.ndarray
 
 
-class APLRRegressor:
+class BaseAPLR:
+    def _validate_X_fit_rows(self, X):
+        """Checks if X has enough rows to be fitted."""
+        if (isinstance(X, np.ndarray) and X.shape[0] < 2) or (
+            isinstance(X, pd.DataFrame) and len(X) < 2
+        ):
+            raise ValueError("Input X must have at least 2 rows to be fitted.")
+
+    def _common_X_preprocessing(self, X, is_fitting: bool, X_names=None):
+        """Common preprocessing for fit and predict."""
+        is_dataframe_input = isinstance(X, pd.DataFrame)
+
+        if not is_dataframe_input:
+            try:
+                X_numeric = np.array(X, dtype=np.float64)
+            except (ValueError, TypeError) as e:
+                raise TypeError(
+                    "Input X must be numeric if not a pandas DataFrame."
+                ) from e
+            X = pd.DataFrame(X_numeric)
+            if is_fitting:
+                if X_names:
+                    X.columns = X_names
+                else:
+                    X.columns = [f"X{i}" for i in range(X.shape[1])]
+            elif hasattr(self, "X_names_") and len(self.X_names_) == X.shape[1]:
+                X.columns = self.X_names_
+        else:  # X is already a DataFrame
+            X = X.copy()  # Always copy to avoid modifying original
+            if not is_fitting and hasattr(self, "X_names_"):
+                # Check if input columns for prediction match training columns (before OHE)
+                if set(X.columns) != set(self.X_names_):
+                    raise ValueError(
+                        "Input columns for prediction do not match training columns."
+                    )
+                X = X[self.X_names_]  # Ensure order of original columns
+
+        if is_fitting:
+            self.X_names_ = list(X.columns)
+            self.categorical_features_ = list(
+                X.select_dtypes(include=["category", "object"]).columns
+            )
+
+        if self.categorical_features_:
+            X = pd.get_dummies(X, columns=self.categorical_features_, dummy_na=False)
+            if is_fitting:
+                self.ohe_columns_ = list(X.columns)
+            else:
+                missing_cols = set(self.ohe_columns_) - set(X.columns)
+                for c in missing_cols:
+                    X[c] = 0
+                X = X[self.ohe_columns_]  # Enforce column order
+
+        if is_fitting:
+            self.na_imputed_cols_ = [col for col in X.columns if X[col].isnull().any()]
+
+        if self.na_imputed_cols_:
+            for col in self.na_imputed_cols_:
+                X[col + "_missing"] = X[col].isnull().astype(int)
+
+        if not is_fitting:
+            for col in self.median_values_:
+                if col in X.columns:
+                    X[col] = X[col].fillna(self.median_values_[col])
+
+        return X
+
+    def _preprocess_X_fit(self, X, X_names, sample_weight):
+        if sample_weight.size > 0:
+            if sample_weight.ndim != 1:
+                raise ValueError("sample_weight must be a 1D array.")
+            if len(sample_weight) != X.shape[0]:
+                raise ValueError(
+                    "sample_weight must have the same number of rows as X."
+                )
+            if np.any(np.isnan(sample_weight)) or np.any(np.isinf(sample_weight)):
+                raise ValueError("sample_weight cannot contain nan or infinite values.")
+            if np.any(sample_weight < 0):
+                raise ValueError("sample_weight cannot contain negative values.")
+        X = self._common_X_preprocessing(X, is_fitting=True, X_names=X_names)
+        self.median_values_ = {}
+        numeric_cols_for_median = [col for col in X.columns if "_missing" not in col]
+        for col in numeric_cols_for_median:
+            missing_mask = X[col].isnull()
+
+            if sample_weight.size > 0:
+                valid_indices = ~missing_mask
+                col_data = X.loc[valid_indices, col]
+                col_weights = sample_weight[valid_indices]
+                if col_data.empty:
+                    median_val = 0
+                else:
+                    col_data_np = col_data.to_numpy()
+                    sort_indices = np.argsort(col_data_np, kind="stable")
+                    sorted_data = col_data_np[sort_indices]
+                    sorted_weights = col_weights[sort_indices]
+
+                    cumulative_weights = np.cumsum(sorted_weights)
+                    total_weight = cumulative_weights[-1]
+
+                    median_weight_index = np.searchsorted(
+                        cumulative_weights, total_weight / 2.0
+                    )
+                    if median_weight_index >= len(sorted_data):
+                        median_weight_index = len(sorted_data) - 1
+                    median_val = sorted_data[median_weight_index]
+            else:
+                median_val = X[col].median()
+
+            if pd.isna(median_val):
+                median_val = 0
+
+            self.median_values_[col] = median_val
+            X[col] = X[col].fillna(median_val)
+
+        self.final_training_columns_ = list(X.columns)
+        return X.values.astype(np.float64), list(X.columns)
+
+    def _preprocess_X_predict(self, X):
+        X = self._common_X_preprocessing(X, is_fitting=False)
+
+        if hasattr(self, "final_training_columns_"):
+            X = X[self.final_training_columns_]
+
+        return X.values.astype(np.float64)
+
+
+class APLRRegressor(BaseAPLR):
     def __init__(
         self,
         m: int = 3000,
@@ -127,6 +255,13 @@ class APLRRegressor:
         self.mean_bias_correction = mean_bias_correction
         self.faster_convergence = faster_convergence
 
+        # Data transformations
+        self.median_values_ = {}
+        self.categorical_features_ = []
+        self.ohe_columns_ = []
+        self.na_imputed_cols_ = []
+        self.X_names_ = []
+
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
         self.__set_params_cpp()
@@ -192,7 +327,7 @@ class APLRRegressor:
 
     def fit(
         self,
-        X: FloatMatrix,
+        X: Union[pd.DataFrame, FloatMatrix],
         y: FloatVector,
         sample_weight: FloatVector = np.empty(0),
         X_names: List[str] = [],
@@ -207,12 +342,16 @@ class APLRRegressor:
         predictor_penalties_for_interactions: List[float] = [],
         predictor_min_observations_in_split: List[int] = [],
     ):
+        self._validate_X_fit_rows(X)
         self.__set_params_cpp()
+        X_transformed, X_names_transformed = self._preprocess_X_fit(
+            X, X_names, sample_weight
+        )
         self.APLRRegressor.fit(
-            X,
+            X_transformed,
             y,
             sample_weight,
-            X_names,
+            X_names_transformed,
             cv_observations,
             prioritized_predictors_indexes,
             monotonic_constraints,
@@ -226,42 +365,65 @@ class APLRRegressor:
         )
 
     def predict(
-        self, X: FloatMatrix, cap_predictions_to_minmax_in_training: bool = True
+        self,
+        X: Union[pd.DataFrame, FloatMatrix],
+        cap_predictions_to_minmax_in_training: bool = True,
     ) -> FloatVector:
         if self.link_function == "custom_function":
             self.APLRRegressor.calculate_custom_transform_linear_predictor_to_predictions_function = (
                 self.calculate_custom_transform_linear_predictor_to_predictions_function
             )
-        return self.APLRRegressor.predict(X, cap_predictions_to_minmax_in_training)
+        X_transformed = self._preprocess_X_predict(X)
+        return self.APLRRegressor.predict(
+            X_transformed, cap_predictions_to_minmax_in_training
+        )
 
     def set_term_names(self, X_names: List[str]):
         self.APLRRegressor.set_term_names(X_names)
 
     def calculate_feature_importance(
-        self, X: FloatMatrix, sample_weight: FloatVector = np.empty(0)
+        self,
+        X: Union[pd.DataFrame, FloatMatrix],
+        sample_weight: FloatVector = np.empty(0),
     ) -> FloatVector:
-        return self.APLRRegressor.calculate_feature_importance(X, sample_weight)
-
-    def calculate_term_importance(
-        self, X: FloatMatrix, sample_weight: FloatVector = np.empty(0)
-    ) -> FloatVector:
-        return self.APLRRegressor.calculate_term_importance(X, sample_weight)
-
-    def calculate_local_feature_contribution(self, X: FloatMatrix) -> FloatMatrix:
-        return self.APLRRegressor.calculate_local_feature_contribution(X)
-
-    def calculate_local_term_contribution(self, X: FloatMatrix) -> FloatMatrix:
-        return self.APLRRegressor.calculate_local_term_contribution(X)
-
-    def calculate_local_contribution_from_selected_terms(
-        self, X: FloatMatrix, predictor_indexes: List[int]
-    ) -> FloatVector:
-        return self.APLRRegressor.calculate_local_contribution_from_selected_terms(
-            X, predictor_indexes
+        X_transformed = self._preprocess_X_predict(X)
+        return self.APLRRegressor.calculate_feature_importance(
+            X_transformed, sample_weight
         )
 
-    def calculate_terms(self, X: FloatMatrix) -> FloatMatrix:
-        return self.APLRRegressor.calculate_terms(X)
+    def calculate_term_importance(
+        self,
+        X: Union[pd.DataFrame, FloatMatrix],
+        sample_weight: FloatVector = np.empty(0),
+    ) -> FloatVector:
+        X_transformed = self._preprocess_X_predict(X)
+        return self.APLRRegressor.calculate_term_importance(
+            X_transformed, sample_weight
+        )
+
+    def calculate_local_feature_contribution(
+        self, X: Union[pd.DataFrame, FloatMatrix]
+    ) -> FloatMatrix:
+        X_transformed = self._preprocess_X_predict(X)
+        return self.APLRRegressor.calculate_local_feature_contribution(X_transformed)
+
+    def calculate_local_term_contribution(
+        self, X: Union[pd.DataFrame, FloatMatrix]
+    ) -> FloatMatrix:
+        X_transformed = self._preprocess_X_predict(X)
+        return self.APLRRegressor.calculate_local_term_contribution(X_transformed)
+
+    def calculate_local_contribution_from_selected_terms(
+        self, X: Union[pd.DataFrame, FloatMatrix], predictor_indexes: List[int]
+    ) -> FloatVector:
+        X_transformed = self._preprocess_X_predict(X)
+        return self.APLRRegressor.calculate_local_contribution_from_selected_terms(
+            X_transformed, predictor_indexes
+        )
+
+    def calculate_terms(self, X: Union[pd.DataFrame, FloatMatrix]) -> FloatMatrix:
+        X_transformed = self._preprocess_X_predict(X)
+        return self.APLRRegressor.calculate_terms(X_transformed)
 
     def get_term_names(self) -> List[str]:
         return self.APLRRegressor.get_term_names()
@@ -483,7 +645,7 @@ class APLRRegressor:
         return self
 
 
-class APLRClassifier:
+class APLRClassifier(BaseAPLR):
     def __init__(
         self,
         m: int = 3000,
@@ -534,6 +696,13 @@ class APLRClassifier:
         self.max_terms = max_terms
         self.ridge_penalty = ridge_penalty
 
+        # Data transformations
+        self.median_values_ = {}
+        self.categorical_features_ = []
+        self.ohe_columns_ = []
+        self.na_imputed_cols_ = []
+        self.X_names_ = []
+
         # Creating aplr_cpp and setting parameters
         self.APLRClassifier = aplr_cpp.APLRClassifier()
         self.__set_params_cpp()
@@ -571,8 +740,8 @@ class APLRClassifier:
 
     def fit(
         self,
-        X: FloatMatrix,
-        y: List[str],
+        X: Union[pd.DataFrame, FloatMatrix],
+        y: Union[FloatVector, List[str]],
         sample_weight: FloatVector = np.empty(0),
         X_names: List[str] = [],
         cv_observations: IntMatrix = np.empty([0, 0]),
@@ -584,12 +753,22 @@ class APLRClassifier:
         predictor_penalties_for_interactions: List[float] = [],
         predictor_min_observations_in_split: List[int] = [],
     ):
+        self._validate_X_fit_rows(X)
         self.__set_params_cpp()
+        X_transformed, X_names_transformed = self._preprocess_X_fit(
+            X, X_names, sample_weight
+        )
+
+        if isinstance(y, np.ndarray):
+            y = y.astype(str).tolist()
+        elif isinstance(y, list) and y and not isinstance(y[0], str):
+            y = [str(val) for val in y]
+
         self.APLRClassifier.fit(
-            X,
+            X_transformed,
             y,
             sample_weight,
-            X_names,
+            X_names_transformed,
             cv_observations,
             prioritized_predictors_indexes,
             monotonic_constraints,
@@ -603,19 +782,30 @@ class APLRClassifier:
         self.classes_ = np.arange(len(self.APLRClassifier.get_categories()))
 
     def predict_class_probabilities(
-        self, X: FloatMatrix, cap_predictions_to_minmax_in_training: bool = False
+        self,
+        X: Union[pd.DataFrame, FloatMatrix],
+        cap_predictions_to_minmax_in_training: bool = False,
     ) -> FloatMatrix:
+        X_transformed = self._preprocess_X_predict(X)
         return self.APLRClassifier.predict_class_probabilities(
-            X, cap_predictions_to_minmax_in_training
+            X_transformed, cap_predictions_to_minmax_in_training
         )
 
     def predict(
-        self, X: FloatMatrix, cap_predictions_to_minmax_in_training: bool = False
+        self,
+        X: Union[pd.DataFrame, FloatMatrix],
+        cap_predictions_to_minmax_in_training: bool = False,
     ) -> List[str]:
-        return self.APLRClassifier.predict(X, cap_predictions_to_minmax_in_training)
+        X_transformed = self._preprocess_X_predict(X)
+        return self.APLRClassifier.predict(
+            X_transformed, cap_predictions_to_minmax_in_training
+        )
 
-    def calculate_local_feature_contribution(self, X: FloatMatrix) -> FloatMatrix:
-        return self.APLRClassifier.calculate_local_feature_contribution(X)
+    def calculate_local_feature_contribution(
+        self, X: Union[pd.DataFrame, FloatMatrix]
+    ) -> FloatMatrix:
+        X_transformed = self._preprocess_X_predict(X)
+        return self.APLRClassifier.calculate_local_feature_contribution(X_transformed)
 
     def get_categories(self) -> List[str]:
         return self.APLRClassifier.get_categories()
@@ -724,7 +914,7 @@ class APLRTuner:
         grid = [dict(zip(keys, combination)) for combination in combinations]
         return grid
 
-    def fit(self, X: FloatMatrix, y: FloatVector, **kwargs):
+    def fit(self, X: Union[pd.DataFrame, FloatMatrix], y: FloatVector, **kwargs):
         self.cv_results: List[Dict[str, float]] = []
         best_validation_result = np.inf
         for params in self.parameter_grid:
@@ -742,10 +932,14 @@ class APLRTuner:
                 self.best_model = model
         self.cv_results = sorted(self.cv_results, key=lambda x: x["cv_error"])
 
-    def predict(self, X: FloatMatrix, **kwargs) -> Union[FloatVector, List[str]]:
+    def predict(
+        self, X: Union[pd.DataFrame, FloatMatrix], **kwargs
+    ) -> Union[FloatVector, List[str]]:
         return self.best_model.predict(X, **kwargs)
 
-    def predict_class_probabilities(self, X: FloatMatrix, **kwargs) -> FloatMatrix:
+    def predict_class_probabilities(
+        self, X: Union[pd.DataFrame, FloatMatrix], **kwargs
+    ) -> FloatMatrix:
         if self.is_regressor == False:
             return self.best_model.predict_class_probabilities(X, **kwargs)
         else:
@@ -753,7 +947,9 @@ class APLRTuner:
                 "predict_class_probabilities is only possible when is_regressor is False"
             )
 
-    def predict_proba(self, X: FloatMatrix, **kwargs) -> FloatMatrix:
+    def predict_proba(
+        self, X: Union[pd.DataFrame, FloatMatrix], **kwargs
+    ) -> FloatMatrix:
         return self.predict_class_probabilities(X, **kwargs)
 
     def get_best_estimator(self) -> Union[APLRClassifier, APLRRegressor]:
