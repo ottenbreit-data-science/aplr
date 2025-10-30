@@ -21,6 +21,7 @@ private:
     void invert_second_model_in_two_class_case(APLRRegressor &second_model);
     void calculate_validation_metrics();
     void calculate_unique_term_affiliations();
+    void throw_error_if_not_fitted();
     void cleanup_after_fit();
 
 public:
@@ -306,8 +307,18 @@ void APLRClassifier::cleanup_after_fit()
     response_values.clear();
 }
 
+void APLRClassifier::throw_error_if_not_fitted()
+{
+    if (categories.empty())
+    {
+        throw std::runtime_error("This APLRClassifier instance is not fitted yet. Call 'fit' with appropriate arguments before using this estimator.");
+    }
+}
+
 MatrixXd APLRClassifier::predict_class_probabilities(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)
 {
+    throw_error_if_not_fitted();
+
     MatrixXd predictions{MatrixXd::Constant(X.rows(), categories.size(), 0.0)};
     for (size_t i = 0; i < categories.size(); ++i)
     {
@@ -328,6 +339,7 @@ MatrixXd APLRClassifier::predict_class_probabilities(const MatrixXd &X, bool cap
 
 std::vector<std::string> APLRClassifier::predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)
 {
+    throw_error_if_not_fitted();
     std::vector<std::string> predictions(X.rows());
     MatrixXd predicted_class_probabilities{predict_class_probabilities(X, cap_predictions_to_minmax_in_training)};
     for (size_t row = 0; row < predicted_class_probabilities.rows(); ++row)
@@ -342,6 +354,7 @@ std::vector<std::string> APLRClassifier::predict(const MatrixXd &X, bool cap_pre
 
 MatrixXd APLRClassifier::calculate_local_feature_contribution(const MatrixXd &X)
 {
+    throw_error_if_not_fitted();
     MatrixXd output{MatrixXd::Constant(X.rows(), unique_term_affiliations.size(), 0)};
     std::vector<std::string> predictions{predict(X, false)};
     for (size_t row = 0; row < predictions.size(); ++row)

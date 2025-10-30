@@ -22,6 +22,9 @@ class BaseAPLR:
         """Common preprocessing for fit and predict."""
         is_dataframe_input = isinstance(X, pd.DataFrame)
 
+        if X_names is not None:
+            X_names = list(X_names)
+
         if not is_dataframe_input:
             try:
                 X_numeric = np.array(X, dtype=np.float64)
@@ -35,11 +38,11 @@ class BaseAPLR:
                     X.columns = X_names
                 else:
                     X.columns = [f"X{i}" for i in range(X.shape[1])]
-            elif hasattr(self, "X_names_") and len(self.X_names_) == X.shape[1]:
+            elif self.X_names_ and len(self.X_names_) == X.shape[1]:
                 X.columns = self.X_names_
         else:  # X is already a DataFrame
             X = X.copy()  # Always copy to avoid modifying original
-            if not is_fitting and hasattr(self, "X_names_"):
+            if not is_fitting and self.X_names_:
                 # Check if input columns for prediction match training columns (before OHE)
                 if set(X.columns) != set(self.X_names_):
                     raise ValueError(
@@ -52,11 +55,18 @@ class BaseAPLR:
             self.categorical_features_ = list(
                 X.select_dtypes(include=["category", "object"]).columns
             )
+            # Ensure it's an empty list if no categorical features, not None
+            if not self.categorical_features_:
+                self.categorical_features_ = []
 
+        # Apply OHE if categorical_features_ were found during fitting.
         if self.categorical_features_:
             X = pd.get_dummies(X, columns=self.categorical_features_, dummy_na=False)
             if is_fitting:
                 self.ohe_columns_ = list(X.columns)
+                # Ensure it's an empty list if no OHE columns, not None
+                if not self.ohe_columns_:
+                    self.ohe_columns_ = []
             else:
                 missing_cols = set(self.ohe_columns_) - set(X.columns)
                 for c in missing_cols:
@@ -65,13 +75,17 @@ class BaseAPLR:
 
         if is_fitting:
             self.na_imputed_cols_ = [col for col in X.columns if X[col].isnull().any()]
+            # Ensure it's an empty list if no NA imputed columns, not None
+            if not self.na_imputed_cols_:
+                self.na_imputed_cols_ = []
 
+        # Apply NA indicator if na_imputed_cols_ were found during fitting.
         if self.na_imputed_cols_:
             for col in self.na_imputed_cols_:
                 X[col + "_missing"] = X[col].isnull().astype(int)
 
-        if not is_fitting:
-            for col in self.median_values_:
+        if not is_fitting and self.median_values_:
+            for col in self.median_values_:  # Iterate over keys if it's a dict
                 if col in X.columns:
                     X[col] = X[col].fillna(self.median_values_[col])
 
@@ -131,10 +145,29 @@ class BaseAPLR:
     def _preprocess_X_predict(self, X):
         X = self._common_X_preprocessing(X, is_fitting=False)
 
-        if hasattr(self, "final_training_columns_"):
+        # Enforce column order from training if it was set.
+        if self.final_training_columns_:
             X = X[self.final_training_columns_]
 
         return X.values.astype(np.float64)
+
+    def __setstate__(self, state):
+        """Handles unpickling for backward compatibility."""
+        self.__dict__.update(state)
+
+        # For backward compatibility, initialize new attributes to None if they don't exist,
+        # indicating the model was trained before these features were introduced.
+        new_attributes = [
+            "X_names_",
+            "categorical_features_",
+            "ohe_columns_",
+            "na_imputed_cols_",
+            "median_values_",
+            "final_training_columns_",
+        ]
+        for attr in new_attributes:
+            if not hasattr(self, attr):
+                setattr(self, attr, None)
 
 
 class APLRRegressor(BaseAPLR):
@@ -261,6 +294,7 @@ class APLRRegressor(BaseAPLR):
         self.ohe_columns_ = []
         self.na_imputed_cols_ = []
         self.X_names_ = []
+        self.final_training_columns_ = []
 
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
@@ -702,6 +736,7 @@ class APLRClassifier(BaseAPLR):
         self.ohe_columns_ = []
         self.na_imputed_cols_ = []
         self.X_names_ = []
+        self.final_training_columns_ = []
 
         # Creating aplr_cpp and setting parameters
         self.APLRClassifier = aplr_cpp.APLRClassifier()
