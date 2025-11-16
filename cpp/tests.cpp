@@ -3189,7 +3189,7 @@ public:
         catch (const std::runtime_error &e)
         {
             threw = true;
-            add_test("access after clear throws (message check)", std::string(e.what()).find("out of bounds") != std::string::npos);
+            add_test("access after clear throws (message check)", std::string(e.what()).find("not available") != std::string::npos);
         }
         add_test("access after clear throws", threw);
 
