@@ -369,6 +369,45 @@ Used for two-way or higher-order interactions. Specifies the number of evenly sp
 
 ***Returns the cv error for the model.***
 
+## Method: get_num_cv_folds()
+
+***Returns the number of cross-validation folds used during training as an integer.***
+
+## Method: get_cv_validation_predictions(fold_index: int)
+
+***Returns a numpy array containing the validation predictions for a specific cross-validation fold. Note that these predictions may be conservative, as the final model is an ensemble of the models from all cross-validation folds, which has a variance-reducing effect similar to bagging.***
+
+### Parameters
+
+#### fold_index
+An integer specifying the index of the fold.
+
+## Method: get_cv_y(fold_index: int)
+
+***Returns a numpy array containing the validation response values (y) for a specific cross-validation fold.***
+
+### Parameters
+
+#### fold_index
+An integer specifying the index of the fold.
+
+## Method: get_cv_sample_weight(fold_index: int)
+
+***Returns a numpy array containing the validation sample weights for a specific cross-validation fold.***
+
+### Parameters
+
+#### fold_index
+An integer specifying the index of the fold.
+
+## Method: get_cv_validation_indexes(fold_index: int)
+
+***Returns a numpy array containing the original indexes of the validation observations for a specific cross-validation fold.***
+
+### Parameters
+
+#### fold_index
+An integer specifying the index of the fold.
 
 ## Method: set_intercept(value:float)
 
@@ -401,3 +440,7 @@ The file path to save the plot. If empty and save is True, a default path will b
 ## Method: remove_provided_custom_functions()
 
 ***Removes any custom functions provided for calculating the loss, negative gradient, or validation error. This is useful after model training with custom functions, ensuring that the APLRRegressor object no longer depends on these functions—so they do not need to be present in the Python environment when loading a saved model.***
+
+## Method: clear_cv_results()
+
+***Clears the stored cross-validation results (predictions, y, etc.) from the model object to free up memory.***

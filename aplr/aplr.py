@@ -514,6 +514,53 @@ class APLRRegressor(BaseAPLR):
     def get_cv_error(self) -> float:
         return self.APLRRegressor.get_cv_error()
 
+    def get_num_cv_folds(self) -> int:
+        """
+        Gets the number of cross-validation folds used during training.
+
+        :return: The number of folds.
+        """
+        return self.APLRRegressor.get_num_cv_folds()
+
+    def get_cv_validation_predictions(self, fold_index: int) -> FloatVector:
+        """
+        Gets the validation predictions for a specific cross-validation fold.
+
+        Note that these predictions may be conservative, as the final model is an ensemble of the models
+        from all cross-validation folds, which has a variance-reducing effect similar to bagging.
+
+        :param fold_index: The index of the fold.
+        :return: A numpy array containing the validation predictions.
+        """
+        return self.APLRRegressor.get_cv_validation_predictions(fold_index)
+
+    def get_cv_y(self, fold_index: int) -> FloatVector:
+        """
+        Gets the validation response values (y) for a specific cross-validation fold.
+
+        :param fold_index: The index of the fold.
+        :return: A numpy array containing the validation response values.
+        """
+        return self.APLRRegressor.get_cv_y(fold_index)
+
+    def get_cv_sample_weight(self, fold_index: int) -> FloatVector:
+        """
+        Gets the validation sample weights for a specific cross-validation fold.
+
+        :param fold_index: The index of the fold.
+        :return: A numpy array containing the validation sample weights.
+        """
+        return self.APLRRegressor.get_cv_sample_weight(fold_index)
+
+    def get_cv_validation_indexes(self, fold_index: int) -> IntVector:
+        """
+        Gets the original indexes of the validation observations for a specific cross-validation fold.
+
+        :param fold_index: The index of the fold.
+        :return: A numpy array containing the original indexes.
+        """
+        return self.APLRRegressor.get_cv_validation_indexes(fold_index)
+
     def set_intercept(self, value: float):
         self.APLRRegressor.set_intercept(value)
 
@@ -631,6 +678,12 @@ class APLRRegressor(BaseAPLR):
         self.calculate_custom_validation_error_function = None
         self.calculate_custom_loss_function = None
         self.calculate_custom_negative_gradient_function = None
+
+    def clear_cv_results(self):
+        """
+        Clears the stored cross-validation results (predictions, y, etc.) to free up memory.
+        """
+        self.APLRRegressor.clear_cv_results()
 
     # For sklearn
     def get_params(self, deep=True):
@@ -891,6 +944,12 @@ class APLRClassifier(BaseAPLR):
 
     def get_base_predictors_in_each_unique_term_affiliation(self) -> List[List[int]]:
         return self.APLRClassifier.get_base_predictors_in_each_unique_term_affiliation()
+
+    def clear_cv_results(self):
+        """
+        Clears the stored cross-validation results from all underlying logit models to free up memory.
+        """
+        self.APLRClassifier.clear_cv_results()
 
     # For sklearn
     def get_params(self, deep=True):

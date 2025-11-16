@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.19.0] - 2025-11-16
+
+### Added
+- Cross-validation results (predictions, y-values, sample weights, and observation indexes for each fold) are now stored in the fitted `APLRRegressor` model.
+- This allows for more detailed post-training analysis of the cross-validation process.
+- The CV results are persisted when the model is pickled.
+- New methods in `APLRRegressor` to access this data:
+  - `get_num_cv_folds()`
+  - `get_cv_validation_predictions(fold_index)`
+  - `get_cv_y(fold_index)`
+  - `get_cv_sample_weight(fold_index)`
+  - `get_cv_validation_indexes(fold_index)`
+- New method `clear_cv_results()` in both `APLRRegressor` and `APLRClassifier` to manually clear the stored cross-validation data and free up memory.
+
+### Fixed
+- Corrected a bug in `APLRRegressor` where `sample_weight` was not handled correctly. The initialization (if not provided) and normalization of sample weights now occur on the full dataset before it is split into training and validation sets. This ensures consistent weight scaling across all cross-validation folds.
+
 ## [10.18.1] - 2025-10-30
 
 ### Fixed

@@ -33,6 +33,7 @@ class APLRRegressor
 private:
     MatrixXd X_train;
     VectorXd y_train;
+    std::vector<size_t> validation_indexes;
     VectorXd sample_weight_train;
     MatrixXd X_validation;
     VectorXd y_validation;
@@ -199,6 +200,8 @@ private:
     void throw_error_if_validation_tuning_metric_is_invalid();
     std::vector<size_t> compute_relevant_term_indexes(const std::string &unique_term_affiliation);
     std::vector<double> compute_split_points(size_t predictor_index, const std::vector<size_t> &relevant_term_indexes);
+    void validate_fold_index(size_t fold_index);
+    void throw_cv_data_not_available_error(const std::string &data_name);
     VectorXd compute_contribution_to_linear_predictor_from_specific_terms(const MatrixXd &X, const std::vector<size_t> &term_indexes,
                                                                           const std::vector<size_t> &base_predictors_used);
     void validate_sample_weight(const MatrixXd &X, const VectorXd &sample_weight);
@@ -262,6 +265,11 @@ public:
     bool mean_bias_correction;
     bool faster_convergence;
 
+    std::vector<VectorXd> cv_validation_predictions_all_folds;
+    std::vector<VectorXd> cv_y_all_folds;
+    std::vector<VectorXd> cv_sample_weight_all_folds;
+    std::vector<VectorXi> cv_validation_indexes_all_folds;
+
     APLRRegressor(size_t m = 3000, double v = 0.5, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), std::string loss_function = "mse",
                   std::string link_function = "identity", size_t n_jobs = 0, size_t cv_folds = 5,
                   size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1, size_t max_interactions = 100000,
@@ -313,8 +321,15 @@ public:
     MatrixXd generate_predictor_values_and_contribution(const std::vector<size_t> &relevant_term_indexes,
                                                         size_t unique_term_affiliation_index);
     double get_cv_error();
+    size_t get_num_cv_folds();
     void set_intercept(double value);
     void remove_provided_custom_functions();
+
+    VectorXd get_cv_validation_predictions(size_t fold_index);
+    VectorXd get_cv_y(size_t fold_index);
+    VectorXd get_cv_sample_weight(size_t fold_index);
+    VectorXi get_cv_validation_indexes(size_t fold_index);
+    void clear_cv_results();
 
     friend class APLRClassifier;
 };
@@ -382,7 +397,10 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       max_predictor_values_in_training{other.max_predictor_values_in_training}, unique_term_affiliations{other.unique_term_affiliations},
       unique_term_affiliation_map{other.unique_term_affiliation_map},
       base_predictors_in_each_unique_term_affiliation{other.base_predictors_in_each_unique_term_affiliation}, ridge_penalty{other.ridge_penalty},
-      mean_bias_correction{other.mean_bias_correction}, faster_convergence{other.faster_convergence}
+      mean_bias_correction{other.mean_bias_correction}, faster_convergence{other.faster_convergence},
+      cv_validation_predictions_all_folds{other.cv_validation_predictions_all_folds},
+      cv_y_all_folds{other.cv_y_all_folds}, cv_sample_weight_all_folds{other.cv_sample_weight_all_folds},
+      cv_validation_indexes_all_folds{other.cv_validation_indexes_all_folds}
 {
 }
 
@@ -447,8 +465,12 @@ APLRRegressor &APLRRegressor::operator=(const APLRRegressor &other)
     unique_term_affiliation_map = other.unique_term_affiliation_map;
     base_predictors_in_each_unique_term_affiliation = other.base_predictors_in_each_unique_term_affiliation;
     ridge_penalty = other.ridge_penalty;
-    faster_convergence = other.faster_convergence;
     mean_bias_correction = other.mean_bias_correction;
+    faster_convergence = other.faster_convergence;
+    cv_validation_predictions_all_folds = other.cv_validation_predictions_all_folds;
+    cv_y_all_folds = other.cv_y_all_folds;
+    cv_sample_weight_all_folds = other.cv_sample_weight_all_folds;
+    cv_validation_indexes_all_folds = other.cv_validation_indexes_all_folds;
 
     thread_pool.reset();
 
@@ -476,6 +498,14 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
     validate_input_to_fit(X, y, sample_weight, X_names, cv_observations, prioritized_predictors_indexes, monotonic_constraints, group,
                           interaction_constraints, other_data, predictor_learning_rates, predictor_penalties_for_non_linearity,
                           predictor_penalties_for_interactions);
+
+    VectorXd sample_weight_used{sample_weight};
+    if (sample_weight.size() == 0)
+    {
+        sample_weight_used = VectorXd::Constant(y.rows(), 1.0);
+    }
+    sample_weight_used /= sample_weight_used.mean();
+
     MatrixXi cv_observations_used{preprocess_cv_observations(cv_observations, y)};
     preprocess_prioritized_predictors_and_interaction_constraints(X, prioritized_predictors_indexes, interaction_constraints);
     initialize_multithreading();
@@ -485,11 +515,16 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
     preprocess_predictor_min_observations_in_split(X, predictor_min_observations_in_split);
     calculate_min_and_max_predictor_values_in_training(X);
     cv_fold_models.resize(cv_observations_used.cols());
+    cv_validation_predictions_all_folds.resize(cv_observations_used.cols());
+    cv_y_all_folds.resize(cv_observations_used.cols());
+    cv_sample_weight_all_folds.resize(cv_observations_used.cols());
+    cv_validation_indexes_all_folds.resize(cv_observations_used.cols());
+
     for (Eigen::Index i = 0; i < cv_observations_used.cols(); ++i)
     {
-        fit_model_for_cv_fold(X, y, sample_weight, X_names, cv_observations_used.col(i), monotonic_constraints, group, other_data, i);
+        fit_model_for_cv_fold(X, y, sample_weight_used, X_names, cv_observations_used.col(i), monotonic_constraints, group, other_data, i);
     }
-    create_final_model(X, sample_weight);
+    create_final_model(X, sample_weight_used);
 }
 
 void APLRRegressor::preprocess_prioritized_predictors_and_interaction_constraints(
@@ -611,11 +646,15 @@ void APLRRegressor::fit_model_for_cv_fold(const MatrixXd &X, const VectorXd &y, 
     remove_unused_terms();
     if (mean_bias_correction)
         correct_mean_bias();
-    VectorXd predictions_validation{predict(X_validation, false)};
-    min_validation_error_for_current_fold = calculate_validation_error(predictions_validation, validation_tuning_metric);
     revert_scaling_if_using_log_link_function();
     set_term_coefficients();
     name_terms(X, X_names);
+    VectorXd predictions_validation{predict(X_validation, false)};
+    cv_validation_predictions_all_folds[fold_index] = predictions_validation;
+    cv_y_all_folds[fold_index] = y_validation;
+    cv_sample_weight_all_folds[fold_index] = sample_weight_validation;
+    cv_validation_indexes_all_folds[fold_index] = Eigen::Map<const Vector<size_t, -1>>(validation_indexes.data(), validation_indexes.size()).cast<int>();
+    min_validation_error_for_current_fold = calculate_validation_error(predictions_validation, validation_tuning_metric);
     find_min_and_max_training_predictions_or_responses();
     write_output_to_cv_fold_models(fold_index);
     cleanup_after_fit();
@@ -958,7 +997,7 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X, const
 {
     size_t y_size{static_cast<size_t>(y.size())};
     std::vector<size_t> train_indexes;
-    std::vector<size_t> validation_indexes;
+    validation_indexes.clear();
     train_indexes.reserve(y_size);
     validation_indexes.reserve(y_size);
     for (Eigen::Index i = 0; i < cv_observations_in_fold.rows(); ++i)
@@ -986,17 +1025,10 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X, const
         X_train.row(i) = X.row(train_indexes[i]);
         y_train[i] = y[train_indexes[i]];
     }
-    bool sample_weight_exist{sample_weight_train.size() == y_train.size()};
-    if (sample_weight_exist)
+    for (size_t i = 0; i < train_indexes.size(); ++i)
     {
-        for (size_t i = 0; i < train_indexes.size(); ++i)
-        {
-            sample_weight_train[i] = sample_weight[train_indexes[i]];
-        }
-        sample_weight_train /= sample_weight_train.mean();
+        sample_weight_train[i] = sample_weight[train_indexes[i]];
     }
-    else
-        sample_weight_train = VectorXd::Constant(y_train.rows(), 1.0);
     bool groups_are_provided{group.size() > 0};
     if (groups_are_provided)
     {
@@ -1022,17 +1054,10 @@ void APLRRegressor::define_training_and_validation_sets(const MatrixXd &X, const
         X_validation.row(i) = X.row(validation_indexes[i]);
         y_validation[i] = y[validation_indexes[i]];
     }
-    sample_weight_exist = sample_weight_validation.size() == y_validation.size();
-    if (sample_weight_exist)
+    for (size_t i = 0; i < validation_indexes.size(); ++i)
     {
-        for (size_t i = 0; i < validation_indexes.size(); ++i)
-        {
-            sample_weight_validation[i] = sample_weight[validation_indexes[i]];
-        }
-        sample_weight_validation /= sample_weight_validation.mean();
+        sample_weight_validation[i] = sample_weight[validation_indexes[i]];
     }
-    else
-        sample_weight_validation = VectorXd::Constant(y_validation.rows(), 1.0);
     if (groups_are_provided)
     {
         group_validation.resize(validation_indexes.size());
@@ -2201,6 +2226,7 @@ void APLRRegressor::revert_scaling_if_using_log_link_function()
         {
             intercept_steps[i] += std::log(1 / scaling_factor_for_log_link_function);
         }
+        scaling_factor_for_log_link_function = 1.0;
     }
 }
 
@@ -2410,6 +2436,7 @@ void APLRRegressor::cleanup_after_fit()
     terms.shrink_to_fit();
     X_train.resize(0, 0);
     y_train.resize(0);
+    validation_indexes.clear();
     sample_weight_train.resize(0);
     X_validation.resize(0, 0);
     y_validation.resize(0);
@@ -3007,6 +3034,11 @@ double APLRRegressor::get_cv_error()
     return cv_error;
 }
 
+size_t APLRRegressor::get_num_cv_folds()
+{
+    return cv_y_all_folds.size();
+}
+
 void APLRRegressor::set_intercept(double value)
 {
     if (model_has_not_been_trained())
@@ -3022,4 +3054,61 @@ void APLRRegressor::remove_provided_custom_functions()
     calculate_custom_validation_error_function = {};
     calculate_custom_loss_function = {};
     calculate_custom_negative_gradient_function = {};
+}
+
+void APLRRegressor::validate_fold_index(size_t fold_index)
+{
+    if (get_num_cv_folds() == 0)
+    {
+        throw_cv_data_not_available_error("CV results");
+    }
+    if (fold_index >= get_num_cv_folds())
+        throw std::runtime_error("fold_index is out of bounds.");
+}
+
+void APLRRegressor::throw_cv_data_not_available_error(const std::string &data_name)
+{
+    throw std::runtime_error(data_name + " are not available. This can happen if the model was trained with an older version of APLR or if clear_cv_results() has been called.");
+}
+
+VectorXd APLRRegressor::get_cv_validation_predictions(size_t fold_index)
+{
+    validate_fold_index(fold_index);
+    if (cv_validation_predictions_all_folds[fold_index].size() == 0)
+        throw_cv_data_not_available_error("CV validation predictions");
+    return cv_validation_predictions_all_folds[fold_index];
+}
+
+VectorXd APLRRegressor::get_cv_y(size_t fold_index)
+{
+    validate_fold_index(fold_index);
+    if (cv_y_all_folds[fold_index].size() == 0)
+        throw_cv_data_not_available_error("CV y values");
+    return cv_y_all_folds[fold_index];
+}
+
+VectorXd APLRRegressor::get_cv_sample_weight(size_t fold_index)
+{
+    validate_fold_index(fold_index);
+    if (cv_sample_weight_all_folds[fold_index].size() == 0)
+        throw_cv_data_not_available_error("CV sample weights");
+    return cv_sample_weight_all_folds[fold_index];
+}
+
+VectorXi APLRRegressor::get_cv_validation_indexes(size_t fold_index)
+{
+    validate_fold_index(fold_index);
+    if (cv_validation_indexes_all_folds[fold_index].size() == 0)
+        throw_cv_data_not_available_error("CV validation indexes");
+    return cv_validation_indexes_all_folds[fold_index];
+}
+
+void APLRRegressor::clear_cv_results()
+{
+    if (model_has_not_been_trained())
+        throw std::runtime_error("The model must be trained with fit() before clear_cv_results() can be run.");
+    cv_validation_predictions_all_folds.clear();
+    cv_y_all_folds.clear();
+    cv_sample_weight_all_folds.clear();
+    cv_validation_indexes_all_folds.clear();
 }

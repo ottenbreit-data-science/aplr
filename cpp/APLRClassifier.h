@@ -80,6 +80,7 @@ public:
     VectorXd get_feature_importance();
     std::vector<std::string> get_unique_term_affiliations();
     std::vector<std::vector<size_t>> get_base_predictors_in_each_unique_term_affiliation();
+    void clear_cv_results();
 };
 
 APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, size_t n_jobs, size_t cv_folds,
@@ -416,4 +417,13 @@ std::vector<std::string> APLRClassifier::get_unique_term_affiliations()
 std::vector<std::vector<size_t>> APLRClassifier::get_base_predictors_in_each_unique_term_affiliation()
 {
     return base_predictors_in_each_unique_term_affiliation;
+}
+
+void APLRClassifier::clear_cv_results()
+{
+    throw_error_if_not_fitted();
+    for (auto &pair : logit_models)
+    {
+        pair.second.clear_cv_results();
+    }
 }

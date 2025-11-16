@@ -177,3 +177,8 @@ A string specifying the label of the category.
 ## Method: get_base_predictors_in_each_unique_term_affiliation()
 
 ***Returns a list of integer lists. The first list contains indexes for the unique base predictors used in the first unique term affiliation. The second list contains indexes for the unique base predictors used in the second unique term affiliation, and so on.***
+
+
+## Method: clear_cv_results()
+
+***Clears the stored cross-validation results from all underlying logit models to free up memory.***

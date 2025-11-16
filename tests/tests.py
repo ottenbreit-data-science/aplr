@@ -231,5 +231,148 @@ class TestAPLRPreprocessing(unittest.TestCase):
                         model.fit(X_input, y_single_row)
 
 
+class TestAPLRCvResults(unittest.TestCase):
+    def test_cv_results_retrieval(self):
+        """Replicates the C++ test for CV results retrieval and calculation."""
+        # 1. Setup data
+        np.random.seed(0)
+        X_np = 2 * np.random.rand(100, 2) - 1
+        X = pd.DataFrame(X_np, columns=["feat1", "feat2"])
+        y = X_np[:, 0] + X_np[:, 1] * 2 + (2 * np.random.rand(100) - 1)
+        sample_weight = 1.0 + np.random.rand(100)
+
+        cv_folds = 4
+        model = APLRRegressor(m=10, v=0.1, cv_folds=cv_folds, random_state=0)
+
+        # 2. Test that accessing data before fitting raises an error
+        with self.assertRaises(RuntimeError):
+            model.get_cv_y(0)
+
+        # 3. Fit model
+        model.fit(X, y, sample_weight=sample_weight)
+
+        # 4. Test get_num_cv_folds
+        self.assertEqual(model.get_num_cv_folds(), cv_folds)
+
+        # 5. Test data retrieval and manually calculate cv_error
+        sample_weight_normalized = sample_weight / sample_weight.mean()
+        total_validation_obs = 0
+        total_training_weight = 0.0
+        fold_validation_errors_test1 = []
+        fold_validation_errors_test2 = []
+        fold_training_weight_sums = []
+
+        for i in range(cv_folds):
+            cv_y = model.get_cv_y(i)
+            cv_preds = model.get_cv_validation_predictions(i)
+            cv_weights = model.get_cv_sample_weight(i)
+            cv_indexes = model.get_cv_validation_indexes(i)
+
+            self.assertGreater(len(cv_y), 0)
+            self.assertEqual(len(cv_y), len(cv_preds))
+            self.assertEqual(len(cv_y), len(cv_weights))
+            self.assertEqual(len(cv_y), len(cv_indexes))
+
+            total_validation_obs += len(cv_y)
+
+            # Test 1: Manually calculate validation error for this fold from get_cv_* methods
+            validation_errors1 = (cv_y - cv_preds) ** 2
+            fold_validation_error1 = np.sum(validation_errors1 * cv_weights) / np.sum(
+                cv_weights
+            )
+            fold_validation_errors_test1.append(fold_validation_error1)
+
+            # Test 2: Manually calculate validation error using original y/weights and returned indexes
+            cv_y_from_indexes = y[cv_indexes]
+            cv_weights_from_indexes = sample_weight_normalized[cv_indexes]
+            validation_errors2 = (cv_y_from_indexes - cv_preds) ** 2
+            fold_validation_error2 = np.sum(
+                validation_errors2 * cv_weights_from_indexes
+            ) / np.sum(cv_weights_from_indexes)
+            fold_validation_errors_test2.append(fold_validation_error2)
+
+            # Replicate internal logic for training weight sum
+            is_validation = np.zeros(len(y), dtype=bool)
+            is_validation[cv_indexes] = True
+            train_weights_for_fold = sample_weight_normalized[~is_validation]
+            training_weight_sum = np.sum(train_weights_for_fold)
+
+            fold_training_weight_sums.append(training_weight_sum)
+            total_training_weight += training_weight_sum
+
+        self.assertEqual(total_validation_obs, len(y))
+
+        # Finalize and assert for the manual cv_error calculation
+        manual_cv_error1 = 0.0
+        manual_cv_error2 = 0.0
+        for i in range(cv_folds):
+            manual_cv_error1 += fold_validation_errors_test1[i] * (
+                fold_training_weight_sums[i] / total_training_weight
+            )
+            manual_cv_error2 += fold_validation_errors_test2[i] * (
+                fold_training_weight_sums[i] / total_training_weight
+            )
+
+        self.assertAlmostEqual(manual_cv_error1, model.get_cv_error())
+        self.assertAlmostEqual(manual_cv_error2, model.get_cv_error())
+
+        # 6. Test clear_cv_results
+        model.clear_cv_results()
+        self.assertEqual(model.get_num_cv_folds(), 0)
+
+        # 7. Test that accessing data after clearing raises an error
+        with self.assertRaises(RuntimeError):
+            model.get_cv_y(0)
+
+        # 8. Test APLRClassifier
+        y_class = np.where(y > np.mean(y), "A", "B")
+        classifier = APLRClassifier(m=10, v=0.1, cv_folds=cv_folds, random_state=0)
+        classifier.fit(X, y_class)
+
+        # Check that data exists in one of the logit models
+        logit_model_before_clear = classifier.get_logit_model("A")
+        self.assertEqual(logit_model_before_clear.get_num_cv_folds(), cv_folds)
+        self.assertGreater(len(logit_model_before_clear.get_cv_y(0)), 0)
+
+        # Clear results and check again
+        classifier.clear_cv_results()
+        logit_model_after_clear = classifier.get_logit_model("A")
+        self.assertEqual(logit_model_after_clear.get_num_cv_folds(), 0)
+
+        with self.assertRaises(RuntimeError):
+            logit_model_after_clear.get_cv_y(0)
+
+    def test_cv_results_with_cv_observations(self):
+        """Tests CV results when cv_observations is provided."""
+        # 1. Setup data
+        np.random.seed(0)
+        X_np = 2 * np.random.rand(100, 2) - 1
+        X = pd.DataFrame(X_np, columns=["feat1", "feat2"])
+        y = X_np[:, 0] + X_np[:, 1] * 2 + (2 * np.random.rand(100) - 1)
+
+        # Create a 2-fold cv_observations matrix
+        # Each column represents a fold. -1=validation, 1=training.
+        cv_observations = np.ones((100, 2), dtype=int)
+        # Fold 0: first 50 obs are validation, rest are training
+        cv_observations[:50, 0] = -1
+        # Fold 1: last 50 obs are validation, rest are training
+        cv_observations[50:, 1] = -1
+
+        model = APLRRegressor(m=10, v=0.1, random_state=0)
+
+        # 2. Fit model with cv_observations
+        model.fit(X, y, cv_observations=cv_observations)
+
+        # 3. Check number of folds
+        self.assertEqual(model.get_num_cv_folds(), 2)
+
+        # 4. Check validation indexes
+        fold0_indexes = model.get_cv_validation_indexes(0)
+        fold1_indexes = model.get_cv_validation_indexes(1)
+
+        self.assertTrue(np.array_equal(fold0_indexes, np.arange(50)))
+        self.assertTrue(np.array_equal(fold1_indexes, np.arange(50, 100)))
+
+
 if __name__ == "__main__":
     unittest.main()

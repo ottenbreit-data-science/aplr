@@ -80,8 +80,14 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def("get_unique_term_affiliation_shape", &APLRRegressor::get_unique_term_affiliation_shape, py::arg("unique_term_affiliation"),
              py::arg("max_rows_before_sampling") = 500000, py::arg("additional_points") = 250)
         .def("get_cv_error", &APLRRegressor::get_cv_error)
+        .def("get_num_cv_folds", &APLRRegressor::get_num_cv_folds)
         .def("set_intercept", &APLRRegressor::set_intercept, py::arg("value"))
         .def("remove_provided_custom_functions", &APLRRegressor::remove_provided_custom_functions)
+        .def("get_cv_validation_predictions", &APLRRegressor::get_cv_validation_predictions, py::arg("fold_index"))
+        .def("get_cv_y", &APLRRegressor::get_cv_y, py::arg("fold_index"))
+        .def("get_cv_sample_weight", &APLRRegressor::get_cv_sample_weight, py::arg("fold_index"))
+        .def("get_cv_validation_indexes", &APLRRegressor::get_cv_validation_indexes, py::arg("fold_index"))
+        .def("clear_cv_results", &APLRRegressor::clear_cv_results)
         .def_readwrite("intercept", &APLRRegressor::intercept)
         .def_readwrite("m", &APLRRegressor::m)
         .def_readwrite("m_optimal", &APLRRegressor::m_optimal)
@@ -153,8 +159,9 @@ PYBIND11_MODULE(aplr_cpp, m)
                                       a.penalty_for_non_linearity, a.penalty_for_interactions, a.max_terms,
                                       a.min_predictor_values_in_training, a.max_predictor_values_in_training,
                                       a.term_affiliations, a.number_of_unique_term_affiliations, a.unique_term_affiliations,
-                                      a.unique_term_affiliation_map, a.base_predictors_in_each_unique_term_affiliation, a.ridge_penalty, a.mean_bias_correction,
-                                      a.faster_convergence);
+                                      a.unique_term_affiliation_map, a.base_predictors_in_each_unique_term_affiliation, a.ridge_penalty,
+                                      a.mean_bias_correction, a.faster_convergence, a.cv_validation_predictions_all_folds,
+                                      a.cv_y_all_folds, a.cv_sample_weight_all_folds, a.cv_validation_indexes_all_folds);
             },
             [](py::tuple t) { // __setstate__
                 if (t.size() < 48)
@@ -212,6 +219,10 @@ PYBIND11_MODULE(aplr_cpp, m)
                 double ridge_penalty = (t.size() > 48) ? t[48].cast<double>() : 0.0;
                 bool mean_bias_correction = (t.size() > 49) ? t[49].cast<bool>() : false;
                 bool faster_convergence = (t.size() > 50) ? t[50].cast<bool>() : false;
+                std::vector<VectorXd> cv_validation_predictions_all_folds = (t.size() > 51) ? t[51].cast<std::vector<VectorXd>>() : std::vector<VectorXd>();
+                std::vector<VectorXd> cv_y_all_folds = (t.size() > 52) ? t[52].cast<std::vector<VectorXd>>() : std::vector<VectorXd>();
+                std::vector<VectorXd> cv_sample_weight_all_folds = (t.size() > 53) ? t[53].cast<std::vector<VectorXd>>() : std::vector<VectorXd>();
+                std::vector<VectorXi> cv_validation_indexes_all_folds = (t.size() > 54) ? t[54].cast<std::vector<VectorXi>>() : std::vector<VectorXi>();
 
                 APLRRegressor a(m, v, random_state, loss_function, link_function, n_jobs, cv_folds, bins, verbosity, max_interaction_level,
                                 max_interactions, min_observations_in_split, ineligible_boosting_steps_added, max_eligible_terms, dispersion_parameter,
@@ -250,6 +261,10 @@ PYBIND11_MODULE(aplr_cpp, m)
                 a.ridge_penalty = ridge_penalty;
                 a.mean_bias_correction = mean_bias_correction;
                 a.faster_convergence = faster_convergence;
+                a.cv_validation_predictions_all_folds = cv_validation_predictions_all_folds;
+                a.cv_y_all_folds = cv_y_all_folds;
+                a.cv_sample_weight_all_folds = cv_sample_weight_all_folds;
+                a.cv_validation_indexes_all_folds = cv_validation_indexes_all_folds;
 
                 return a;
             }));
@@ -325,6 +340,7 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def("get_feature_importance", &APLRClassifier::get_feature_importance)
         .def("get_unique_term_affiliations", &APLRClassifier::get_unique_term_affiliations)
         .def("get_base_predictors_in_each_unique_term_affiliation", &APLRClassifier::get_base_predictors_in_each_unique_term_affiliation)
+        .def("clear_cv_results", &APLRClassifier::clear_cv_results)
         .def_readwrite("m", &APLRClassifier::m)
         .def_readwrite("v", &APLRClassifier::v)
         .def_readwrite("cv_folds", &APLRClassifier::cv_folds)
