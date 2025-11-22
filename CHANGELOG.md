@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.19.1] - 2025-11-22
+### Fixed
+- Improved thread safety in the parallel processing loop for estimating term split points.
+
 ## [10.19.0] - 2025-11-16
 
 ### Added

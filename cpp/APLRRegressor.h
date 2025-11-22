@@ -31,6 +31,7 @@ struct ModelForCVFold
 class APLRRegressor
 {
 private:
+    std::unique_ptr<ThreadPool> thread_pool;
     MatrixXd X_train;
     VectorXd y_train;
     std::vector<size_t> validation_indexes;
@@ -84,7 +85,6 @@ private:
     bool round_robin_update_of_existing_terms;
     size_t term_to_update_in_this_boosting_step;
     size_t cores_to_use;
-    std::unique_ptr<ThreadPool> thread_pool;
     bool stopped_early;
     std::vector<double> ridge_penalty_weights;
     double min_validation_error_for_current_fold;
@@ -1557,17 +1557,18 @@ void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms,
         std::vector<std::future<void>> results;
         for (size_t i = 0; i < terms_indexes.size(); ++i)
         {
+            Term *term_ptr = &terms[terms_indexes[i]];
             results.emplace_back(
-                thread_pool->enqueue([&terms, &terms_indexes, i, this]
-                                     { terms[terms_indexes[i]].estimate_split_point(
+                thread_pool->enqueue([term_ptr, this]
+                                     { term_ptr->estimate_split_point(
                                            this->X_train, this->neg_gradient_current, this->sample_weight_train, this->bins,
-                                           this->predictor_learning_rates[terms[terms_indexes[i]].base_term],
-                                           this->predictor_min_observations_in_split[terms[terms_indexes[i]].base_term],
+                                           this->predictor_learning_rates[term_ptr->base_term],
+                                           this->predictor_min_observations_in_split[term_ptr->base_term],
                                            this->linear_effects_only_in_this_boosting_step,
-                                           this->predictor_penalties_for_non_linearity[terms[terms_indexes[i]].base_term],
-                                           this->predictor_penalties_for_interactions[terms[terms_indexes[i]].base_term],
+                                           this->predictor_penalties_for_non_linearity[term_ptr->base_term],
+                                           this->predictor_penalties_for_interactions[term_ptr->base_term],
                                            this->ridge_penalty,
-                                           this->ridge_penalty_weights[terms[terms_indexes[i]].base_term]); }));
+                                           this->ridge_penalty_weights[term_ptr->base_term]); }));
         }
         for (auto &&result : results)
         {
