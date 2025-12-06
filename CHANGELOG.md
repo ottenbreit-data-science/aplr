@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.19.2] - 2025-12-06
+### Fixed
+- **Memory Optimization:** Optimized the Python preprocessing pipeline to fix a bug that caused unnecessary memory consumption. A "just-in-time" copy mechanism now prevents large data copies during both fitting and prediction, improving memory safety for all input types.
+- **Preprocessing Robustness:** Addressed a `RuntimeWarning: Mean of empty slice` that occurred during median imputation in `_preprocess_X_fit` when a column contained only missing values. The median calculation now gracefully handles such cases.
+- **Backward Compatibility:** Improved `__setstate__` to safely load older pickled models by initializing new preprocessing attributes to their correct default types (e.g., `[]`), preventing `TypeError` exceptions.
+
+### Changed
+- **Code Quality and Maintainability:** The entire Python preprocessing pipeline was refactored into a clean `fit`/`transform` pattern. This separation of concerns removes boolean flags and significantly improves code clarity, making it easier to maintain and debug.
+- **Type Hinting:** Added comprehensive type hints to all preprocessing methods for better readability and to enable static analysis.
+
+### Documentation
+- Updated API references and changelog for improved clarity and accuracy regarding the automatic preprocessing of `numpy.ndarray` and `pandas.DataFrame` inputs.
+
 ## [10.19.1] - 2025-11-22
 ### Fixed
 - Improved thread safety in the parallel processing loop for estimating term split points.
@@ -34,9 +47,9 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - **Automatic Data Preprocessing with `pandas.DataFrame`**:
-  - When a `pandas.DataFrame` is passed as input `X`, the model now automatically handles missing values and categorical features.
-  - **Missing Value Imputation**: Columns with missing values (`NaN`) are imputed using the column's median. A new binary feature (e.g., `feature_name_missing`) is created to indicate where imputation occurred. The median calculation correctly handles `sample_weight`.
-  - **Categorical Feature Encoding**: Columns with `object` or `category` data types are automatically one-hot encoded. The model gracefully handles unseen category levels during prediction by creating columns for all categories seen during training and setting those of them not seen during prediction to zero.
+  - The model now automatically handles missing values and categorical features.
+  - **Missing Value Imputation**: For both `numpy.ndarray` and `pandas.DataFrame` inputs, columns with missing values (`NaN`) are imputed using the column's sample weighted median. A new binary feature (e.g., `feature_name_missing`) is created to indicate where imputation occurred.
+  - **Categorical Feature Encoding**: When a `pandas.DataFrame` is provided, columns with `object` or `category` data types are automatically one-hot encoded. The model gracefully handles unseen category levels during prediction by creating columns for all categories seen during training and setting those of them not seen during prediction to zero.
 
 ### Changed
 - **Enhanced Flexibility in `APLRClassifier`**: The classifier now automatically converts numeric target arrays (e.g., `[0, 1, 0, 1]`) into string representations, simplifying setup for classification tasks.

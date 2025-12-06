@@ -1,6 +1,7 @@
 import unittest
 import pandas as pd
 import numpy as np
+import pickle
 from aplr import APLRClassifier, APLRRegressor
 
 
@@ -18,8 +19,12 @@ class TestAPLRPreprocessing(unittest.TestCase):
         y = np.array([0, 1, 0, 1, 0, 0, 1, 0, 1, 0])
         cv_observations = np.array([[1], [1], [1], [1], [1], [1], [1], [1], [-1], [-1]])
 
+        X_original = X.copy()
         model = APLRClassifier()
         model.fit(X, y, cv_observations=cv_observations)
+
+        # Verify that the original input DataFrame is not modified during fit
+        pd.testing.assert_frame_equal(X, X_original)
 
         # Check if missing columns were identified
         self.assertListEqual(model.na_imputed_cols_, ["feat1", "feat2"])
@@ -30,7 +35,6 @@ class TestAPLRPreprocessing(unittest.TestCase):
         self.assertAlmostEqual(model.median_values_["feat3"], 55.0)
 
         # Check transformation of training data
-        X_transformed, _ = model._preprocess_X_fit(X.copy(), [], np.array([]))
         self.assertTrue("feat1_missing" in model.final_training_columns_)
         self.assertTrue("feat2_missing" in model.final_training_columns_)
         self.assertFalse("feat3_missing" in model.final_training_columns_)
@@ -39,15 +43,24 @@ class TestAPLRPreprocessing(unittest.TestCase):
         X_test = pd.DataFrame(
             {"feat1": [np.nan, 2, 3], "feat2": [1.1, np.nan, 3.3], "feat3": [1, 2, 3]}
         )
-        X_transformed_pred = model._preprocess_X_predict(X_test.copy())
+        X_test_original = X_test.copy()
+        X_transformed_pred = model._preprocess_X_predict(X_test)
+        # Verify that the original input DataFrame is not modified during predict
+        pd.testing.assert_frame_equal(X_test, X_test_original)
+
+        # Get column indexes dynamically to make test robust to column order changes
+        feat1_idx = model.final_training_columns_.index("feat1")
+        feat2_idx = model.final_training_columns_.index("feat2")
+        feat1_missing_idx = model.final_training_columns_.index("feat1_missing")
+        feat2_missing_idx = model.final_training_columns_.index("feat2_missing")
 
         # feat1 is nan, so feat1 should be median (3.0) and feat1_missing should be 1
-        self.assertAlmostEqual(X_transformed_pred[0, 0], 3.0)
-        self.assertAlmostEqual(X_transformed_pred[0, 3], 1.0)
+        self.assertAlmostEqual(X_transformed_pred[0, feat1_idx], 3.0)
+        self.assertAlmostEqual(X_transformed_pred[0, feat1_missing_idx], 1.0)
 
         # feat2 is nan, so feat2 should be median (2.75) and feat2_missing should be 1
-        self.assertAlmostEqual(X_transformed_pred[1, 1], 2.75)
-        self.assertAlmostEqual(X_transformed_pred[1, 4], 1.0)
+        self.assertAlmostEqual(X_transformed_pred[1, feat2_idx], 2.75)
+        self.assertAlmostEqual(X_transformed_pred[1, feat2_missing_idx], 1.0)
 
     def test_categorical_feature_handling(self):
         """Tests the automatic handling of categorical features."""
@@ -60,8 +73,12 @@ class TestAPLRPreprocessing(unittest.TestCase):
         y = np.array([0, 1, 0, 1, 0, 1, 0, 1])
         cv_observations = np.array([[1], [1], [1], [1], [1], [1], [-1], [-1]])
 
+        X_original = X.copy()
         model = APLRClassifier()
         model.fit(X, y, cv_observations=cv_observations)
+
+        # Verify that the original input DataFrame is not modified during fit
+        pd.testing.assert_frame_equal(X, X_original)
 
         # Check if categorical features were identified
         self.assertListEqual(model.categorical_features_, ["category"])
@@ -75,18 +92,27 @@ class TestAPLRPreprocessing(unittest.TestCase):
         X_test = pd.DataFrame(
             {"numeric": [5, 6], "category": ["B", "D"]}  # 'D' is unseen
         )
-        X_transformed_pred = model._preprocess_X_predict(X_test.copy())
+        X_test_original = X_test.copy()
+        X_transformed_pred = model._preprocess_X_predict(X_test)
+
+        # Verify that the original input DataFrame is not modified during predict
+        pd.testing.assert_frame_equal(X_test, X_test_original)
+
+        # Get column indexes dynamically
+        cat_A_idx = model.final_training_columns_.index("category_A")
+        cat_B_idx = model.final_training_columns_.index("category_B")
+        cat_C_idx = model.final_training_columns_.index("category_C")
 
         # Check that the shape is correct (numeric, category_A, category_B, category_C)
         self.assertEqual(X_transformed_pred.shape[1], 4)
 
         # Check that category_B is 1 for the first row
-        self.assertEqual(X_transformed_pred[0, 2], 1)
+        self.assertEqual(X_transformed_pred[0, cat_B_idx], 1)
 
         # Check that the unseen category 'D' results in 0 for all category columns
-        self.assertEqual(X_transformed_pred[1, 1], 0)
-        self.assertEqual(X_transformed_pred[1, 2], 0)
-        self.assertEqual(X_transformed_pred[1, 3], 0)
+        self.assertEqual(X_transformed_pred[1, cat_A_idx], 0)
+        self.assertEqual(X_transformed_pred[1, cat_B_idx], 0)
+        self.assertEqual(X_transformed_pred[1, cat_C_idx], 0)
 
     def test_regressor_missing_values(self):
         """Test APLRRegressor with missing values."""
@@ -229,6 +255,178 @@ class TestAPLRPreprocessing(unittest.TestCase):
                 ):
                     with self.assertRaisesRegex(ValueError, error_message):
                         model.fit(X_input, y_single_row)
+
+    def test_input_type_flexibility(self):
+        """Tests various combinations of DataFrame/NumPy array inputs for fit and predict."""
+        n_train = 100
+        n_predict = 10
+        n_features = 2
+        np.random.seed(0)
+
+        # Training data
+        X_np_train = np.random.rand(n_train, n_features)
+        # Add some missing values to the training data
+        X_np_train[5, 0] = np.nan
+        X_np_train[15, 1] = np.nan
+        X_df_train = pd.DataFrame(
+            X_np_train, columns=[f"feat{i+1}" for i in range(n_features)]
+        )
+        y_train = np.random.rand(n_train)
+
+        # Prediction data
+        X_np_predict = np.random.rand(n_predict, n_features)
+        # Add some missing values to the prediction data
+        X_np_predict[2, 1] = np.nan
+        X_np_predict[7, 0] = np.nan
+        X_df_predict = pd.DataFrame(
+            X_np_predict, columns=[f"feat{i+1}" for i in range(n_features)]
+        )
+
+        test_cases = [
+            ("df_fit_np_predict", X_df_train, X_np_predict),
+            ("np_fit_df_predict", X_np_train, X_df_predict),
+            ("df_fit_df_predict", X_df_train, X_df_predict),
+            ("np_fit_np_predict", X_np_train, X_np_predict),
+        ]
+
+        reference_predictions = None
+
+        for name, X_fit_input, X_predict_input in test_cases:
+            with self.subTest(msg=f"Scenario: {name}"):
+                fit_kwargs = {}
+                if isinstance(X_fit_input, np.ndarray):
+                    fit_kwargs["X_names"] = [f"feat{i+1}" for i in range(n_features)]
+
+                model = APLRRegressor(m=10, v=0.1, random_state=0)
+                model.fit(X_fit_input, y_train, **fit_kwargs)
+                predictions = model.predict(X_predict_input)
+
+                # Check shape and type
+                self.assertIsInstance(predictions, np.ndarray)
+                self.assertEqual(predictions.shape, (n_predict,))
+
+                if reference_predictions is None:
+                    reference_predictions = predictions
+                else:
+                    np.testing.assert_allclose(
+                        predictions,
+                        reference_predictions,
+                        err_msg=f"Predictions for {name} do not match reference.",
+                    )
+
+    def test_fit_df_predict_mixed_types(self):
+        """
+        Tests fitting on a DataFrame with mixed types and predicting on both
+        DataFrame and NumPy array inputs.
+        """
+        np.random.seed(0)
+        n_train = 100
+        n_predict = 10
+
+        # 1. Create training data with numerical, categorical, and missing values
+        num_feat_nan_train = np.random.rand(n_train)
+        num_feat_nan_train[np.random.choice(n_train, 10, replace=False)] = np.nan
+        X_train_df = pd.DataFrame(
+            {
+                "num_feat_nan": num_feat_nan_train,
+                "cat_feat": np.random.choice(["A", "B", "C"], n_train),
+                "num_feat": np.random.rand(n_train) * 100,
+            }
+        )
+        y_train = np.random.rand(n_train)
+
+        # 2. Fit the model
+        model = APLRRegressor(m=10, v=0.1, random_state=0)
+        model.fit(X_train_df, y_train)
+
+        # 3. Create prediction data
+        num_feat_nan_predict = np.random.rand(n_predict)
+        num_feat_nan_predict[np.random.choice(n_predict, 2, replace=False)] = np.nan
+        X_predict_df = pd.DataFrame(
+            {
+                "num_feat_nan": num_feat_nan_predict,
+                "cat_feat": np.random.choice(
+                    ["B", "C", "D"], n_predict
+                ),  # 'D' is unseen
+                "num_feat": np.random.rand(n_predict) * 100,
+            }
+        )
+        # For the NumPy prediction case, we must manually apply the same transformations
+        # that the pipeline would.
+        X_predict_np = model._preprocess_X_predict(X_predict_df.copy())
+
+        # 4. Scenario 1: Predict with DataFrame (get reference predictions)
+        with self.subTest(msg="Scenario: predict_with_dataframe"):
+            predictions_df = model.predict(X_predict_df)
+            self.assertEqual(predictions_df.shape, (n_predict,))
+
+        # 5. Scenario 2: Predict with NumPy array
+        with self.subTest(msg="Scenario: predict_with_numpy"):
+            # X_predict_np is already preprocessed, so we call the C++ backend directly
+            # to avoid running the Python preprocessing pipeline a second time.
+            predictions_np = model.APLRRegressor.predict(X_predict_np)
+            self.assertEqual(predictions_np.shape, (n_predict,))
+
+        # 6. Assert that predictions are identical
+        np.testing.assert_allclose(
+            predictions_df, predictions_np, err_msg="Predictions do not match."
+        )
+
+    def test_backward_compatibility_for_pickled_models(self):
+        """
+        Tests that a model trained with an older version without python preprocessing
+        can be loaded and used for prediction.
+        """
+        np.random.seed(0)
+        n_train = 100
+        n_features = 2
+        n_predict = 10
+
+        # 1. Create data and train a model
+        X_train = np.random.rand(n_train, n_features)
+        y_train = np.random.rand(n_train)
+        X_test = np.random.rand(n_predict, n_features)
+
+        model = APLRRegressor(m=10, random_state=0)
+        model.fit(X_train, y_train, X_names=[f"feat{i+1}" for i in range(n_features)])
+
+        # 2. Get a reference prediction from the "new" model
+        reference_predictions = model.predict(X_test)
+
+        # 3. Manually remove new attributes to simulate an old model pickle
+        old_model_attributes = [
+            "X_names_",
+            "categorical_features_",
+            "ohe_columns_",
+            "na_imputed_cols_",
+            "median_values_",
+            "final_training_columns_",
+        ]
+        for attr in old_model_attributes:
+            if hasattr(model, attr):
+                delattr(model, attr)
+
+        # 4. Pickle and then unpickle the "old" model
+        pickled_model = pickle.dumps(model)
+        loaded_model = pickle.loads(pickled_model)
+
+        # 5. Verify that __setstate__ correctly initialized the missing attributes
+        for attr in old_model_attributes:
+            self.assertTrue(
+                hasattr(loaded_model, attr), f"Loaded model missing attribute: {attr}"
+            )
+
+        # 6. Use the loaded model for prediction and assert it doesn't fail
+        try:
+            predictions = loaded_model.predict(X_test)
+            self.assertEqual(predictions.shape, (n_predict,))
+        except Exception as e:
+            self.fail(f"Prediction with loaded old model failed unexpectedly: {e}")
+
+        # 7. Assert that the predictions match the reference
+        np.testing.assert_allclose(
+            predictions, reference_predictions, err_msg="Predictions do not match."
+        )
 
 
 class TestAPLRCvResults(unittest.TestCase):

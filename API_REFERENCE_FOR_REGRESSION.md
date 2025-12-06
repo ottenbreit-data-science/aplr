@@ -146,8 +146,7 @@ This will not speed up the combination of "mse" loss with an "identity" link, as
 ### Parameters
 
 #### X
-A numpy matrix or pandas DataFrame with predictor values. If a pandas DataFrame is provided, the model will automatically handle categorical features and missing values. Categorical features will be one-hot encoded. Missing values will be imputed with the median of the column, and a new binary feature will be added to indicate that the value was missing.
-
+A numpy matrix or pandas DataFrame with predictor values. The model automatically handles missing values for both input types. Missing values are imputed with the column's sample weighted median, and a new binary feature is added to indicate that the value was missing. If a pandas DataFrame is provided, categorical features (with `object` or `category` dtype) are also automatically one-hot encoded.
 #### y
 A numpy vector with response values.
 
