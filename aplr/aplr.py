@@ -137,7 +137,8 @@ class BaseAPLR:
             missing_final_cols = set(self.final_training_columns_) - set(X.columns)
             for c in missing_final_cols:
                 X[c] = 0
-            X = X.reindex(columns=self.final_training_columns_, copy=False)
+            if not X.columns.equals(pd.Index(self.final_training_columns_)):
+                X = X.reindex(columns=self.final_training_columns_, copy=False)
 
         return X
 
@@ -152,7 +153,8 @@ class BaseAPLR:
         for c in missing_cols:
             X[c] = 0
         # Ensure column order
-        X = X.reindex(columns=self.ohe_columns_, copy=False)
+        if not X.columns.equals(pd.Index(self.ohe_columns_)):
+            X = X.reindex(columns=self.ohe_columns_, copy=False)
         return X
 
     def _transform_missing_indicators(self, X: pd.DataFrame) -> pd.DataFrame:
@@ -192,7 +194,8 @@ class BaseAPLR:
                 raise ValueError(
                     "Input columns for prediction do not match training columns."
                 )
-            X = X.reindex(columns=self.X_names_, copy=False)
+            if not X.columns.equals(pd.Index(self.X_names_)):
+                X = X.reindex(columns=self.X_names_, copy=False)
         return X
 
     def _to_dataframe(
@@ -212,9 +215,7 @@ class BaseAPLR:
                 # For other array-likes (e.g., list of lists), create the array.
                 X_numeric = np.array(X, dtype=np.float64)
         except (ValueError, TypeError) as e:
-            raise TypeError(
-                "Input X must be numeric if not a pandas DataFrame."
-            ) from e
+            raise TypeError("Input X must be numeric if not a pandas DataFrame.") from e
         return pd.DataFrame(X_numeric, copy=False), True  # Was converted
 
     def __setstate__(self, state):
