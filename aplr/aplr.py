@@ -176,7 +176,7 @@ class BaseAPLR:
         X, was_converted = self._to_dataframe(X)
         if was_converted:
             if X_names:
-                X.columns = list(X_names)
+                X.columns = X_names
             else:
                 X.columns = [f"X{i}" for i in range(X.shape[1])]
         return X
@@ -242,6 +242,19 @@ class BaseAPLR:
             isinstance(X, pd.DataFrame) and len(X) < 2
         ):
             raise ValueError("Input X must have at least 2 rows to be fitted.")
+
+    def _validate_and_convert_X_names(
+        self, X_names: Optional[List[str]]
+    ) -> Optional[List[str]]:
+        """Validates and converts X_names to a list if it's a compatible iterable."""
+        if X_names is not None and not isinstance(X_names, (list, tuple)):
+            try:
+                return list(X_names)
+            except TypeError as e:
+                raise TypeError(
+                    "X_names must be a list or an iterable that can be converted to a list."
+                ) from e
+        return X_names
 
 
 class APLRRegressor(BaseAPLR):
@@ -450,6 +463,7 @@ class APLRRegressor(BaseAPLR):
         predictor_penalties_for_interactions: List[float] = [],
         predictor_min_observations_in_split: List[int] = [],
     ):
+        X_names = self._validate_and_convert_X_names(X_names)
         self._validate_X_fit_rows(X)
         self.__set_params_cpp()
         X_transformed, X_names_transformed = self._preprocess_X_fit(
@@ -915,6 +929,7 @@ class APLRClassifier(BaseAPLR):
         predictor_penalties_for_interactions: List[float] = [],
         predictor_min_observations_in_split: List[int] = [],
     ):
+        X_names = self._validate_and_convert_X_names(X_names)
         self._validate_X_fit_rows(X)
         self.__set_params_cpp()
         X_transformed, X_names_transformed = self._preprocess_X_fit(

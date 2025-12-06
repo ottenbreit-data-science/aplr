@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.19.3] - 2025-12-07
+### Fixed
+- **Input Validation for `X_names`**: Resolved a `ValueError` that occurred when a NumPy array was passed to the `X_names` parameter in the `fit` method. The input validation has been enhanced to gracefully handle any list-like iterable (including NumPy arrays and tuples), ensuring robust and predictable behavior when providing feature names for non-DataFrame inputs.
+
 ## [10.19.2] - 2025-12-06
 ### Fixed
 - **Memory Optimization:** Optimized the Python preprocessing pipeline to fix a bug that caused unnecessary memory consumption. A "just-in-time" copy mechanism now prevents large data copies during both fitting and prediction, improving memory safety for all input types.
