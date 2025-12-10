@@ -175,7 +175,7 @@ class BaseAPLR:
         """Converts input X to a pandas DataFrame for fitting, handling column names."""
         X, was_converted = self._to_dataframe(X)
         if was_converted:
-            if X_names:
+            if X_names is not None:
                 X.columns = X_names
             else:
                 X.columns = [f"X{i}" for i in range(X.shape[1])]
@@ -1140,3 +1140,4 @@ class APLRTuner:
 
     def get_cv_results(self) -> List[Dict[str, float]]:
         return self.cv_results
+
