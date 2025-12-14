@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int = 3000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 4, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 200, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0, ridge_penalty: float = 0.0001)
+## class aplr.APLRClassifier(m:int = 3000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 4, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 200, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0, ridge_penalty: float = 0.0001, preprocess:bool = True)
 
 ### Constructor parameters
 
@@ -64,6 +64,9 @@ Restricts the maximum number of terms in any of the underlying models trained to
 #### ridge_penalty (default = 0.0001)
 Specifies the (weighted) ridge penalty applied to the model. Positive values can smooth model effects and help mitigate boundary problems, such as regression coefficients with excessively high magnitudes near the boundaries. To find the optimal value, consider using a grid search or similar. Negative values are treated as zero.
 
+#### preprocess (default = True)
+Controls whether automatic data preprocessing is enabled. If `True`, the model will automatically handle missing values (imputation) and one-hot encode categorical features for `pandas.DataFrame` inputs. If `False`, no preprocessing is performed, and the input `X` must be a purely numeric `numpy.ndarray` or `pandas.DataFrame`. This provides more control for users who prefer to manage their own preprocessing pipelines and can result in performance gains and a lower memory footprint.
+
 
 ## Method: fit(X:Union[pd.DataFrame, FloatMatrix], y:Union[FloatVector, List[str]], sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], interaction_constraints:List[List[int]] = [], predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [], predictor_min_observations_in_split: List[int] = [])
 
@@ -72,7 +75,7 @@ Specifies the (weighted) ridge penalty applied to the model. Positive values can
 ### Parameters
 
 #### X
-A numpy matrix or pandas DataFrame with predictor values. The model automatically handles missing values for both input types. Missing values are imputed with the column's sample weighted median, and a new binary feature is added to indicate that the value was missing. If a pandas DataFrame is provided, categorical features (with `object` or `category` dtype) are also automatically one-hot encoded.
+A numpy matrix or pandas DataFrame with predictor values. If the `preprocess` constructor parameter is `True` (default), the model automatically handles missing values and categorical features. Missing values are imputed with the column's sample weighted median, and a new binary feature is added to indicate that the value was missing. For pandas DataFrames, categorical features (with `object` or `category` dtype) are automatically one-hot encoded. If `preprocess` is `False`, `X` must be a purely numeric `numpy.ndarray` or `pandas.DataFrame` with no missing values.
 #### y
 A numpy array or list of strings with response values (class names). Other data types will be converted to strings.
 

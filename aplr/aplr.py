@@ -1,4 +1,4 @@
-from typing import List, Callable, Optional, Dict, Union, Tuple
+from typing import List, Callable, Optional, Dict, Union
 import numpy as np
 import pandas as pd
 import aplr_cpp
@@ -10,254 +10,57 @@ IntVector = np.ndarray
 IntMatrix = np.ndarray
 
 
-class BaseAPLR:
-    def _preprocess_X_fit(
-        self,
-        X: Union[pd.DataFrame, FloatMatrix],
-        X_names: List[str],
-        sample_weight: FloatVector,
-    ) -> Tuple[FloatMatrix, List[str]]:
-        if sample_weight.size > 0:
-            if sample_weight.ndim != 1:
-                raise ValueError("sample_weight must be a 1D array.")
-            if len(sample_weight) != X.shape[0]:
-                raise ValueError(
-                    "sample_weight must have the same number of rows as X."
-                )
-            if np.any(np.isnan(sample_weight)) or np.any(np.isinf(sample_weight)):
-                raise ValueError("sample_weight cannot contain nan or infinite values.")
-            if np.any(sample_weight < 0):
-                raise ValueError("sample_weight cannot contain negative values.")
-
-        self._fit_preprocessor(X, X_names, sample_weight)
-
-        X = self._transform_X(X)
-
-        return X.to_numpy(dtype=np.float64), list(X.columns)
-
-    def _preprocess_X_predict(self, X: Union[pd.DataFrame, FloatMatrix]) -> FloatMatrix:
-        X = self._transform_X(X)
-        return X.to_numpy(dtype=np.float64)
-
-    def _fit_preprocessor(
-        self,
-        X: Union[pd.DataFrame, FloatMatrix],
-        X_names: List[str],
-        sample_weight: FloatVector,
-    ) -> None:
-        """Learns transformations from the training data and sets preprocessor state."""
-        X = self._convert_input_to_dataframe_for_fit(X, X_names=X_names)
-        self.X_names_ = list(X.columns)
-        self.categorical_features_ = list(
-            X.select_dtypes(include=["category", "object"]).columns
-        )
-
-        self._fit_one_hot_encoding(X)
-        self._fit_missing_indicators(X)
-
-        # Learn median values for imputation from the original data.
-        self.median_values_ = {}
-        numeric_cols_for_median = [
-            col for col in X.columns if col not in self.categorical_features_
-        ]
-        for col in numeric_cols_for_median:
-            missing_mask = X[col].isnull()
-            if sample_weight.size > 0:
-                valid_indices = ~missing_mask
-                col_data = X.loc[valid_indices, col]
-                col_weights = sample_weight[valid_indices]
-                if col_data.empty:
-                    median_val = 0
-                else:
-                    col_data_np = col_data.to_numpy()
-                    sort_indices = np.argsort(col_data_np, kind="stable")
-                    sorted_data = col_data_np[sort_indices]
-                    sorted_weights = col_weights[sort_indices]
-                    cumulative_weights = np.cumsum(sorted_weights)
-                    total_weight = cumulative_weights[-1]
-                    median_weight_index = np.searchsorted(
-                        cumulative_weights, total_weight / 2.0
-                    )
-                    if median_weight_index >= len(sorted_data):
-                        median_weight_index = len(sorted_data) - 1
-                    median_val = sorted_data[median_weight_index]
-            else:
-                if X[col].isnull().all():
-                    median_val = 0
-                else:
-                    median_val = X[col].median()
-
-            if pd.isna(median_val):
-                median_val = 0
-            self.median_values_[col] = median_val
-
-        # Determine the final column names after all transformations.
-        final_cols = []
-        if self.ohe_columns_:
-            final_cols.extend(self.ohe_columns_)
-        else:
-            final_cols.extend(self.X_names_)
-        final_cols.extend([col + "_missing" for col in self.na_imputed_cols_])
-        self.final_training_columns_ = final_cols
-
-    def _fit_one_hot_encoding(self, X: pd.DataFrame) -> None:
-        """Learns the complete set of columns that will exist after one-hot encoding."""
-        if not self.categorical_features_:
-            return
-        self.ohe_columns_ = list(
-            pd.get_dummies(
-                X, columns=self.categorical_features_, dummy_na=False
-            ).columns
-        )
-
-    def _fit_missing_indicators(self, X: pd.DataFrame) -> None:
-        """Learns which columns will have missing indicators added."""
-        self.na_imputed_cols_ = [col for col in X.columns if X[col].isnull().any()]
-
-    def _transform_X(self, X: Union[pd.DataFrame, FloatMatrix]) -> pd.DataFrame:
-        """Transforms data using the fitted preprocessor attributes."""
-        X = self._convert_input_to_dataframe_for_transform(X)
-        X = self._transform_one_hot_encoding(X)
-
-        # Just-in-time copy to avoid modifying user's original data.
-        # A copy is needed if we are about to perform in-place modifications
-        # (adding missing indicators or filling NaNs) and a copy hasn't already
-        # been made by one-hot encoding.
-        if not self.categorical_features_ and X.isnull().to_numpy().any():
-            X = X.copy()
-
-        X = self._transform_missing_indicators(X)
-
-        for col, val in self.median_values_.items():
-            if col in X.columns:
-                X[col] = X[col].fillna(val)
-
-        # Enforce final column order and add missing columns if necessary
-        if self.final_training_columns_:
-            missing_final_cols = set(self.final_training_columns_) - set(X.columns)
-            for c in missing_final_cols:
-                X[c] = 0
-            if not X.columns.equals(pd.Index(self.final_training_columns_)):
-                X = X.reindex(columns=self.final_training_columns_, copy=False)
-
-        return X
-
-    def _transform_one_hot_encoding(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Applies one-hot encoding using learned OHE columns during transformation."""
-        if not self.categorical_features_:
-            return X
-
-        X = pd.get_dummies(X, columns=self.categorical_features_, dummy_na=False)
-        # Handle missing OHE columns (categories not seen in new data)
-        missing_cols = set(self.ohe_columns_) - set(X.columns)
-        for c in missing_cols:
-            X[c] = 0
-        # Ensure column order
-        if not X.columns.equals(pd.Index(self.ohe_columns_)):
-            X = X.reindex(columns=self.ohe_columns_, copy=False)
-        return X
-
-    def _transform_missing_indicators(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Adds _missing indicator columns for features with NaNs during transformation."""
-        if not self.na_imputed_cols_:
-            return X
-        # Only add indicators for columns that were imputed during fit and are currently missing data.
-        for col in self.na_imputed_cols_:
-            if col in X.columns and X[col].isnull().any():
-                X[col + "_missing"] = X[col].isnull().astype(int)
-        return X
-
-    def _convert_input_to_dataframe_for_fit(
-        self,
-        X: Union[pd.DataFrame, FloatMatrix],
-        X_names: Optional[List[str]] = None,
-    ) -> pd.DataFrame:
-        """Converts input X to a pandas DataFrame for fitting, handling column names."""
-        X, was_converted = self._to_dataframe(X)
-        if was_converted:
-            if X_names:
-                X.columns = X_names
-            else:
-                X.columns = [f"X{i}" for i in range(X.shape[1])]
-        return X
-
-    def _convert_input_to_dataframe_for_transform(
-        self, X: Union[pd.DataFrame, FloatMatrix]
-    ) -> pd.DataFrame:
-        """Converts input X to a pandas DataFrame for transformation, aligning columns."""
-        X, was_converted = self._to_dataframe(X)
-        if was_converted:
-            if self.X_names_ and len(self.X_names_) == X.shape[1]:
-                X.columns = self.X_names_  # Use names learned during fit
-        else:  # If X was already a DataFrame
-            if set(X.columns) != set(self.X_names_):
-                raise ValueError(
-                    "Input columns for prediction do not match training columns."
-                )
-            if not X.columns.equals(pd.Index(self.X_names_)):
-                X = X.reindex(columns=self.X_names_, copy=False)
-        return X
-
-    def _to_dataframe(
-        self, X: Union[pd.DataFrame, FloatMatrix]
-    ) -> Tuple[pd.DataFrame, bool]:
-        """Converts input to a pandas DataFrame if it is not already one."""
-        if isinstance(X, pd.DataFrame):
-            return X, False  # Was already a DataFrame
-
-        X_numeric: np.ndarray
-        try:
-            # If X is already a numpy array, astype with copy=False is more efficient.
-            # It will only copy if the dtype is different from np.float64.
-            if isinstance(X, np.ndarray):
-                X_numeric = X.astype(np.float64, copy=False)
-            else:
-                # For other array-likes (e.g., list of lists), create the array.
-                X_numeric = np.array(X, dtype=np.float64)
-        except (ValueError, TypeError) as e:
-            raise TypeError("Input X must be numeric if not a pandas DataFrame.") from e
-        return pd.DataFrame(X_numeric, copy=False), True  # Was converted
-
-    def __setstate__(self, state):
-        """Handles unpickling for backward compatibility."""
-        self.__dict__.update(state)
-
-        # For backward compatibility, initialize new attributes if they don't exist,
-        # indicating the model was trained before these features were introduced.
-        new_attributes = {
-            "X_names_": [],
-            "categorical_features_": [],
-            "ohe_columns_": [],
-            "na_imputed_cols_": [],
-            "median_values_": {},
-            "final_training_columns_": [],
-        }
-        for attr, default_value in new_attributes.items():
-            if not hasattr(self, attr):
-                setattr(self, attr, default_value)
-
-    def _validate_X_fit_rows(self, X):
-        """Checks if X has enough rows to be fitted."""
-        if (isinstance(X, np.ndarray) and X.shape[0] < 2) or (
-            isinstance(X, pd.DataFrame) and len(X) < 2
+def _dataframe_to_cpp_dataframe(df: pd.DataFrame) -> aplr_cpp.CppDataFrame:
+    """Converts a pandas DataFrame to a CppDataFrame."""
+    cpp_df = aplr_cpp.CppDataFrame()
+    for col_name in df.columns:
+        col = df[col_name]
+        if pd.api.types.is_numeric_dtype(col.dtype):
+            # Convert numeric columns to std::vector<double>
+            # NaNs are preserved and handled in C++
+            cpp_df.add_numeric_column(
+                col_name, col.to_numpy(dtype=np.float64, na_value=np.nan)
+            )
+        elif (
+            isinstance(col.dtype, pd.CategoricalDtype)
+            or pd.api.types.is_object_dtype(col.dtype)
+            or pd.api.types.is_string_dtype(col.dtype)
         ):
-            raise ValueError("Input X must have at least 2 rows to be fitted.")
-
-    def _validate_and_convert_X_names(
-        self, X_names: Optional[List[str]]
-    ) -> Optional[List[str]]:
-        """Validates and converts X_names to a list if it's a compatible iterable."""
-        if X_names is not None and not isinstance(X_names, (list, tuple)):
-            try:
-                return list(X_names)
-            except TypeError as e:
-                raise TypeError(
-                    "X_names must be a list or an iterable that can be converted to a list."
-                ) from e
-        return X_names
+            # Convert categorical/object/string columns to std::vector<std::string>
+            # Missing values (None, np.nan) are converted to empty strings for C++ handling
+            cpp_df.add_categorical_column(col_name, col.astype(str).fillna("").tolist())
+        else:
+            raise TypeError(
+                f"Unsupported column type for column '{col_name}': {col.dtype}"
+            )
+    return cpp_df
 
 
-class APLRRegressor(BaseAPLR):
+def _prepare_input_data(
+    X: Union[pd.DataFrame, FloatMatrix], preprocess: bool
+) -> Union[aplr_cpp.CppDataFrame, FloatMatrix]:
+    """
+    Prepares the input data for the C++ backend.
+
+    If X is a pandas DataFrame, it's converted. If preprocess is True, it becomes
+    a CppDataFrame. If preprocess is False, it's converted to a NumPy array.
+    NumPy arrays are passed through as is.
+    """
+    if isinstance(X, pd.DataFrame):
+        if preprocess:
+            return _dataframe_to_cpp_dataframe(X)
+        else:
+            # Check if all columns are numeric before converting
+            if not all(pd.api.types.is_numeric_dtype(X[col]) for col in X.columns):
+                raise RuntimeError(
+                    "Cannot convert DataFrame to matrix if it contains non-numeric columns. "
+                    "Please ensure all columns are numeric or set preprocess=True."
+                )
+            return X.to_numpy(dtype=np.float64)
+    return X
+
+
+class APLRRegressor:
     def __init__(
         self,
         m: int = 3000,
@@ -325,6 +128,7 @@ class APLRRegressor(BaseAPLR):
         ridge_penalty: float = 0.0001,
         mean_bias_correction: bool = False,
         faster_convergence: bool = False,
+        preprocess: bool = True,
     ):
         self.m = m
         self.v = v
@@ -374,14 +178,7 @@ class APLRRegressor(BaseAPLR):
         self.ridge_penalty = ridge_penalty
         self.mean_bias_correction = mean_bias_correction
         self.faster_convergence = faster_convergence
-
-        # Data transformations
-        self.median_values_ = {}
-        self.categorical_features_ = []
-        self.ohe_columns_ = []
-        self.na_imputed_cols_ = []
-        self.X_names_ = []
-        self.final_training_columns_ = []
+        self.preprocess = preprocess
 
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
@@ -445,6 +242,7 @@ class APLRRegressor(BaseAPLR):
         self.APLRRegressor.ridge_penalty = self.ridge_penalty
         self.APLRRegressor.mean_bias_correction = self.mean_bias_correction
         self.APLRRegressor.faster_convergence = self.faster_convergence
+        self.APLRRegressor.preprocess = self.preprocess
 
     def fit(
         self,
@@ -463,17 +261,14 @@ class APLRRegressor(BaseAPLR):
         predictor_penalties_for_interactions: List[float] = [],
         predictor_min_observations_in_split: List[int] = [],
     ):
-        X_names = self._validate_and_convert_X_names(X_names)
-        self._validate_X_fit_rows(X)
         self.__set_params_cpp()
-        X_transformed, X_names_transformed = self._preprocess_X_fit(
-            X, X_names, sample_weight
-        )
+        X = _prepare_input_data(X, self.preprocess)
+
         self.APLRRegressor.fit(
-            X_transformed,
+            X,
             y,
             sample_weight,
-            X_names_transformed,
+            X_names,
             cv_observations,
             prioritized_predictors_indexes,
             monotonic_constraints,
@@ -491,14 +286,13 @@ class APLRRegressor(BaseAPLR):
         X: Union[pd.DataFrame, FloatMatrix],
         cap_predictions_to_minmax_in_training: bool = True,
     ) -> FloatVector:
+        X = _prepare_input_data(X, self.preprocess)
+
         if self.link_function == "custom_function":
             self.APLRRegressor.calculate_custom_transform_linear_predictor_to_predictions_function = (
                 self.calculate_custom_transform_linear_predictor_to_predictions_function
             )
-        X_transformed = self._preprocess_X_predict(X)
-        return self.APLRRegressor.predict(
-            X_transformed, cap_predictions_to_minmax_in_training
-        )
+        return self.APLRRegressor.predict(X, cap_predictions_to_minmax_in_training)
 
     def set_term_names(self, X_names: List[str]):
         self.APLRRegressor.set_term_names(X_names)
@@ -508,44 +302,40 @@ class APLRRegressor(BaseAPLR):
         X: Union[pd.DataFrame, FloatMatrix],
         sample_weight: FloatVector = np.empty(0),
     ) -> FloatVector:
-        X_transformed = self._preprocess_X_predict(X)
-        return self.APLRRegressor.calculate_feature_importance(
-            X_transformed, sample_weight
-        )
+        X = _prepare_input_data(X, self.preprocess)
+        return self.APLRRegressor.calculate_feature_importance(X, sample_weight)
 
     def calculate_term_importance(
         self,
         X: Union[pd.DataFrame, FloatMatrix],
         sample_weight: FloatVector = np.empty(0),
     ) -> FloatVector:
-        X_transformed = self._preprocess_X_predict(X)
-        return self.APLRRegressor.calculate_term_importance(
-            X_transformed, sample_weight
-        )
+        X = _prepare_input_data(X, self.preprocess)
+        return self.APLRRegressor.calculate_term_importance(X, sample_weight)
 
     def calculate_local_feature_contribution(
         self, X: Union[pd.DataFrame, FloatMatrix]
     ) -> FloatMatrix:
-        X_transformed = self._preprocess_X_predict(X)
-        return self.APLRRegressor.calculate_local_feature_contribution(X_transformed)
+        X = _prepare_input_data(X, self.preprocess)
+        return self.APLRRegressor.calculate_local_feature_contribution(X)
 
     def calculate_local_term_contribution(
         self, X: Union[pd.DataFrame, FloatMatrix]
     ) -> FloatMatrix:
-        X_transformed = self._preprocess_X_predict(X)
-        return self.APLRRegressor.calculate_local_term_contribution(X_transformed)
+        X = _prepare_input_data(X, self.preprocess)
+        return self.APLRRegressor.calculate_local_term_contribution(X)
 
     def calculate_local_contribution_from_selected_terms(
         self, X: Union[pd.DataFrame, FloatMatrix], predictor_indexes: List[int]
     ) -> FloatVector:
-        X_transformed = self._preprocess_X_predict(X)
+        X = _prepare_input_data(X, self.preprocess)
         return self.APLRRegressor.calculate_local_contribution_from_selected_terms(
-            X_transformed, predictor_indexes
+            X, predictor_indexes
         )
 
     def calculate_terms(self, X: Union[pd.DataFrame, FloatMatrix]) -> FloatMatrix:
-        X_transformed = self._preprocess_X_predict(X)
-        return self.APLRRegressor.calculate_terms(X_transformed)
+        X = _prepare_input_data(X, self.preprocess)
+        return self.APLRRegressor.calculate_terms(X)
 
     def get_term_names(self) -> List[str]:
         return self.APLRRegressor.get_term_names()
@@ -810,6 +600,7 @@ class APLRRegressor(BaseAPLR):
             "ridge_penalty": self.ridge_penalty,
             "mean_bias_correction": self.mean_bias_correction,
             "faster_convergence": self.faster_convergence,
+            "preprocess": self.preprocess,
         }
 
     # For sklearn
@@ -819,8 +610,15 @@ class APLRRegressor(BaseAPLR):
         self.__set_params_cpp()
         return self
 
+    def __setstate__(self, state):
+        # For backwards compatibility with older pickled models
+        if "preprocess" not in state:
+            state["preprocess"] = False
+        self.__dict__.update(state)
+        self.__set_params_cpp()
 
-class APLRClassifier(BaseAPLR):
+
+class APLRClassifier:
     def __init__(
         self,
         m: int = 3000,
@@ -843,6 +641,7 @@ class APLRClassifier(BaseAPLR):
         penalty_for_interactions: float = 0.0,
         max_terms: int = 0,
         ridge_penalty: float = 0.0001,
+        preprocess: bool = True,
     ):
         self.m = m
         self.v = v
@@ -870,14 +669,7 @@ class APLRClassifier(BaseAPLR):
         self.penalty_for_interactions = penalty_for_interactions
         self.max_terms = max_terms
         self.ridge_penalty = ridge_penalty
-
-        # Data transformations
-        self.median_values_ = {}
-        self.categorical_features_ = []
-        self.ohe_columns_ = []
-        self.na_imputed_cols_ = []
-        self.X_names_ = []
-        self.final_training_columns_ = []
+        self.preprocess = preprocess
 
         # Creating aplr_cpp and setting parameters
         self.APLRClassifier = aplr_cpp.APLRClassifier()
@@ -913,6 +705,7 @@ class APLRClassifier(BaseAPLR):
         self.APLRClassifier.penalty_for_interactions = self.penalty_for_interactions
         self.APLRClassifier.max_terms = self.max_terms
         self.APLRClassifier.ridge_penalty = self.ridge_penalty
+        self.APLRClassifier.preprocess = self.preprocess
 
     def fit(
         self,
@@ -929,12 +722,9 @@ class APLRClassifier(BaseAPLR):
         predictor_penalties_for_interactions: List[float] = [],
         predictor_min_observations_in_split: List[int] = [],
     ):
-        X_names = self._validate_and_convert_X_names(X_names)
-        self._validate_X_fit_rows(X)
         self.__set_params_cpp()
-        X_transformed, X_names_transformed = self._preprocess_X_fit(
-            X, X_names, sample_weight
-        )
+
+        X = _prepare_input_data(X, self.preprocess)
 
         if isinstance(y, np.ndarray):
             y = y.astype(str).tolist()
@@ -942,10 +732,10 @@ class APLRClassifier(BaseAPLR):
             y = [str(val) for val in y]
 
         self.APLRClassifier.fit(
-            X_transformed,
+            X,
             y,
             sample_weight,
-            X_names_transformed,
+            X_names,
             cv_observations,
             prioritized_predictors_indexes,
             monotonic_constraints,
@@ -963,9 +753,10 @@ class APLRClassifier(BaseAPLR):
         X: Union[pd.DataFrame, FloatMatrix],
         cap_predictions_to_minmax_in_training: bool = False,
     ) -> FloatMatrix:
-        X_transformed = self._preprocess_X_predict(X)
+        X = _prepare_input_data(X, self.preprocess)
+
         return self.APLRClassifier.predict_class_probabilities(
-            X_transformed, cap_predictions_to_minmax_in_training
+            X, cap_predictions_to_minmax_in_training
         )
 
     def predict(
@@ -973,16 +764,15 @@ class APLRClassifier(BaseAPLR):
         X: Union[pd.DataFrame, FloatMatrix],
         cap_predictions_to_minmax_in_training: bool = False,
     ) -> List[str]:
-        X_transformed = self._preprocess_X_predict(X)
-        return self.APLRClassifier.predict(
-            X_transformed, cap_predictions_to_minmax_in_training
-        )
+        X = _prepare_input_data(X, self.preprocess)
+
+        return self.APLRClassifier.predict(X, cap_predictions_to_minmax_in_training)
 
     def calculate_local_feature_contribution(
         self, X: Union[pd.DataFrame, FloatMatrix]
     ) -> FloatMatrix:
-        X_transformed = self._preprocess_X_predict(X)
-        return self.APLRClassifier.calculate_local_feature_contribution(X_transformed)
+        X = _prepare_input_data(X, self.preprocess)
+        return self.APLRClassifier.calculate_local_feature_contribution(X)
 
     def get_categories(self) -> List[str]:
         return self.APLRClassifier.get_categories()
@@ -1013,6 +803,7 @@ class APLRClassifier(BaseAPLR):
             penalty_for_interactions=self.penalty_for_interactions,
             max_terms=self.max_terms,
             ridge_penalty=self.ridge_penalty,
+            preprocess=self.preprocess,
         )
 
         logit_model_py.APLRRegressor = logit_model_cpp
@@ -1063,6 +854,7 @@ class APLRClassifier(BaseAPLR):
             "penalty_for_interactions": self.penalty_for_interactions,
             "max_terms": self.max_terms,
             "ridge_penalty": self.ridge_penalty,
+            "preprocess": self.preprocess,
         }
 
     # For sklearn
@@ -1075,6 +867,13 @@ class APLRClassifier(BaseAPLR):
     # For sklearn
     def predict_proba(self, X: FloatMatrix) -> FloatMatrix:
         return self.predict_class_probabilities(X)
+
+    def __setstate__(self, state):
+        # For backwards compatibility with older pickled models
+        if "preprocess" not in state:
+            state["preprocess"] = False
+        self.__dict__.update(state)
+        self.__set_params_cpp()
 
 
 class APLRTuner:

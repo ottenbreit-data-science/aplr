@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.0] - 2025-12-14
+
+### Breaking Changes
+- **Model Compatibility:** Due to the migration of the preprocessing engine from Python to C++, models saved with `aplr` versions `10.18.0` through `10.19.3` are not compatible with version `10.20.0` if they were trained on data that triggered the Python-based preprocessing (e.g., a `pandas.DataFrame` with categorical features or missing values). These older models may fail or produce unexpected results during prediction and must be retrained using version `10.20.0` or newer.
+
+### Changed
+- **Preprocessing Engine:** The entire data preprocessing pipeline, including missing value imputation and one-hot encoding, has been moved from Python to C++ for improved robustness. This change ensures that all data transformations are handled within the core engine.
+
+### Added
+- **`preprocess` Parameter:** A new boolean parameter `preprocess` has been added to the `APLRRegressor` and `APLRClassifier` constructors.
+  - When `True` (default), the model automatically handles missing values and one-hot encodes categorical features in `pandas.DataFrame` inputs.
+  - When `False`, automatic preprocessing is disabled. In this mode, the input `X` must be a purely numeric `numpy.ndarray` or `pandas.DataFrame`. This provides greater control for users who prefer to manage their own preprocessing pipelines and can result in performance gains and a lower memory footprint.
+
 ## [10.19.3] - 2025-12-07
 ### Fixed
 - **Input Validation for `X_names`**: Resolved a `ValueError` that occurred when a NumPy array was passed to the `X_names` parameter in the `fit` method. The input validation has been enhanced to gracefully handle any list-like iterable (including NumPy arrays and tuples), ensuring robust and predictable behavior when providing feature names for non-DataFrame inputs.

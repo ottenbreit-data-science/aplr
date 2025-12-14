@@ -10,7 +10,9 @@
 #include "functions.h"
 #include "term.h"
 #include "constants.h"
+#include "CppDataFrame.h"
 #include "ThreadPool.h"
+#include "Preprocessor.h"
 
 using namespace Eigen;
 
@@ -264,6 +266,8 @@ public:
     double ridge_penalty;
     bool mean_bias_correction;
     bool faster_convergence;
+    Preprocessor preprocessor;
+    bool preprocess;
 
     std::vector<VectorXd> cv_validation_predictions_all_folds;
     std::vector<VectorXd> cv_y_all_folds;
@@ -283,10 +287,25 @@ public:
                   size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
                   size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30, size_t early_stopping_rounds = 200,
                   size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0, double penalty_for_interactions = 0.0, size_t max_terms = 0,
-                  double ridge_penalty = 0.0001, bool mean_bias_correction = false, bool faster_convergence = false);
+                  double ridge_penalty = 0.0001, bool mean_bias_correction = false, bool faster_convergence = false, bool preprocess = true);
     APLRRegressor(const APLRRegressor &other);
     APLRRegressor &operator=(const APLRRegressor &other);
     ~APLRRegressor();
+    void fit_internal(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
+                      const MatrixXi &cv_observations = MatrixXi(0, 0), const std::vector<size_t> &prioritized_predictors_indexes = {},
+                      const std::vector<int> &monotonic_constraints = {}, const VectorXi &group = VectorXi(0), const std::vector<std::vector<size_t>> &interaction_constraints = {},
+                      const MatrixXd &other_data = MatrixXd(0, 0), const std::vector<double> &predictor_learning_rates = {},
+                      const std::vector<double> &predictor_penalties_for_non_linearity = {},
+                      const std::vector<double> &predictor_penalties_for_interactions = {},
+                      const std::vector<size_t> &predictor_min_observations_in_split = {});
+    VectorXd predict_internal(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = true);
+    VectorXd calculate_feature_importance_internal(const MatrixXd &X, const VectorXd &sample_weight = VectorXd(0));
+    VectorXd calculate_term_importance_internal(const MatrixXd &X, const VectorXd &sample_weight = VectorXd(0));
+    MatrixXd calculate_local_feature_contribution_internal(const MatrixXd &X);
+    MatrixXd calculate_local_term_contribution_internal(const MatrixXd &X);
+    VectorXd calculate_local_contribution_from_selected_terms_internal(const MatrixXd &X, const std::vector<size_t> &predictor_indexes);
+    MatrixXd calculate_terms_internal(const MatrixXd &X);
+
     void fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
              const MatrixXi &cv_observations = MatrixXi(0, 0), const std::vector<size_t> &prioritized_predictors_indexes = {},
              const std::vector<int> &monotonic_constraints = {}, const VectorXi &group = VectorXi(0), const std::vector<std::vector<size_t>> &interaction_constraints = {},
@@ -294,15 +313,28 @@ public:
              const std::vector<double> &predictor_penalties_for_non_linearity = {},
              const std::vector<double> &predictor_penalties_for_interactions = {},
              const std::vector<size_t> &predictor_min_observations_in_split = {});
+    void fit(const CppDataFrame &X_df, const VectorXd &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
+             const MatrixXi &cv_observations = MatrixXi(0, 0), const std::vector<size_t> &prioritized_predictors_indexes = {},
+             const std::vector<int> &monotonic_constraints = {}, const VectorXi &group = VectorXi(0), const std::vector<std::vector<size_t>> &interaction_constraints = {},
+             const MatrixXd &other_data = MatrixXd(0, 0), const std::vector<double> &predictor_learning_rates = {},
+             const std::vector<double> &predictor_penalties_for_non_linearity = {}, const std::vector<double> &predictor_penalties_for_interactions = {},
+             const std::vector<size_t> &predictor_min_observations_in_split = {});
     VectorXd predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = true);
     void set_term_names(const std::vector<std::string> &X_names);
     void set_term_affiliations(const std::vector<std::string> &X_names);
     VectorXd calculate_feature_importance(const MatrixXd &X, const VectorXd &sample_weight = VectorXd(0));
     VectorXd calculate_term_importance(const MatrixXd &X, const VectorXd &sample_weight = VectorXd(0));
     MatrixXd calculate_local_feature_contribution(const MatrixXd &X);
+    VectorXd predict(const CppDataFrame &X_df, bool cap_predictions_to_minmax_in_training = true);
+    VectorXd calculate_feature_importance(const CppDataFrame &X_df, const VectorXd &sample_weight = VectorXd(0));
+    VectorXd calculate_term_importance(const CppDataFrame &X_df, const VectorXd &sample_weight = VectorXd(0));
+    MatrixXd calculate_local_feature_contribution(const CppDataFrame &X_df);
     MatrixXd calculate_local_term_contribution(const MatrixXd &X);
     VectorXd calculate_local_contribution_from_selected_terms(const MatrixXd &X, const std::vector<size_t> &predictor_indexes);
     MatrixXd calculate_terms(const MatrixXd &X);
+    MatrixXd calculate_local_term_contribution(const CppDataFrame &X_df);
+    VectorXd calculate_local_contribution_from_selected_terms(const CppDataFrame &X_df, const std::vector<size_t> &predictor_indexes);
+    MatrixXd calculate_terms(const CppDataFrame &X_df);
     std::vector<std::string> get_term_names();
     std::vector<std::string> get_term_affiliations();
     std::vector<std::string> get_unique_term_affiliations();
@@ -346,7 +378,7 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
                              size_t group_mse_by_prediction_bins, size_t group_mse_cycle_min_obs_in_bin, size_t early_stopping_rounds,
                              size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity, double penalty_for_interactions, size_t max_terms, double ridge_penalty,
-                             bool mean_bias_correction, bool faster_convergence)
+                             bool mean_bias_correction, bool faster_convergence, bool preprocess)
     : intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, cv_folds{cv_folds}, n_jobs{n_jobs}, random_state{random_state},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
@@ -364,7 +396,7 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
       group_mse_cycle_min_obs_in_bin{group_mse_cycle_min_obs_in_bin}, cv_error{NAN_DOUBLE}, early_stopping_rounds{early_stopping_rounds},
       num_first_steps_with_linear_effects_only{num_first_steps_with_linear_effects_only}, penalty_for_non_linearity{penalty_for_non_linearity},
       penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}, ridge_penalty{ridge_penalty}, mean_bias_correction{mean_bias_correction},
-      faster_convergence{faster_convergence}
+      faster_convergence{faster_convergence}, preprocess{preprocess}
 {
 }
 
@@ -400,7 +432,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       mean_bias_correction{other.mean_bias_correction}, faster_convergence{other.faster_convergence},
       cv_validation_predictions_all_folds{other.cv_validation_predictions_all_folds},
       cv_y_all_folds{other.cv_y_all_folds}, cv_sample_weight_all_folds{other.cv_sample_weight_all_folds},
-      cv_validation_indexes_all_folds{other.cv_validation_indexes_all_folds}
+      cv_validation_indexes_all_folds{other.cv_validation_indexes_all_folds},
+      preprocessor{other.preprocessor}, preprocess{other.preprocess}
 {
 }
 
@@ -471,6 +504,8 @@ APLRRegressor &APLRRegressor::operator=(const APLRRegressor &other)
     cv_y_all_folds = other.cv_y_all_folds;
     cv_sample_weight_all_folds = other.cv_sample_weight_all_folds;
     cv_validation_indexes_all_folds = other.cv_validation_indexes_all_folds;
+    preprocessor = other.preprocessor;
+    preprocess = other.preprocess;
 
     thread_pool.reset();
 
@@ -488,6 +523,23 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
                         const std::vector<double> &predictor_penalties_for_non_linearity,
                         const std::vector<double> &predictor_penalties_for_interactions,
                         const std::vector<size_t> &predictor_min_observations_in_split)
+{
+    if (preprocess)
+    {
+        auto preprocessed_data = preprocessor.fit_transform(X, sample_weight, X_names);
+        fit_internal(preprocessed_data.first, y, sample_weight, preprocessed_data.second, cv_observations, prioritized_predictors_indexes,
+                     monotonic_constraints, group, interaction_constraints, other_data, predictor_learning_rates,
+                     predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
+                     predictor_min_observations_in_split);
+    }
+    else
+    {
+        fit_internal(X, y, sample_weight, X_names, cv_observations, prioritized_predictors_indexes, monotonic_constraints, group, interaction_constraints, other_data, predictor_learning_rates, predictor_penalties_for_non_linearity, predictor_penalties_for_interactions, predictor_min_observations_in_split);
+    }
+}
+
+void APLRRegressor::fit_internal(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
+                                 const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<std::vector<size_t>> &interaction_constraints, const MatrixXd &other_data, const std::vector<double> &predictor_learning_rates, const std::vector<double> &predictor_penalties_for_non_linearity, const std::vector<double> &predictor_penalties_for_interactions, const std::vector<size_t> &predictor_min_observations_in_split)
 {
     throw_error_if_loss_function_does_not_exist();
     throw_error_if_link_function_does_not_exist();
@@ -525,6 +577,23 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
         fit_model_for_cv_fold(X, y, sample_weight_used, X_names, cv_observations_used.col(i), monotonic_constraints, group, other_data, i);
     }
     create_final_model(X, sample_weight_used);
+}
+
+void APLRRegressor::fit(const CppDataFrame &X_df, const VectorXd &y, const VectorXd &sample_weight,
+                        const std::vector<std::string> &X_names_ignored, const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
+                        const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<std::vector<size_t>> &interaction_constraints,
+                        const MatrixXd &other_data, const std::vector<double> &predictor_learning_rates,
+                        const std::vector<double> &predictor_penalties_for_non_linearity,
+                        const std::vector<double> &predictor_penalties_for_interactions,
+                        const std::vector<size_t> &predictor_min_observations_in_split)
+{
+    std::pair<MatrixXd, std::vector<std::string>> preprocessed_data = preprocess ? preprocessor.fit_transform(X_df, sample_weight) : X_df.to_matrix();
+    MatrixXd X = preprocessed_data.first;
+    std::vector<std::string> X_names = preprocessed_data.second;
+    fit_internal(X, y, sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
+                 monotonic_constraints, group, interaction_constraints, other_data, predictor_learning_rates,
+                 predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
+                 predictor_min_observations_in_split);
 }
 
 void APLRRegressor::preprocess_prioritized_predictors_and_interaction_constraints(
@@ -649,7 +718,7 @@ void APLRRegressor::fit_model_for_cv_fold(const MatrixXd &X, const VectorXd &y, 
     revert_scaling_if_using_log_link_function();
     set_term_coefficients();
     name_terms(X, X_names);
-    VectorXd predictions_validation{predict(X_validation, false)};
+    VectorXd predictions_validation{predict_internal(X_validation, false)};
     cv_validation_predictions_all_folds[fold_index] = predictions_validation;
     cv_y_all_folds[fold_index] = y_validation;
     cv_sample_weight_all_folds[fold_index] = sample_weight_validation;
@@ -2198,7 +2267,7 @@ void APLRRegressor::correct_mean_bias()
 {
     if (link_function == "identity" || link_function == "log")
     {
-        VectorXd predictions_train{predict(X_train, false)};
+        VectorXd predictions_train{predict_internal(X_train, false)};
         double mean_y = calculate_weighted_average(y_train, sample_weight_train);
         double mean_pred = calculate_weighted_average(predictions_train, sample_weight_train);
 
@@ -2340,7 +2409,7 @@ std::string APLRRegressor::compute_raw_base_term_name(const Term &term, const st
     return name;
 }
 
-VectorXd APLRRegressor::calculate_feature_importance(const MatrixXd &X, const VectorXd &sample_weight)
+VectorXd APLRRegressor::calculate_feature_importance_internal(const MatrixXd &X, const VectorXd &sample_weight)
 {
     validate_that_model_can_be_used(X);
     validate_sample_weight(X, sample_weight);
@@ -2370,7 +2439,7 @@ void APLRRegressor::validate_sample_weight(const MatrixXd &X, const VectorXd &sa
     }
 }
 
-VectorXd APLRRegressor::calculate_term_importance(const MatrixXd &X, const VectorXd &sample_weight)
+VectorXd APLRRegressor::calculate_term_importance_internal(const MatrixXd &X, const VectorXd &sample_weight)
 {
     validate_that_model_can_be_used(X);
     validate_sample_weight(X, sample_weight);
@@ -2384,7 +2453,49 @@ VectorXd APLRRegressor::calculate_term_importance(const MatrixXd &X, const Vecto
     return term_importance;
 }
 
+VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)
+{
+    MatrixXd X_processed = preprocess ? preprocessor.transform(X).first : X;
+    return predict_internal(X_processed, cap_predictions_to_minmax_in_training);
+}
+
+VectorXd APLRRegressor::calculate_feature_importance(const MatrixXd &X, const VectorXd &sample_weight)
+{
+    MatrixXd X_processed = preprocess ? preprocessor.transform(X).first : X;
+    return calculate_feature_importance_internal(X_processed, sample_weight);
+}
+
+VectorXd APLRRegressor::calculate_term_importance(const MatrixXd &X, const VectorXd &sample_weight)
+{
+    MatrixXd X_processed = preprocess ? preprocessor.transform(X).first : X;
+    return calculate_term_importance_internal(X_processed, sample_weight);
+}
+
 MatrixXd APLRRegressor::calculate_local_feature_contribution(const MatrixXd &X)
+{
+    MatrixXd X_processed = preprocess ? preprocessor.transform(X).first : X;
+    return calculate_local_feature_contribution_internal(X_processed);
+}
+
+MatrixXd APLRRegressor::calculate_local_term_contribution(const MatrixXd &X)
+{
+    MatrixXd X_processed = preprocess ? preprocessor.transform(X).first : X;
+    return calculate_local_term_contribution_internal(X_processed);
+}
+
+VectorXd APLRRegressor::calculate_local_contribution_from_selected_terms(const MatrixXd &X, const std::vector<size_t> &predictor_indexes)
+{
+    MatrixXd X_processed = preprocess ? preprocessor.transform(X).first : X;
+    return calculate_local_contribution_from_selected_terms_internal(X_processed, predictor_indexes);
+}
+
+MatrixXd APLRRegressor::calculate_terms(const MatrixXd &X)
+{
+    MatrixXd X_processed = preprocess ? preprocessor.transform(X).first : X;
+    return calculate_terms_internal(X_processed);
+}
+
+MatrixXd APLRRegressor::calculate_local_feature_contribution_internal(const MatrixXd &X)
 {
     validate_that_model_can_be_used(X);
 
@@ -2402,7 +2513,7 @@ MatrixXd APLRRegressor::calculate_local_feature_contribution(const MatrixXd &X)
 
 void APLRRegressor::find_min_and_max_training_predictions_or_responses()
 {
-    VectorXd training_predictions{predict(X_train, false)};
+    VectorXd training_predictions{predict_internal(X_train, false)};
     min_training_prediction_or_response = std::max(training_predictions.minCoeff(), y_train.minCoeff());
     max_training_prediction_or_response = std::min(training_predictions.maxCoeff(), y_train.maxCoeff());
 }
@@ -2516,7 +2627,7 @@ void APLRRegressor::create_final_model(const MatrixXd &X, const VectorXd &sample
     find_final_min_and_max_training_predictions_or_responses();
     compute_max_optimal_m();
     correct_term_names_coefficients_and_affiliations();
-    feature_importance = calculate_feature_importance(X, sample_weight);
+    feature_importance = calculate_feature_importance_internal(X, sample_weight);
 
     cleanup_after_fit();
     additional_cleanup_after_creating_final_model();
@@ -2562,7 +2673,7 @@ void APLRRegressor::create_terms(const MatrixXd &X)
 
 void APLRRegressor::estimate_term_importances(const MatrixXd &X, const VectorXd &sample_weight)
 {
-    term_importance = calculate_term_importance(X, sample_weight);
+    term_importance = calculate_term_importance_internal(X, sample_weight);
     for (size_t i = 0; i < terms.size(); ++i)
     {
         terms[i].estimated_term_importance = term_importance[i];
@@ -2677,7 +2788,7 @@ void APLRRegressor::additional_cleanup_after_creating_final_model()
     interaction_constraints.clear();
 }
 
-VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)
+VectorXd APLRRegressor::predict_internal(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)
 {
     validate_that_model_can_be_used(X);
 
@@ -2690,6 +2801,48 @@ VectorXd APLRRegressor::predict(const MatrixXd &X, bool cap_predictions_to_minma
     }
 
     return predictions;
+}
+
+VectorXd APLRRegressor::predict(const CppDataFrame &X_df, bool cap_predictions_to_minmax_in_training)
+{
+    MatrixXd X = preprocess ? preprocessor.transform(X_df).first : X_df.to_matrix().first;
+    return predict_internal(X, cap_predictions_to_minmax_in_training);
+}
+
+VectorXd APLRRegressor::calculate_feature_importance(const CppDataFrame &X_df, const VectorXd &sample_weight)
+{
+    MatrixXd X = preprocess ? preprocessor.transform(X_df).first : X_df.to_matrix().first;
+    return calculate_feature_importance_internal(X, sample_weight);
+}
+
+VectorXd APLRRegressor::calculate_term_importance(const CppDataFrame &X_df, const VectorXd &sample_weight)
+{
+    MatrixXd X = preprocess ? preprocessor.transform(X_df).first : X_df.to_matrix().first;
+    return calculate_term_importance_internal(X, sample_weight);
+}
+
+MatrixXd APLRRegressor::calculate_local_feature_contribution(const CppDataFrame &X_df)
+{
+    MatrixXd X = preprocess ? preprocessor.transform(X_df).first : X_df.to_matrix().first;
+    return calculate_local_feature_contribution_internal(X);
+}
+
+MatrixXd APLRRegressor::calculate_local_term_contribution(const CppDataFrame &X_df)
+{
+    MatrixXd X = preprocess ? preprocessor.transform(X_df).first : X_df.to_matrix().first;
+    return calculate_local_term_contribution_internal(X);
+}
+
+VectorXd APLRRegressor::calculate_local_contribution_from_selected_terms(const CppDataFrame &X_df, const std::vector<size_t> &predictor_indexes)
+{
+    MatrixXd X = preprocess ? preprocessor.transform(X_df).first : X_df.to_matrix().first;
+    return calculate_local_contribution_from_selected_terms_internal(X, predictor_indexes);
+}
+
+MatrixXd APLRRegressor::calculate_terms(const CppDataFrame &X_df)
+{
+    MatrixXd X = preprocess ? preprocessor.transform(X_df).first : X_df.to_matrix().first;
+    return calculate_terms_internal(X);
 }
 
 VectorXd APLRRegressor::calculate_linear_predictor(const MatrixXd &X)
@@ -2714,7 +2867,7 @@ void APLRRegressor::cap_predictions_to_minmax_in_training(VectorXd &predictions)
     }
 }
 
-MatrixXd APLRRegressor::calculate_local_term_contribution(const MatrixXd &X)
+MatrixXd APLRRegressor::calculate_local_term_contribution_internal(const MatrixXd &X)
 {
     validate_that_model_can_be_used(X);
 
@@ -2729,7 +2882,7 @@ MatrixXd APLRRegressor::calculate_local_term_contribution(const MatrixXd &X)
     return output;
 }
 
-VectorXd APLRRegressor::calculate_local_contribution_from_selected_terms(const MatrixXd &X, const std::vector<size_t> &predictor_indexes)
+VectorXd APLRRegressor::calculate_local_contribution_from_selected_terms_internal(const MatrixXd &X, const std::vector<size_t> &predictor_indexes)
 {
     validate_that_model_can_be_used(X);
 
@@ -2752,7 +2905,7 @@ VectorXd APLRRegressor::calculate_local_contribution_from_selected_terms(const M
     return contribution_from_selected_terms;
 }
 
-MatrixXd APLRRegressor::calculate_terms(const MatrixXd &X)
+MatrixXd APLRRegressor::calculate_terms_internal(const MatrixXd &X)
 {
     validate_that_model_can_be_used(X);
 

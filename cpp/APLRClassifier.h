@@ -4,7 +4,9 @@
 #include <map>
 #include "../dependencies/eigen-3.4.0/Eigen/Dense"
 #include "APLRRegressor.h"
+#include "CppDataFrame.h"
 #include "functions.h"
+#include "Preprocessor.h"
 #include "constants.h"
 
 using namespace Eigen;
@@ -54,15 +56,24 @@ public:
     std::map<std::string, size_t> unique_term_affiliation_map;
     std::vector<std::vector<size_t>> base_predictors_in_each_unique_term_affiliation;
     double ridge_penalty;
+    Preprocessor preprocessor;
+    bool preprocess;
 
     APLRClassifier(size_t m = 3000, double v = 0.5, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), size_t n_jobs = 0,
                    size_t cv_folds = 5, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1,
                    size_t max_interactions = 100000, size_t min_observations_in_split = 4, size_t ineligible_boosting_steps_added = 15, size_t max_eligible_terms = 7,
                    size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
-                   size_t early_stopping_rounds = 200, size_t num_first_steps_with_linear_effects_only = 0,
-                   double penalty_for_non_linearity = 0.0, double penalty_for_interactions = 0.0, size_t max_terms = 0, double ridge_penalty = 0.0001);
+                   size_t early_stopping_rounds = 200, size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0,
+                   double penalty_for_interactions = 0.0, size_t max_terms = 0, double ridge_penalty = 0.0001, bool preprocess = true);
     APLRClassifier(const APLRClassifier &other);
     ~APLRClassifier();
+    void fit_internal(const MatrixXd &X, const std::vector<std::string> &y, const VectorXd &sample_weight = VectorXd(0),
+                      const std::vector<std::string> &X_names = {}, const MatrixXi &cv_observations = MatrixXi(0, 0),
+                      const std::vector<size_t> &prioritized_predictors_indexes = {}, const std::vector<int> &monotonic_constraints = {},
+                      const std::vector<std::vector<size_t>> &interaction_constraints = {}, const std::vector<double> &predictor_learning_rates = {},
+                      const std::vector<double> &predictor_penalties_for_non_linearity = {},
+                      const std::vector<double> &predictor_penalties_for_interactions = {},
+                      const std::vector<size_t> &predictor_min_observations_in_split = {});
     void fit(const MatrixXd &X, const std::vector<std::string> &y, const VectorXd &sample_weight = VectorXd(0),
              const std::vector<std::string> &X_names = {}, const MatrixXi &cv_observations = MatrixXi(0, 0),
              const std::vector<size_t> &prioritized_predictors_indexes = {}, const std::vector<int> &monotonic_constraints = {},
@@ -70,9 +81,17 @@ public:
              const std::vector<double> &predictor_penalties_for_non_linearity = {},
              const std::vector<double> &predictor_penalties_for_interactions = {},
              const std::vector<size_t> &predictor_min_observations_in_split = {});
+    void fit(const CppDataFrame &X_df, const std::vector<std::string> &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
+             const MatrixXi &cv_observations = MatrixXi(0, 0), const std::vector<size_t> &prioritized_predictors_indexes = {},
+             const std::vector<int> &monotonic_constraints = {}, const std::vector<std::vector<size_t>> &interaction_constraints = {},
+             const std::vector<double> &predictor_learning_rates = {}, const std::vector<double> &predictor_penalties_for_non_linearity = {},
+             const std::vector<double> &predictor_penalties_for_interactions = {}, const std::vector<size_t> &predictor_min_observations_in_split = {});
     MatrixXd predict_class_probabilities(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = false);
+    MatrixXd predict_class_probabilities_internal(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = false);
     std::vector<std::string> predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = false);
+    std::vector<std::string> predict_internal(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = false);
     MatrixXd calculate_local_feature_contribution(const MatrixXd &X);
+    MatrixXd calculate_local_feature_contribution_internal(const MatrixXd &X);
     std::vector<std::string> get_categories();
     APLRRegressor get_logit_model(const std::string &category);
     MatrixXd get_validation_error_steps();
@@ -80,6 +99,9 @@ public:
     VectorXd get_feature_importance();
     std::vector<std::string> get_unique_term_affiliations();
     std::vector<std::vector<size_t>> get_base_predictors_in_each_unique_term_affiliation();
+    MatrixXd predict_class_probabilities(const CppDataFrame &X_df, bool cap_predictions_to_minmax_in_training = false);
+    std::vector<std::string> predict(const CppDataFrame &X_df, bool cap_predictions_to_minmax_in_training = false);
+    MatrixXd calculate_local_feature_contribution(const CppDataFrame &X_df);
     void clear_cv_results();
 };
 
@@ -87,8 +109,8 @@ APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, s
                                size_t bins, size_t verbosity, size_t max_interaction_level, size_t max_interactions,
                                size_t min_observations_in_split, size_t ineligible_boosting_steps_added, size_t max_eligible_terms,
                                size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
-                               size_t early_stopping_rounds, size_t num_first_steps_with_linear_effects_only,
-                               double penalty_for_non_linearity, double penalty_for_interactions, size_t max_terms, double ridge_penalty)
+                               size_t early_stopping_rounds, size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity,
+                               double penalty_for_interactions, size_t max_terms, double ridge_penalty, bool preprocess)
     : m{m}, v{v}, random_state{random_state}, n_jobs{n_jobs}, cv_folds{cv_folds},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
       max_interactions{max_interactions}, min_observations_in_split{min_observations_in_split},
@@ -96,7 +118,8 @@ APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, s
       boosting_steps_before_interactions_are_allowed{boosting_steps_before_interactions_are_allowed},
       monotonic_constraints_ignore_interactions{monotonic_constraints_ignore_interactions}, early_stopping_rounds{early_stopping_rounds},
       num_first_steps_with_linear_effects_only{num_first_steps_with_linear_effects_only}, penalty_for_non_linearity{penalty_for_non_linearity},
-      penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}, ridge_penalty{ridge_penalty}
+      penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}, ridge_penalty{ridge_penalty},
+      preprocess{preprocess}
 {
 }
 
@@ -116,7 +139,8 @@ APLRClassifier::APLRClassifier(const APLRClassifier &other)
       max_terms{other.max_terms}, unique_term_affiliations{other.unique_term_affiliations},
       unique_term_affiliation_map{other.unique_term_affiliation_map},
       base_predictors_in_each_unique_term_affiliation{other.base_predictors_in_each_unique_term_affiliation},
-      ridge_penalty{other.ridge_penalty}
+      ridge_penalty{other.ridge_penalty},
+      preprocessor{other.preprocessor}, preprocess{other.preprocess}
 {
 }
 
@@ -130,6 +154,23 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
                          const std::vector<double> &predictor_learning_rates, const std::vector<double> &predictor_penalties_for_non_linearity,
                          const std::vector<double> &predictor_penalties_for_interactions,
                          const std::vector<size_t> &predictor_min_observations_in_split)
+{
+    if (preprocess)
+    {
+        auto preprocessed_data = preprocessor.fit_transform(X, sample_weight, X_names);
+        fit_internal(preprocessed_data.first, y, sample_weight, preprocessed_data.second, cv_observations, prioritized_predictors_indexes,
+                     monotonic_constraints, interaction_constraints, predictor_learning_rates,
+                     predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
+                     predictor_min_observations_in_split);
+    }
+    else
+    {
+        fit_internal(X, y, sample_weight, X_names, cv_observations, prioritized_predictors_indexes, monotonic_constraints, interaction_constraints, predictor_learning_rates, predictor_penalties_for_non_linearity, predictor_penalties_for_interactions, predictor_min_observations_in_split);
+    }
+}
+
+void APLRClassifier::fit_internal(const MatrixXd &X, const std::vector<std::string> &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
+                                  const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints, const std::vector<std::vector<size_t>> &interaction_constraints, const std::vector<double> &predictor_learning_rates, const std::vector<double> &predictor_penalties_for_non_linearity, const std::vector<double> &predictor_penalties_for_interactions, const std::vector<size_t> &predictor_min_observations_in_split)
 {
     initialize();
     find_categories(y);
@@ -150,10 +191,11 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
         logit_models[categories[0]].penalty_for_interactions = penalty_for_interactions;
         logit_models[categories[0]].max_terms = max_terms;
         logit_models[categories[0]].ridge_penalty = ridge_penalty;
-        logit_models[categories[0]].fit(X, response_values[categories[0]], sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
-                                        monotonic_constraints, VectorXi(0), interaction_constraints, MatrixXd(0, 0), predictor_learning_rates,
-                                        predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
-                                        predictor_min_observations_in_split);
+        logit_models[categories[0]].preprocess = false;
+        logit_models[categories[0]].fit_internal(X, response_values[categories[0]], sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
+                                                 monotonic_constraints, VectorXi(0), interaction_constraints, MatrixXd(0, 0), predictor_learning_rates,
+                                                 predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
+                                                 predictor_min_observations_in_split);
 
         logit_models[categories[1]] = logit_models[categories[0]];
         invert_second_model_in_two_class_case(logit_models[categories[1]]);
@@ -173,16 +215,33 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
             logit_models[category].penalty_for_interactions = penalty_for_interactions;
             logit_models[category].max_terms = max_terms;
             logit_models[category].ridge_penalty = ridge_penalty;
-            logit_models[category].fit(X, response_values[category], sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
-                                       monotonic_constraints, VectorXi(0), interaction_constraints, MatrixXd(0, 0), predictor_learning_rates,
-                                       predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
-                                       predictor_min_observations_in_split);
+            logit_models[category].preprocess = false;
+            logit_models[category].fit_internal(X, response_values[category], sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
+                                                monotonic_constraints, VectorXi(0), interaction_constraints, MatrixXd(0, 0), predictor_learning_rates,
+                                                predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
+                                                predictor_min_observations_in_split);
         }
     }
 
     calculate_unique_term_affiliations();
     calculate_validation_metrics();
     cleanup_after_fit();
+}
+
+void APLRClassifier::fit(const CppDataFrame &X_df, const std::vector<std::string> &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names_ignored,
+                         const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
+                         const std::vector<int> &monotonic_constraints, const std::vector<std::vector<size_t>> &interaction_constraints,
+                         const std::vector<double> &predictor_learning_rates, const std::vector<double> &predictor_penalties_for_non_linearity,
+                         const std::vector<double> &predictor_penalties_for_interactions,
+                         const std::vector<size_t> &predictor_min_observations_in_split)
+{
+    std::pair<MatrixXd, std::vector<std::string>> preprocessed_data = preprocess ? preprocessor.fit_transform(X_df, sample_weight) : X_df.to_matrix();
+    MatrixXd X = preprocessed_data.first;
+    std::vector<std::string> X_names = preprocessed_data.second;
+    fit_internal(X, y, sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
+                 monotonic_constraints, interaction_constraints, predictor_learning_rates,
+                 predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
+                 predictor_min_observations_in_split);
 }
 
 void APLRClassifier::initialize()
@@ -318,12 +377,17 @@ void APLRClassifier::throw_error_if_not_fitted()
 
 MatrixXd APLRClassifier::predict_class_probabilities(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)
 {
-    throw_error_if_not_fitted();
+    MatrixXd X_processed = preprocess ? preprocessor.transform(X).first : X;
+    return predict_class_probabilities_internal(X_processed, cap_predictions_to_minmax_in_training);
+}
 
+MatrixXd APLRClassifier::predict_class_probabilities_internal(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)
+{
+    throw_error_if_not_fitted();
     MatrixXd predictions{MatrixXd::Constant(X.rows(), categories.size(), 0.0)};
     for (size_t i = 0; i < categories.size(); ++i)
     {
-        predictions.col(i) = logit_models[categories[i]].predict(X, cap_predictions_to_minmax_in_training);
+        predictions.col(i) = logit_models[categories[i]].predict_internal(X, cap_predictions_to_minmax_in_training);
     }
 
     for (size_t row = 0; row < predictions.rows(); ++row)
@@ -340,9 +404,15 @@ MatrixXd APLRClassifier::predict_class_probabilities(const MatrixXd &X, bool cap
 
 std::vector<std::string> APLRClassifier::predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)
 {
+    MatrixXd X_processed = preprocess ? preprocessor.transform(X).first : X;
+    return predict_internal(X_processed, cap_predictions_to_minmax_in_training);
+}
+
+std::vector<std::string> APLRClassifier::predict_internal(const MatrixXd &X, bool cap_predictions_to_minmax_in_training)
+{
     throw_error_if_not_fitted();
     std::vector<std::string> predictions(X.rows());
-    MatrixXd predicted_class_probabilities{predict_class_probabilities(X, cap_predictions_to_minmax_in_training)};
+    MatrixXd predicted_class_probabilities{predict_class_probabilities_internal(X, cap_predictions_to_minmax_in_training)};
     for (size_t row = 0; row < predicted_class_probabilities.rows(); ++row)
     {
         size_t best_category_index;
@@ -353,14 +423,32 @@ std::vector<std::string> APLRClassifier::predict(const MatrixXd &X, bool cap_pre
     return predictions;
 }
 
+MatrixXd APLRClassifier::predict_class_probabilities(const CppDataFrame &X_df, bool cap_predictions_to_minmax_in_training)
+{
+    MatrixXd X = preprocess ? preprocessor.transform(X_df).first : X_df.to_matrix().first;
+    return predict_class_probabilities_internal(X, cap_predictions_to_minmax_in_training);
+}
+
+std::vector<std::string> APLRClassifier::predict(const CppDataFrame &X_df, bool cap_predictions_to_minmax_in_training)
+{
+    MatrixXd X = preprocess ? preprocessor.transform(X_df).first : X_df.to_matrix().first;
+    return predict_internal(X, cap_predictions_to_minmax_in_training);
+}
+
 MatrixXd APLRClassifier::calculate_local_feature_contribution(const MatrixXd &X)
+{
+    MatrixXd X_processed = preprocess ? preprocessor.transform(X).first : X;
+    return calculate_local_feature_contribution_internal(X_processed);
+}
+
+MatrixXd APLRClassifier::calculate_local_feature_contribution_internal(const MatrixXd &X)
 {
     throw_error_if_not_fitted();
     MatrixXd output{MatrixXd::Constant(X.rows(), unique_term_affiliations.size(), 0)};
-    std::vector<std::string> predictions{predict(X, false)};
+    std::vector<std::string> predictions{predict_internal(X, false)};
     for (size_t row = 0; row < predictions.size(); ++row)
     {
-        VectorXd local_feature_contribution_from_logit_model{logit_models[predictions[row]].calculate_local_feature_contribution(X.row(row)).row(0)};
+        VectorXd local_feature_contribution_from_logit_model{logit_models[predictions[row]].calculate_local_feature_contribution_internal(X.row(row)).row(0)};
         for (auto &affiliation : logit_models[predictions[row]].unique_term_affiliations)
         {
             size_t feature_number_in_classifier{unique_term_affiliation_map[affiliation]};
@@ -370,6 +458,12 @@ MatrixXd APLRClassifier::calculate_local_feature_contribution(const MatrixXd &X)
     }
 
     return output;
+}
+
+MatrixXd APLRClassifier::calculate_local_feature_contribution(const CppDataFrame &X_df)
+{
+    MatrixXd X = preprocess ? preprocessor.transform(X_df).first : X_df.to_matrix().first;
+    return calculate_local_feature_contribution_internal(X);
 }
 
 std::vector<std::string> APLRClassifier::get_categories()

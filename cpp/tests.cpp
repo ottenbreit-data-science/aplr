@@ -6,6 +6,8 @@
 #include "APLRRegressor.h"
 #include "APLRClassifier.h"
 #include "term.h"
+#include "CppDataFrame.h"
+#include "Preprocessor.h"
 
 using namespace Eigen;
 
@@ -43,6 +45,30 @@ VectorXd calculate_custom_differentiate_predictions_wrt_linear_predictor(const V
 {
     VectorXd differentiated_predictions{linear_predictor.array().exp()};
     return differentiated_predictions;
+}
+
+bool are_matrices_approx_equal(const Eigen::MatrixXd &a, const Eigen::MatrixXd &b)
+{
+    if (a.rows() != b.rows() || a.cols() != b.cols())
+    {
+        return false;
+    }
+
+    for (int i = 0; i < a.rows(); ++i)
+    {
+        for (int j = 0; j < a.cols(); ++j)
+        {
+            if (std::isnan(a(i, j)) && std::isnan(b(i, j)))
+            {
+                continue; // Both are NaN, treat as equal
+            }
+            if (a(i, j) != b(i, j))
+            {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 class Tests
@@ -87,6 +113,449 @@ public:
                 }
             }
         }
+    }
+
+    void test_cpp_data_frame()
+    {
+        current_test_suite_name = "test_preprocessing_classes";
+        current_test_suite_name = "test_cpp_data_frame";
+        bool thrown = false;
+
+        // CppDataFrame tests
+        CppDataFrame df;
+        df.add_column("A", std::vector<double>{1.0, 2.0, 3.0});
+        df.add_column("B", std::vector<std::string>{"a", "b", "a"});
+        add_test("CppDataFrame: get_num_rows", df.get_num_rows() == 3);
+
+        thrown = false;
+        try
+        {
+            df.add_column("C", std::vector<double>{1.0, 2.0});
+        }
+        catch (const std::runtime_error &e)
+        {
+            thrown = true;
+        }
+        add_test("CppDataFrame: unequal column length", thrown);
+
+        // CppDataFrame::from_matrix tests
+        Eigen::MatrixXd mat(3, 2);
+        mat << 1, 2,
+            3, 4,
+            5, 6;
+
+        // Test with default column names
+        CppDataFrame df_from_mat_default = CppDataFrame::from_matrix(mat);
+        std::vector<std::string> default_names = {"X1", "X2"};
+        add_test("CppDataFrame::from_matrix: default names count", df_from_mat_default.get_column_names_in_order().size() == 2);
+        add_test("CppDataFrame::from_matrix: default names values", df_from_mat_default.get_column_names_in_order() == default_names);
+        add_test("CppDataFrame::from_matrix: default names data check", df_from_mat_default.get_numeric_column("X1")[1] == 3.0 && df_from_mat_default.get_numeric_column("X2")[2] == 6.0);
+        add_test("CppDataFrame::from_matrix: default names num rows", df_from_mat_default.get_num_rows() == 3);
+
+        // Test with provided column names
+        std::vector<std::string> custom_names = {"col_A", "col_B"};
+        CppDataFrame df_from_mat_custom = CppDataFrame::from_matrix(mat, custom_names);
+        add_test("CppDataFrame::from_matrix: custom names count", df_from_mat_custom.get_column_names_in_order().size() == 2);
+        add_test("CppDataFrame::from_matrix: custom names values", df_from_mat_custom.get_column_names_in_order() == custom_names);
+        add_test("CppDataFrame::from_matrix: custom names data check", df_from_mat_custom.get_numeric_column("col_A")[1] == 3.0 && df_from_mat_custom.get_numeric_column("col_B")[2] == 6.0);
+
+        // Test with empty matrix
+        Eigen::MatrixXd empty_mat(0, 0);
+        CppDataFrame df_from_empty_mat = CppDataFrame::from_matrix(empty_mat);
+        add_test("CppDataFrame::from_matrix: empty matrix", df_from_empty_mat.empty());
+
+        // Test with mismatched column names
+        thrown = false;
+        try
+        {
+            CppDataFrame::from_matrix(mat, {"one_name"});
+        }
+        catch (const std::runtime_error &e)
+        {
+            thrown = true;
+        }
+        add_test("CppDataFrame::from_matrix: mismatched column names", thrown);
+    }
+
+    // MedianImputer tests
+    void test_median_imputer()
+    {
+        current_test_suite_name = "test_median_imputer";
+
+        MedianImputer<double> imputer;
+        std::vector<double> data = {1.0, 2.0, NAN_DOUBLE, 4.0};
+        std::vector<double> weights = {1.0, 1.0, 1.0, 1.0};
+        imputer.fit(data, weights);
+        add_test("MedianImputer: simple median odd elements", is_approximately_equal(imputer.get_median(), 2.0));
+        add_test("MedianImputer: had_nans_in_fit is true when NaNs present", imputer.had_nans_in_fit());
+        auto imputer_result = imputer.transform(data);
+        auto transformed_data = imputer_result.first;
+        auto indicator_col = imputer_result.second;
+        add_test("MedianImputer: simple transform", is_approximately_equal(transformed_data.at(2), 2.0));
+        add_test("MedianImputer: indicator column created", !indicator_col.empty() && indicator_col.size() == 4);
+        add_test("MedianImputer: indicator column values", indicator_col[0] == 0.0 && indicator_col[1] == 0.0 && indicator_col[2] == 1.0 && indicator_col[3] == 0.0);
+
+        MedianImputer<double> imputer2;
+        std::vector<double> data2 = {1.0, 2.0, 10.0};
+        std::vector<double> weights2 = {1.0, 0.1, 0.1};
+        imputer2.fit(data2, weights2);
+        add_test("MedianImputer: weighted median", is_approximately_equal(imputer2.get_median(), 1.0));
+
+        MedianImputer<double> imputer3;
+        std::vector<double> data3 = {NAN_DOUBLE, NAN_DOUBLE};
+        std::vector<double> weights3 = {1.0, 1.0};
+        imputer3.fit(data3, weights3);
+        add_test("MedianImputer: all-NaN", is_approximately_equal(imputer3.get_median(), 0.0));
+
+        // Case: No NaNs in fit data, but NaN in transform data
+        MedianImputer<double> imputer_no_nan_fit;
+        std::vector<double> data_no_nan = {1.0, 2.0, 4.0};
+        std::vector<double> weights_no_nan = {1.0, 1.0, 1.0};
+        imputer_no_nan_fit.fit(data_no_nan, weights_no_nan);
+        add_test("MedianImputer: had_nans_in_fit is false when no NaNs", !imputer_no_nan_fit.had_nans_in_fit());
+        add_test("MedianImputer: median correct with no NaNs", is_approximately_equal(imputer_no_nan_fit.get_median(), 2.0));
+        auto imputer_no_nan_result = imputer_no_nan_fit.transform(data); // `data` has a NaN
+        auto transformed_with_nan = imputer_no_nan_result.first;
+        auto indicator_no_nan = imputer_no_nan_result.second;
+        add_test("MedianImputer: transform imputes new NaN", is_approximately_equal(transformed_with_nan.at(2), 2.0));
+        add_test("MedianImputer: no indicator column when not fit on NaNs", indicator_no_nan.empty());
+
+        // Case: Simple median, even number of elements
+        MedianImputer<double> imputer4;
+        std::vector<double> data4 = {10.0, 20.0, 30.0, 40.0};
+        std::vector<double> weights4 = {1.0, 1.0, 1.0, 1.0};
+        imputer4.fit(data4, weights4);
+        add_test("MedianImputer: simple median even elements", is_approximately_equal(imputer4.get_median(), 25.0));
+
+        // Case: Weighted median, no interpolation needed
+        MedianImputer<double> imputer5;
+        std::vector<double> data5 = {10, 20, 30, 40};
+        std::vector<double> weights5 = {3, 1, 2, 4}; // total=10, half=5. cum={3, 4, 6, 10}. Median is 30.
+        imputer5.fit(data5, weights5);
+        add_test("MedianImputer: weighted median no-interp", is_approximately_equal(imputer5.get_median(), 30.0));
+
+        // Case: Weighted median, value with large weight
+        MedianImputer<double> imputer6;
+        std::vector<double> data6 = {1, 2, 3, 4, 5};
+        std::vector<double> weights6 = {1, 1, 1, 1, 5}; // total=9, half=4.5. cum={1,2,3,4,9}. Median is 5.
+        imputer6.fit(data6, weights6);
+        add_test("MedianImputer: weighted median large weight", is_approximately_equal(imputer6.get_median(), 5.0));
+
+        // Case: Empty data
+        MedianImputer<double> imputer7;
+        imputer7.fit({}, {});
+        add_test("MedianImputer: empty data", is_approximately_equal(imputer7.get_median(), 0.0));
+
+        // Case: Zeros in data
+        MedianImputer<double> imputer8;
+        imputer8.fit(std::vector<double>{-1.0, 0.0, 1.0}, std::vector<double>{1, 1, 1});
+        add_test("MedianImputer: zero in data", is_approximately_equal(imputer8.get_median(), 0.0));
+
+        // Case: Duplicate values
+        MedianImputer<double> imputer9;
+        imputer9.fit(std::vector<double>{10, 20, 20, 20, 30}, std::vector<double>{1, 1, 1, 1, 1});
+        add_test("MedianImputer: duplicate values", is_approximately_equal(imputer9.get_median(), 20.0));
+    }
+
+    // OneHotEncoder tests
+    void test_one_hot_encoder()
+    {
+        current_test_suite_name = "test_one_hot_encoder";
+
+        OneHotEncoder ohe;
+        std::vector<std::string> cat_data = {"b", "a", "b", "c"};
+        ohe.fit(cat_data);
+        add_test("OneHotEncoder: get_categories sorted", ohe.get_categories().size() == 3 && ohe.get_categories()[0] == "a" && ohe.get_categories()[1] == "b" && ohe.get_categories()[2] == "c");
+        auto ohe_transformed = ohe.transform(std::vector<std::string>{"a", "c", "d"});
+        add_test("OneHotEncoder: transform unknown category", ohe_transformed[2][0] == 0 && ohe_transformed[2][1] == 0 && ohe_transformed[2][2] == 0);
+        add_test("OneHotEncoder: transform known categories", ohe_transformed[0][0] == 1 && ohe_transformed[1][2] == 1);
+        add_test("OneHotEncoder: transform result size", ohe_transformed.size() == 3 && ohe_transformed[0].size() == 3);
+
+        // Case: Empty input to fit
+        OneHotEncoder ohe2;
+        ohe2.fit({});
+        add_test("OneHotEncoder: empty fit", ohe2.get_categories().empty());
+        auto ohe2_transformed = ohe2.transform(std::vector<std::string>{"a", "b"});
+        add_test("OneHotEncoder: transform after empty fit", ohe2_transformed.size() == 2 && ohe2_transformed[0].empty());
+
+        // Case: Empty input to transform
+        auto ohe_transformed_empty = ohe.transform({});
+        add_test("OneHotEncoder: empty transform", ohe_transformed_empty.empty());
+
+        // Case: Data with empty strings
+        OneHotEncoder ohe3;
+        ohe3.fit(std::vector<std::string>{"a", "", "b", ""});
+        auto cats3 = ohe3.get_categories();
+        add_test("OneHotEncoder: empty string category", cats3.size() == 3 && cats3[0] == "" && cats3[1] == "a" && cats3[2] == "b");
+        auto ohe3_transformed = ohe3.transform(std::vector<std::string>{"", "c", "a"});
+        add_test("OneHotEncoder: transform with empty string", ohe3_transformed[0][0] == 1); // "" is the first category
+        add_test("OneHotEncoder: transform with empty string and unknown", ohe3_transformed[1][0] == 0 && ohe3_transformed[1][1] == 0 && ohe3_transformed[1][2] == 0);
+
+        // Case: All same category
+        OneHotEncoder ohe4;
+        ohe4.fit(std::vector<std::string>{"a", "a", "a"});
+        add_test("OneHotEncoder: all same category", ohe4.get_categories().size() == 1 && ohe4.get_categories()[0] == "a");
+        auto ohe4_transformed = ohe4.transform(std::vector<std::string>{"a"});
+        add_test("OneHotEncoder: transform all same category", ohe4_transformed.size() == 1 && ohe4_transformed[0].size() == 1 && ohe4_transformed[0][0] == 1);
+    }
+
+    // Preprocessor tests
+    void test_preprocessor()
+    {
+        current_test_suite_name = "test_preprocessor";
+        bool thrown = false;
+
+        Preprocessor preprocessor;
+        add_test("Preprocessor: is_fitted is false before fit", !preprocessor.is_fitted());
+
+        CppDataFrame df2;
+        df2.add_column("num1", std::vector<double>{1.0, NAN_DOUBLE, 3.0});
+        df2.add_column("cat1", std::vector<std::string>{"a", "b", "a"});
+        std::vector<double> p_weights_std = {1.0, 1.0, 1.0};
+        Eigen::VectorXd p_weights = Eigen::Map<Eigen::VectorXd>(p_weights_std.data(), p_weights_std.size());
+        preprocessor.fit(df2, p_weights);
+        add_test("Preprocessor: is_fitted is true after fit", preprocessor.is_fitted());
+        std::vector<std::string> original_names = {"num1", "cat1"};
+        add_test("Preprocessor: get_original_column_names", preprocessor.get_original_column_names() == original_names);
+
+        auto result = preprocessor.transform(df2);
+        Eigen::MatrixXd transformed_mat = result.first;
+        add_test("Preprocessor: transform shape with indicator", transformed_mat.rows() == 3 && transformed_mat.cols() == 4); // num1 + num1_is_missing + cat1_a + cat1_b
+        add_test("Preprocessor: imputation with indicator", is_approximately_equal(transformed_mat(1, 0), 2.0));              // median of {1,3} is 2
+        add_test("Preprocessor: indicator column name", result.second[1] == "num1_is_missing");
+        add_test("Preprocessor: indicator column values", transformed_mat(0, 1) == 0 && transformed_mat(1, 1) == 1 && transformed_mat(2, 1) == 0);
+        add_test("Preprocessor: ohe values row 1", transformed_mat(0, 2) == 1 && transformed_mat(0, 3) == 0); // first row is "a"
+        add_test("Preprocessor: ohe values row 2", transformed_mat(1, 2) == 0 && transformed_mat(1, 3) == 1); // second row is "b"
+
+        // Case: Empty DataFrame
+        Preprocessor preprocessor2;
+        CppDataFrame df_empty;
+        thrown = false;
+        try
+        {
+            preprocessor2.fit(df_empty, {});
+            auto result2 = preprocessor2.transform(df_empty);
+            add_test("Preprocessor: empty df transform", result2.first.rows() == 0 && result2.first.cols() == 0);
+        }
+        catch (const std::exception &e)
+        {
+            add_test("Preprocessor: empty df", false); // Should not throw
+        }
+
+        // Case: No numeric columns
+        Preprocessor preprocessor3;
+        CppDataFrame df3;
+        df3.add_column("cat1", std::vector<std::string>{"a", "b", "a"});
+        df3.add_column("cat2", std::vector<std::string>{"x", "x", "y"});        
+        Eigen::VectorXd weights3 = Eigen::VectorXd::Constant(3, 1.0);
+        preprocessor3.fit(df3, weights3);
+        auto result3 = preprocessor3.transform(df3);
+        add_test("Preprocessor: no numeric cols shape", result3.first.rows() == 3 && result3.first.cols() == 4); // a,b + x,y
+        add_test("Preprocessor: no numeric cols names", result3.second.size() == 4);
+
+        // Case: No categorical columns
+        Preprocessor preprocessor4;
+        Eigen::VectorXd weights4 = Eigen::VectorXd::Constant(3, 1.0);
+        CppDataFrame df4;
+        df4.add_column("num1", std::vector<double>{1.0, 2.0, NAN_DOUBLE}); // This line is fine
+        df4.add_column("num2", std::vector<double>{NAN_DOUBLE, 5.0, 6.0});
+        preprocessor4.fit(df4, Eigen::VectorXd::Constant(3, 1.0));
+        auto result4 = preprocessor4.transform(df4);
+        add_test("Preprocessor: no cat cols shape", result4.first.rows() == 3 && result4.first.cols() == 4); // num1, num1_missing, num2, num2_missing
+        add_test("Preprocessor: no cat cols imputation", is_approximately_equal(result4.first(2, 0), 1.5) && is_approximately_equal(result4.first(0, 2), 5.5));
+        add_test("Preprocessor: no cat cols indicator values", result4.first(2, 1) == 1 && result4.first(0, 3) == 1);
+
+        // Case: No NaNs in fit, so no indicator column
+        Preprocessor preprocessor5;
+        CppDataFrame df;
+        df.add_column("B", std::vector<std::string>{"a", "b", "a"});
+        df.add_column("C", std::vector<double>{1.0, 2.0, 3.0});
+        preprocessor5.fit(df, p_weights);
+        auto result5 = preprocessor5.transform(df);
+        add_test("Preprocessor: no nans in fit, correct number of columns", result5.first.cols() == 3); // C, B_a, B_b
+
+        // Case: Transform on a DataFrame where a fitted column is missing
+        Preprocessor preprocessor7;
+        preprocessor7.fit(df2, p_weights);
+        CppDataFrame df7_missing_col;
+        df7_missing_col.add_column("num1", std::vector<double>{1.0, 2.0, 3.0});
+        thrown = false;
+        try
+        {
+            preprocessor7.transform(df7_missing_col); // Fitted on "cat1", which is missing here.
+        }
+        catch (const std::runtime_error &e)
+        {
+            thrown = true;
+        }
+        add_test("Preprocessor: transform with missing fitted column", thrown);
+
+        // Case: Transform data with new, unseen categories
+        Preprocessor preprocessor8;
+        preprocessor8.fit(df2, p_weights); // Fitted on "a", "b"
+        CppDataFrame df8_new_cats;
+        df8_new_cats.add_column("num1", std::vector<double>{1.0, 2.0});
+        df8_new_cats.add_column("cat1", std::vector<std::string>{"a", "c"}); // "c" is a new category
+        auto result8 = preprocessor8.transform(df8_new_cats);
+        add_test("Preprocessor: transform with new category (row 1)", result8.first(1, 2) == 0 && result8.first(1, 3) == 0);
+
+        // Case: Transform data where some fitted categories are missing
+        Preprocessor preprocessor9;
+        preprocessor9.fit(df2, p_weights); // Fitted on "a", "b"
+        CppDataFrame df9_missing_cats;
+        df9_missing_cats.add_column("num1", std::vector<double>{1.0, 2.0});
+        df9_missing_cats.add_column("cat1", std::vector<std::string>{"a", "a"}); // "b" is missing
+        auto result9 = preprocessor9.transform(df9_missing_cats);
+        add_test("Preprocessor: transform with missing category (col 3 is all zero)", result9.first.col(3).isZero());
+
+        // Case: Test column order consistency between fit_transform and transform on new data
+        Preprocessor preprocessor_consistency;
+        CppDataFrame df_train;
+        CppDataFrame df_test;
+        size_t train_rows = 1000;
+        size_t test_rows = 500;
+
+        // Generate training and test data
+        for (int i = 0; i < 20; ++i)
+        {
+            std::vector<double> num_col_train(train_rows);
+            std::vector<double> num_col_test(test_rows);
+            for (size_t j = 0; j < train_rows; ++j)
+            {
+                num_col_train[j] = j + i;
+                if (i < 10 && j % 10 == 0)
+                {
+                    num_col_train[j] = NAN_DOUBLE; // 10 cols with NaNs
+                }
+            }
+            for (size_t j = 0; j < test_rows; ++j)
+            {
+                num_col_test[j] = j + i;
+            }
+            df_train.add_column("num_" + std::to_string(i), std::move(num_col_train));
+            df_test.add_column("num_" + std::to_string(i), std::move(num_col_test));
+        }
+
+        for (int i = 0; i < 5; ++i)
+        {
+            std::vector<std::string> cat_col_train(train_rows);
+            std::vector<std::string> cat_col_test(test_rows);
+            for (size_t j = 0; j < train_rows; ++j)
+            {
+                cat_col_train[j] = "cat_" + std::to_string(i) + "_" + std::to_string(j % 10); // 10 categories
+            }
+            for (size_t j = 0; j < test_rows; ++j)
+            {
+                if (j % 10 < 8)
+                { // Missing categories 8 and 9
+                    cat_col_test[j] = "cat_" + std::to_string(i) + "_" + std::to_string(j % 10);
+                }
+                else
+                { // New categories 10 and 11
+                    cat_col_test[j] = "cat_" + std::to_string(i) + "_" + std::to_string(j % 10 + 2);
+                }
+            }
+            df_train.add_column("cat_" + std::to_string(i), std::move(cat_col_train));
+            df_test.add_column("cat_" + std::to_string(i), std::move(cat_col_test));
+        }
+
+        std::vector<double> train_weights_std(train_rows, 1.0);
+        Eigen::VectorXd train_weights = Eigen::Map<Eigen::VectorXd>(train_weights_std.data(), train_weights_std.size());
+        auto train_result = preprocessor_consistency.fit_transform(df_train, train_weights);
+        auto test_result = preprocessor_consistency.transform(df_test);
+
+        // Expected columns: 20 numeric + 10 indicator + (5 categorical * 10 categories) = 80
+        size_t expected_cols = 20 + 10 + (5 * 10);
+        add_test("Preprocessor consistency: correct number of columns", train_result.second.size() == expected_cols && test_result.second.size() == expected_cols);
+        add_test("Preprocessor consistency: column names are identical", train_result.second == test_result.second);
+        add_test("Preprocessor consistency: train matrix shape", train_result.first.rows() == train_rows && train_result.first.cols() == expected_cols);
+        add_test("Preprocessor consistency: test matrix shape", test_result.first.rows() == test_rows && test_result.first.cols() == expected_cols);
+        // Check a specific indicator column name
+        add_test("Preprocessor consistency: indicator column name format", train_result.second[1] == "num_0_is_missing");
+
+        // Preprocessor tests with MatrixXd overloads
+        Eigen::MatrixXd mat_for_preproc(3, 1);
+        mat_for_preproc << 1.0,
+            NAN_DOUBLE,
+            3.0;
+
+        std::vector<double> mat_weights_std = {1.0, 1.0, 1.0};
+        Eigen::VectorXd mat_weights = Eigen::Map<Eigen::VectorXd>(mat_weights_std.data(), mat_weights_std.size());
+        std::vector<std::string> mat_names = {"num_a"};
+
+        // Test fit_transform with MatrixXd
+        Preprocessor preproc_mat_ft;
+        auto ft_result = preproc_mat_ft.fit_transform(mat_for_preproc, mat_weights, mat_names);
+        Eigen::MatrixXd ft_mat = ft_result.first;
+        std::vector<std::string> ft_names = ft_result.second;
+
+        add_test("Preprocessor(MatrixXd): fit_transform output rows", ft_mat.rows() == 3);
+        add_test("Preprocessor(MatrixXd): fit_transform output cols", ft_mat.cols() == 2); // num_a, num_a_is_missing
+        add_test("Preprocessor(MatrixXd): fit_transform imputation", is_approximately_equal(ft_mat(1, 0), 2.0));
+        add_test("Preprocessor(MatrixXd): fit_transform indicator", ft_mat(0, 1) == 0.0 && ft_mat(1, 1) == 1.0 && ft_mat(2, 1) == 0.0);
+        add_test("Preprocessor(MatrixXd): fit_transform column names", ft_names.size() == 2 && ft_names[0] == "num_a" && ft_names[1] == "num_a_is_missing");
+
+        // Test fit and transform separately with MatrixXd
+        Preprocessor preproc_mat_sep;
+        preproc_mat_sep.fit(mat_for_preproc, mat_weights, mat_names);
+
+        Eigen::MatrixXd mat_to_transform(2, 1);
+        mat_to_transform << NAN_DOUBLE,
+            5.0;
+        auto sep_result = preproc_mat_sep.transform(mat_to_transform, mat_names);
+        Eigen::MatrixXd sep_mat = sep_result.first;
+        std::vector<std::string> sep_names = sep_result.second;
+
+        add_test("Preprocessor(MatrixXd): separate transform output rows", sep_mat.rows() == 2);
+        add_test("Preprocessor(MatrixXd): separate transform output cols", sep_mat.cols() == 2);
+        add_test("Preprocessor(MatrixXd): separate transform imputation", is_approximately_equal(sep_mat(0, 0), 2.0));
+        add_test("Preprocessor(MatrixXd): separate transform indicator", sep_mat(0, 1) == 1.0 && sep_mat(1, 1) == 0.0);
+        add_test("Preprocessor(MatrixXd): separate transform column names", sep_names == ft_names);
+
+        // Test without providing names
+        Preprocessor preproc_no_names;
+        auto no_names_result = preproc_no_names.fit_transform(mat_for_preproc, mat_weights);
+        add_test("Preprocessor(MatrixXd): fit_transform without names", no_names_result.second[0] == "X1" && no_names_result.second[1] == "X1_is_missing");
+    }
+
+    void test_preprocessor_unfitted_behavior()
+    {
+        current_test_suite_name = "test_preprocessor_unfitted_behavior";
+
+        // Test Preprocessor behavior when not fitted (for backward compatibility)
+        Preprocessor unfitted_preprocessor;
+
+        // Test with transform(CppDataFrame)
+        CppDataFrame df_unfitted_numeric_only;
+        df_unfitted_numeric_only.add_column("num1", std::vector<double>{1.0, 2.0, 3.0});
+        df_unfitted_numeric_only.add_column("num2", std::vector<double>{4.0, 5.0, NAN_DOUBLE});
+
+        auto unfitted_numeric_result = unfitted_preprocessor.transform(df_unfitted_numeric_only);
+        Eigen::MatrixXd expected_mat_df_sorted(3, 2);        
+        expected_mat_df_sorted << 1.0, 4.0, 2.0, 5.0, 3.0, NAN_DOUBLE;
+        add_test("Preprocessor(unfitted): transform(df) returns original matrix", are_matrices_approx_equal(unfitted_numeric_result.first, expected_mat_df_sorted));
+        add_test("Preprocessor(unfitted): transform(df) returns original colnames", unfitted_numeric_result.second.size() == 2 && unfitted_numeric_result.second[0] == "num1" && unfitted_numeric_result.second[1] == "num2");
+
+        CppDataFrame df_unfitted_with_cat;
+        df_unfitted_with_cat.add_column("num", std::vector<double>{1.0});
+        df_unfitted_with_cat.add_column("cat", std::vector<std::string>{"a"});
+        bool thrown_unfitted_cat = false;
+        try
+        {
+            unfitted_preprocessor.transform(df_unfitted_with_cat);
+        }
+        catch (const std::runtime_error &e)
+        {
+            thrown_unfitted_cat = true;
+        }
+        add_test("Preprocessor(unfitted): transform(df) with non-numeric throws", thrown_unfitted_cat);
+
+        // Test with transform(Eigen::MatrixXd)
+        Eigen::MatrixXd mat_unfitted(2, 2);
+        mat_unfitted << 1.0, NAN_DOUBLE, 3.0, 4.0;
+        std::vector<std::string> names_unfitted = {"A", "B"};
+        auto unfitted_mat_result = unfitted_preprocessor.transform(mat_unfitted, names_unfitted);
+        add_test("Preprocessor(unfitted): transform(matrix) returns original colnames", unfitted_mat_result.second == names_unfitted);
     }
 
     void test_aplrregressor_huber()
@@ -2823,6 +3292,275 @@ public:
         add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.46597769437683995, 0.00001));
     }
 
+    void test_aplr_regressor_cppdataframe_overloads()
+    {
+        current_test_suite_name = "test_aplr_regressor_cppdataframe_overloads";
+
+        // Data
+        MatrixXd X_train_mat{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test_mat{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        // Create CppDataFrame from MatrixXd
+        CppDataFrame X_train_df = CppDataFrame::from_matrix(X_train_mat);
+        CppDataFrame X_test_df = CppDataFrame::from_matrix(X_test_mat);
+
+        // Model 1: Using MatrixXd (baseline)
+        APLRRegressor model_mat;
+        model_mat.m = 100; model_mat.v = 1.0; model_mat.bins = 10; model_mat.n_jobs = 1; model_mat.loss_function = "mse"; model_mat.verbosity = 2;
+        model_mat.fit(X_train_mat, y_train, sample_weight);
+        VectorXd predictions_mat = model_mat.predict(X_test_mat);
+        VectorXd feature_importance_mat = model_mat.calculate_feature_importance(X_test_mat);
+        VectorXd term_importance_mat = model_mat.calculate_term_importance(X_test_mat);
+        MatrixXd local_feature_contribution_mat = model_mat.calculate_local_feature_contribution(X_test_mat);
+        MatrixXd local_term_contribution_mat = model_mat.calculate_local_term_contribution(X_test_mat);
+        VectorXd local_contrib_selected_mat = model_mat.calculate_local_contribution_from_selected_terms(X_test_mat, {0, 1});
+        MatrixXd terms_mat = model_mat.calculate_terms(X_test_mat);
+
+        // Model 2: Using CppDataFrame
+        APLRRegressor model_df;
+        model_df.m = 100; model_df.v = 1.0; model_df.bins = 10; model_df.n_jobs = 1; model_df.loss_function = "mse"; model_df.verbosity = 2;
+        model_df.fit(X_train_df, y_train, sample_weight, {});
+        VectorXd predictions_df = model_df.predict(X_test_df);
+        VectorXd feature_importance_df = model_df.calculate_feature_importance(X_test_df);
+        VectorXd term_importance_df = model_df.calculate_term_importance(X_test_df);
+        MatrixXd local_feature_contribution_df = model_df.calculate_local_feature_contribution(X_test_df);
+        MatrixXd local_term_contribution_df = model_df.calculate_local_term_contribution(X_test_df);
+        VectorXd local_contrib_selected_df = model_df.calculate_local_contribution_from_selected_terms(X_test_df, {0, 1});
+        MatrixXd terms_df = model_df.calculate_terms(X_test_df);
+
+        add_test("APLRRegressor: predictions from CppDataFrame match MatrixXd", are_matrices_approx_equal(predictions_mat, predictions_df));
+        add_test("APLRRegressor: feature_importance from CppDataFrame match MatrixXd", are_matrices_approx_equal(feature_importance_mat, feature_importance_df));
+        add_test("APLRRegressor: term_importance from CppDataFrame match MatrixXd", are_matrices_approx_equal(term_importance_mat, term_importance_df));
+        add_test("APLRRegressor: local_feature_contribution from CppDataFrame match MatrixXd", are_matrices_approx_equal(local_feature_contribution_mat, local_feature_contribution_df));
+        add_test("APLRRegressor: local_term_contribution from CppDataFrame match MatrixXd", are_matrices_approx_equal(local_term_contribution_mat, local_term_contribution_df));
+        add_test("APLRRegressor: local_contribution_from_selected_terms from CppDataFrame match MatrixXd", are_matrices_approx_equal(local_contrib_selected_mat, local_contrib_selected_df));
+        add_test("APLRRegressor: calculate_terms from CppDataFrame match MatrixXd", are_matrices_approx_equal(terms_mat, terms_df));
+
+        // Test with preprocessing enabled
+        const size_t n_train = 100;
+        const size_t n_test = 50;
+
+        std::vector<double> num1_train(n_train), num2_train(n_train);
+        std::vector<double> num1_test(n_test), num2_test(n_test);
+        VectorXd y_train_nan(n_train);
+
+        for (size_t i = 0; i < n_train; ++i)
+        {
+            num1_train[i] = (i % 10 == 0) ? NAN_DOUBLE : static_cast<double>(i);
+            num2_train[i] = static_cast<double>(i * 2);
+            y_train_nan(i) = (std::isnan(num1_train[i]) ? 0.0 : num1_train[i]) + num2_train[i];
+        }
+
+        for (size_t i = 0; i < n_test; ++i)
+        {
+            num1_test[i] = (i % 5 == 0) ? NAN_DOUBLE : static_cast<double>(i);
+            num2_test[i] = (i % 7 == 0) ? NAN_DOUBLE : static_cast<double>(i * 3);
+        }
+
+        CppDataFrame X_train_df_nan;
+        X_train_df_nan.add_column("num1", std::move(num1_train));
+        X_train_df_nan.add_column("num2", std::move(num2_train));
+        CppDataFrame X_test_df_nan;
+        X_test_df_nan.add_column("num1", std::move(num1_test));
+        X_test_df_nan.add_column("num2", std::move(num2_test));
+        VectorXd sw_nan = VectorXd::Constant(n_train, 1.0);
+
+        APLRRegressor model_df_preproc;
+        model_df_preproc.m = 10; model_df_preproc.v = 1.0; model_df_preproc.bins = 2; model_df_preproc.n_jobs = 1; model_df_preproc.loss_function = "mse"; model_df_preproc.verbosity = 2;
+        model_df_preproc.preprocess = true;
+        model_df_preproc.fit(X_train_df_nan, y_train_nan, sw_nan, {});
+        VectorXd predictions_df_preproc = model_df_preproc.predict(X_test_df_nan);
+        add_test("APLRRegressor: predictions with preprocessing", predictions_df_preproc.size() == n_test);
+        add_test("APLRRegressor: preprocessor is fitted", model_df_preproc.preprocessor.is_fitted());
+        add_test("APLRRegressor: preprocessor transformed column names", model_df_preproc.preprocessor.get_transformed_column_names().size() == 3); // num1, num1_is_missing, num2
+    }
+
+    void test_aplr_classifier_cppdataframe_overloads()
+    {
+        current_test_suite_name = "test_aplr_classifier_cppdataframe_overloads";
+
+        // Data
+        MatrixXd X_train_mat{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test_mat{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train_logit{load_csv_into_eigen_matrix<MatrixXd>("data/y_train_logit.csv")};
+        VectorXd y_test_logit{load_csv_into_eigen_matrix<MatrixXd>("data/y_test_logit.csv")};
+        std::vector<std::string> y_train_str(y_train_logit.rows());
+        std::vector<std::string> y_test_str(y_test_logit.rows());
+        VectorXd sample_weight{VectorXd::Constant(y_train_logit.size(), 1.0)};
+
+        for (Eigen::Index i = 0; i < y_train_logit.size(); ++i)
+        {
+            y_train_str[i] = std::to_string(static_cast<int>(y_train_logit[i]));
+        }
+        for (Eigen::Index i = 0; i < y_test_logit.size(); ++i)
+        {
+            y_test_str[i] = std::to_string(static_cast<int>(y_test_logit[i]));
+        }
+
+        // Create CppDataFrame from MatrixXd
+        CppDataFrame X_train_df = CppDataFrame::from_matrix(X_train_mat);
+        CppDataFrame X_test_df = CppDataFrame::from_matrix(X_test_mat);
+
+        // Model 1: Using MatrixXd (baseline)
+        APLRClassifier model_mat;
+        model_mat.m = 100;
+        model_mat.v = 0.05;
+        model_mat.bins = 300;
+        model_mat.n_jobs = 0;
+        model_mat.verbosity = 2;
+        model_mat.fit(X_train_mat, y_train_str, sample_weight);
+        MatrixXd predicted_class_probabilities_mat = model_mat.predict_class_probabilities(X_test_mat);
+        std::vector<std::string> predictions_mat = model_mat.predict(X_test_mat);
+        MatrixXd local_feature_contribution_mat = model_mat.calculate_local_feature_contribution(X_test_mat);
+
+        // Model 2: Using CppDataFrame
+        APLRClassifier model_df;
+        model_df.m = 100;
+        model_df.v = 0.05;
+        model_df.bins = 300;
+        model_df.n_jobs = 0;
+        model_df.verbosity = 2;
+        model_df.fit(X_train_df, y_train_str, sample_weight, {});
+        MatrixXd predicted_class_probabilities_df = model_df.predict_class_probabilities(X_test_df);
+        std::vector<std::string> predictions_df = model_df.predict(X_test_df);
+        MatrixXd local_feature_contribution_df = model_df.calculate_local_feature_contribution(X_test_df);
+
+        add_test("APLRClassifier: predicted_class_probabilities from CppDataFrame match MatrixXd", are_matrices_approx_equal(predicted_class_probabilities_mat, predicted_class_probabilities_df));
+        add_test("APLRClassifier: predictions from CppDataFrame match MatrixXd", predictions_mat == predictions_df);
+        add_test("APLRClassifier: local_feature_contribution from CppDataFrame match MatrixXd", are_matrices_approx_equal(local_feature_contribution_mat, local_feature_contribution_df));
+    }
+
+    void test_preprocessor_combinations()
+    {
+        current_test_suite_name = "test_preprocessor_combinations";
+
+        // Data setup
+        const size_t n_train = 100;
+        const size_t n_test = 50;
+        const int n_num_features = 10;
+        const int n_cat_features = 5;
+
+        CppDataFrame X_train_df;
+        VectorXd y_train(n_train);
+        VectorXd sample_weight = VectorXd::Constant(n_train, 1.0);
+
+        // Generate training data
+        for (int i = 0; i < n_num_features; ++i)
+        {
+            std::vector<double> col(n_train);
+            for (size_t j = 0; j < n_train; ++j)
+            {
+                col[j] = (j % (i + 2) == 0) ? NAN_DOUBLE : static_cast<double>(j + i);
+            }
+            X_train_df.add_column("num_" + std::to_string(i), std::move(col));
+        }
+        for (int i = 0; i < n_cat_features; ++i)
+        {
+            std::vector<std::string> col(n_train);
+            for (size_t j = 0; j < n_train; ++j)
+            {
+                col[j] = "cat" + std::to_string(i) + "_" + std::to_string(j % 5);
+            }
+            X_train_df.add_column("cat_" + std::to_string(i), std::move(col));
+        }
+        for (size_t i = 0; i < n_train; ++i)
+        {
+            y_train(i) = static_cast<double>(i);
+        }
+
+        // Generate test data
+        CppDataFrame X_test_df;
+        for (int i = 0; i < n_num_features; ++i)
+        {
+            std::vector<double> col(n_test);
+            for (size_t j = 0; j < n_test; ++j)
+            {
+                col[j] = (j % (i + 3) == 0) ? NAN_DOUBLE : static_cast<double>(j + i);
+            }
+            X_test_df.add_column("num_" + std::to_string(i), std::move(col));
+        }
+        for (int i = 0; i < n_cat_features; ++i)
+        {
+            std::vector<std::string> col(n_test);
+            for (size_t j = 0; j < n_test; ++j)
+            {
+                col[j] = "cat" + std::to_string(i) + "_" + std::to_string(j % 6); // Introduce new categories
+            }
+            X_test_df.add_column("cat_" + std::to_string(i), std::move(col));
+        }
+
+        // Get MatrixXd representations
+        Preprocessor preprocessor_for_mat;
+        MatrixXd X_train_mat = preprocessor_for_mat.fit_transform(X_train_df, sample_weight).first;
+        MatrixXd X_test_mat = preprocessor_for_mat.transform(X_test_df).first;
+
+        // Calculate expected predictions for the preprocessed case
+        APLRRegressor model_for_expected_preds;
+        model_for_expected_preds.preprocess = true;
+        model_for_expected_preds.verbosity = 2;
+        model_for_expected_preds.fit(X_train_df, y_train, sample_weight);
+        VectorXd expected_preds_with_preproc = model_for_expected_preds.predict(X_test_df);
+
+        auto run_combination = [&](bool preprocess, bool fit_with_df, bool predict_with_df)
+        {
+            std::string test_name = "preprocess=" + std::to_string(preprocess) +
+                                    ", fit=" + (fit_with_df ? "df" : "mat") +
+                                    ", predict=" + (predict_with_df ? "df" : "mat");
+
+            APLRRegressor model;
+            model.preprocess = preprocess;
+            model.verbosity = 2;
+
+            bool threw = false;
+            try
+            {
+                if (fit_with_df)
+                {
+                    model.fit(X_train_df, y_train, sample_weight);
+                }
+                else
+                {
+                    model.fit(X_train_mat, y_train, sample_weight, X_train_df.get_column_names_in_order());
+                }
+
+                VectorXd predictions;
+                if (predict_with_df)
+                {
+                    predictions = model.predict(X_test_df);
+                }
+                else
+                {
+                    predictions = model.predict(X_test_mat);
+                }
+
+                if (preprocess)
+                {
+                    add_test(test_name, are_matrices_approx_equal(predictions, expected_preds_with_preproc));
+                }
+            }
+            catch (const std::runtime_error &e)
+            {
+                threw = true;
+            }
+
+            if (!preprocess && (fit_with_df || predict_with_df))
+            {
+                add_test(test_name + " (throws on df with non-numeric)", threw);
+            }
+        };
+
+        run_combination(true, true, true);   // df -> df
+        run_combination(true, true, false);  // df -> mat
+        run_combination(true, false, true);  // mat -> df
+        run_combination(true, false, false); // mat -> mat
+
+        run_combination(false, true, true);
+        run_combination(false, true, false);
+    }
+
     void test_aplrclassifier_two_class_ridge()
     {
         current_test_suite_name = "test_aplrclassifier_two_class_ridge";
@@ -3268,7 +4006,15 @@ int main()
     tests.test_aplrclassifier_two_class_max_terms();
     tests.test_aplrclassifier_two_class_predictor_min_observations_in_split();
     tests.test_aplrclassifier_two_class_ridge();
+    tests.test_aplr_regressor_cppdataframe_overloads();
+    tests.test_preprocessor_combinations();
+    tests.test_aplr_classifier_cppdataframe_overloads();
     tests.test_cv_results();
+    tests.test_preprocessor_unfitted_behavior();
+    tests.test_cpp_data_frame();
+    tests.test_median_imputer();
+    tests.test_one_hot_encoder();
+    tests.test_preprocessor();
     tests.test_functions();
     tests.test_term();
     tests.summarize_results();
