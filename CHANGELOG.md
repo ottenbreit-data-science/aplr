@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.20.1] - 2025-12-17
+
+### Fixed
+- **Backward Compatibility Regression:** Fixed a regression introduced in version `10.20.0` that caused an `AttributeError` when loading models saved with older versions of APLR.
+
 ## [10.20.0] - 2025-12-14
 
 ### Breaking Changes

@@ -612,6 +612,12 @@ class APLRRegressor:
 
     def __setstate__(self, state):
         # For backwards compatibility with older pickled models
+        if "ridge_penalty" not in state:
+            state["ridge_penalty"] = 0.0
+        if "mean_bias_correction" not in state:
+            state["mean_bias_correction"] = False
+        if "faster_convergence" not in state:
+            state["faster_convergence"] = False
         if "preprocess" not in state:
             state["preprocess"] = False
         self.__dict__.update(state)
@@ -870,6 +876,8 @@ class APLRClassifier:
 
     def __setstate__(self, state):
         # For backwards compatibility with older pickled models
+        if "ridge_penalty" not in state:
+            state["ridge_penalty"] = 0.0
         if "preprocess" not in state:
             state["preprocess"] = False
         self.__dict__.update(state)
