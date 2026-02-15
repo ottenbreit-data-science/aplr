@@ -6,7 +6,7 @@ APLR allows you to build predictive and interpretable regression or classificati
 
 ## Documentation
 **Resources:**
-- [Documentation](https://github.com/ottenbreit-data-science/aplr/tree/main/documentation)
+- [Presentation and guides](https://github.com/ottenbreit-data-science/aplr/tree/main/documentation)
 - [Examples](https://github.com/ottenbreit-data-science/aplr/tree/main/examples)
 - [Published Article](https://rdcu.be/dz7bF)
 - [Medium Article](https://medium.com/@ottenbreitdatascience/beyond-black-boxes-high-performance-regression-with-automatic-piecewise-linear-regression-aplr-550fe142160e)
