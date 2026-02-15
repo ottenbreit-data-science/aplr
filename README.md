@@ -4,7 +4,19 @@
 ## About
 APLR allows you to build predictive and interpretable regression or classification machine learning models in Python, using the Automatic Piecewise Linear Regression (APLR) methodology developed by Mathias von Ottenbreit. APLR often rivals tree-based methods in predictive accuracy, while offering smoother, more interpretable predictions. 
 
-For further details, see the [documentation](https://github.com/ottenbreit-data-science/aplr/tree/main/documentation). You may also read the published article for additional insights: [Link 1](https://link.springer.com/article/10.1007/s00180-024-01475-4) and [Link 2](https://rdcu.be/dz7bF). Additional functionality has been added since the article was published.
+## Documentation
+**Resources:**
+- [Documentation](https://github.com/ottenbreit-data-science/aplr/tree/main/documentation)
+- [Examples](https://github.com/ottenbreit-data-science/aplr/tree/main/examples)
+- [Published Article](https://rdcu.be/dz7bF)
+- [Medium Article](https://medium.com/@ottenbreitdatascience/beyond-black-boxes-high-performance-regression-with-automatic-piecewise-linear-regression-aplr-550fe142160e)
+
+*Note: APLR has been updated with additional functionality since the article was published.*
+
+**API Reference:**
+- [Regression](https://github.com/ottenbreit-data-science/aplr/blob/main/API_REFERENCE_FOR_REGRESSION.md)
+- [Classification](https://github.com/ottenbreit-data-science/aplr/blob/main/API_REFERENCE_FOR_CLASSIFICATION.md)
+- [Tuning](https://github.com/ottenbreit-data-science/aplr/blob/main/API_REFERENCE_FOR_APLR_TUNER.md)
 
 ## Installation
 To install APLR, use the following command:
@@ -22,15 +34,13 @@ pip install aplr[plots]
 ## Availability
 APLR is available for Windows, most Linux distributions, and macOS.
 
-## Usage
-Example Python scripts are available [here](https://github.com/ottenbreit-data-science/aplr/tree/main/examples).
-
 ## Sponsorship
 Consider sponsoring Von Ottenbreit Data Science by clicking the **Sponsor** button on the repository. Sufficient funding will help maintain and further develop APLR.
 
-## API Reference
-- [API reference for regression](https://github.com/ottenbreit-data-science/aplr/blob/main/API_REFERENCE_FOR_REGRESSION.md)
-- [API reference for classification](https://github.com/ottenbreit-data-science/aplr/blob/main/API_REFERENCE_FOR_CLASSIFICATION.md)
-
 ## Contact Information
 For inquiries, please email: [ottenbreitdatascience@gmail.com](mailto:ottenbreitdatascience@gmail.com)
+
+## Citation
+If you use APLR in your research, please cite the published article:
+
+> von Ottenbreit, M., De Bin, R. Automatic piecewise linear regression. *Comput Stat* 39, 1867–1907 (2024). https://doi.org/10.1007/s00180-024-01475-4
