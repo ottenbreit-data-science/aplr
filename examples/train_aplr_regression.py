@@ -10,6 +10,7 @@ from aplr import APLRRegressor
 
 # Settings
 random_state = 0
+validation_ratio = 0.2  # Set to np.nan to use cross-validation during hyperparameter tuning (slower but more accurate)
 
 # Loading data
 diabetes = load_diabetes()
@@ -49,6 +50,7 @@ for params in param_grid:
         validation_tuning_metric="mse",
         num_first_steps_with_linear_effects_only=0,  # Increasing this will increase interpretabilty but may decrease predictiveness.
         boosting_steps_before_interactions_are_allowed=0,  # Increasing this will increase interpretabilty but may decrease predictivenes.
+        validation_ratio=validation_ratio,
         **params,
     )
     model.fit(data_train[predictors], data_train[response].values)
@@ -59,6 +61,12 @@ for params in param_grid:
     if cv_error_for_this_model < best_validation_result:
         best_validation_result = cv_error_for_this_model
         best_model = model
+
+if not np.isnan(validation_ratio):
+    print("Refitting the best model with cross-validation...")
+    best_model.set_params(validation_ratio=np.nan)
+    best_model.fit(data_train[predictors], data_train[response].values)
+
 print("Done training")
 
 # Saving model

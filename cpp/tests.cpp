@@ -346,7 +346,7 @@ public:
         Preprocessor preprocessor3;
         CppDataFrame df3;
         df3.add_column("cat1", std::vector<std::string>{"a", "b", "a"});
-        df3.add_column("cat2", std::vector<std::string>{"x", "x", "y"});        
+        df3.add_column("cat2", std::vector<std::string>{"x", "x", "y"});
         Eigen::VectorXd weights3 = Eigen::VectorXd::Constant(3, 1.0);
         preprocessor3.fit(df3, weights3);
         auto result3 = preprocessor3.transform(df3);
@@ -531,7 +531,7 @@ public:
         df_unfitted_numeric_only.add_column("num2", std::vector<double>{4.0, 5.0, NAN_DOUBLE});
 
         auto unfitted_numeric_result = unfitted_preprocessor.transform(df_unfitted_numeric_only);
-        Eigen::MatrixXd expected_mat_df_sorted(3, 2);        
+        Eigen::MatrixXd expected_mat_df_sorted(3, 2);
         expected_mat_df_sorted << 1.0, 4.0, 2.0, 5.0, 3.0, NAN_DOUBLE;
         add_test("Preprocessor(unfitted): transform(df) returns original matrix", are_matrices_approx_equal(unfitted_numeric_result.first, expected_mat_df_sorted));
         add_test("Preprocessor(unfitted): transform(df) returns original colnames", unfitted_numeric_result.second.size() == 2 && unfitted_numeric_result.second[0] == "num1" && unfitted_numeric_result.second[1] == "num2");
@@ -1653,6 +1653,63 @@ public:
         std::cout << predictions.mean() << "\n\n";
         add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.555068816303912));
         add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 7.5399664045598414));
+    }
+
+    void test_aplrregressor_gamma_validation_ratio()
+    {
+        current_test_suite_name = "test_aplrregressor_gamma";
+        // Model
+        APLRRegressor model{APLRRegressor()};
+        model.m = 100;
+        model.v = 0.1;
+        model.bins = 300;
+        model.n_jobs = 0;
+        model.loss_function = "gamma";
+        model.link_function = "log";
+        model.verbosity = 3;
+        model.max_interaction_level = 0;
+        model.max_interactions = 1000;
+        model.min_observations_in_split = 20;
+        model.ineligible_boosting_steps_added = 10;
+        model.max_eligible_terms = 5;
+        model.validation_tuning_metric = "mse";
+        model.ridge_penalty = 0.0;
+        model.validation_ratio = 0.2;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test.csv")};
+
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
+
+        // Fitting
+        // model.fit(X_train,y_train);
+        model.fit(X_train, y_train, sample_weight);
+        // model.fit(X_train,y_train,sample_weight,{},cv_observations);
+        std::cout << "feature importance\n"
+                  << model.feature_importance << "\n\n";
+
+        VectorXd predictions{model.predict(X_test)};
+
+        // Saving results
+        save_as_csv_file("data/output.csv", predictions);
+
+        std::cout << predictions.mean() << "\n\n";
+        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.650292611049451));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 8.0585654382602527));
     }
 
     void test_aplrregressor_group_mse()
@@ -3006,6 +3063,77 @@ public:
         add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.22620950269183793, 0.00001));
     }
 
+    void test_aplrclassifier_two_class_validation_ratio()
+    {
+        current_test_suite_name = "test_aplrclassifier_two_class";
+        // Model
+        APLRClassifier model{APLRClassifier()};
+        model.m = 100;
+        model.v = 0.05;
+        model.bins = 300;
+        model.n_jobs = 0;
+        model.verbosity = 3;
+        model.max_interaction_level = 0;
+        model.max_interactions = 1000;
+        model.min_observations_in_split = 20;
+        model.ineligible_boosting_steps_added = 10;
+        model.max_eligible_terms = 5;
+        model.ridge_penalty = 0.0;
+        model.validation_ratio = 0.2;
+
+        // Data
+        MatrixXd X_train{load_csv_into_eigen_matrix<MatrixXd>("data/X_train.csv")};
+        MatrixXd X_test{load_csv_into_eigen_matrix<MatrixXd>("data/X_test.csv")};
+        VectorXd y_train{load_csv_into_eigen_matrix<MatrixXd>("data/y_train_logit.csv")};
+        VectorXd y_test{load_csv_into_eigen_matrix<MatrixXd>("data/y_test_logit.csv")};
+        std::vector<std::string> y_train_str(y_train.rows());
+        std::vector<std::string> y_test_str(y_test.rows());
+        VectorXd sample_weight{VectorXd::Constant(y_train.size(), 1.0)};
+
+        for (Eigen::Index i = 0; i < y_train.size(); ++i)
+        {
+            y_train_str[i] = std::to_string(y_train[i]);
+        }
+        for (Eigen::Index i = 0; i < y_test.size(); ++i)
+        {
+            y_test_str[i] = std::to_string(y_test[i]);
+        }
+
+        MatrixXi cv_observations = MatrixXi::Constant(y_train.rows(), 2, 1);
+        cv_observations.col(0)[273] = -1;
+        cv_observations.col(0)[272] = -1;
+        cv_observations.col(0)[271] = -1;
+        cv_observations.col(0)[270] = -1;
+        cv_observations.col(0)[269] = -1;
+        cv_observations.col(0)[268] = -1;
+        cv_observations.col(0)[267] = -1;
+        cv_observations.col(0)[266] = -1;
+        cv_observations.col(1) = -cv_observations.col(0);
+
+        // Fitting
+        // model.fit(X_train,y_train_str);
+        model.fit(X_train, y_train_str, sample_weight);
+        model.fit(X_train, y_train_str, sample_weight);
+        // model.fit(X_train, y_train_str, sample_weight, {}, cv_observations);
+        MatrixXd predicted_class_probabilities{model.predict_class_probabilities(X_test, false)};
+        std::vector<std::string> predictions{model.predict(X_test, false)};
+        MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
+        // MatrixXd lfc_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
+
+        std::cout << "cv_error\n"
+                  << model.get_cv_error() << "\n\n";
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.12839603257570481));
+
+        std::cout << "predicted_class_prob_mean\n"
+                  << predicted_class_probabilities.mean() << "\n\n";
+        add_test("predicted_class_probabilities.mean()", is_approximately_equal(predicted_class_probabilities.mean(), 0.5, 0.00001));
+
+        std::cout << "local_feature_importance_mean\n"
+                  << local_feature_contribution.mean() << "\n\n";
+        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.29296429278474267));
+    }
+
     void test_aplrclassifier_two_class_penalties()
     {
         current_test_suite_name = "test_aplrclassifier_two_class_penalties";
@@ -3309,7 +3437,12 @@ public:
 
         // Model 1: Using MatrixXd (baseline)
         APLRRegressor model_mat;
-        model_mat.m = 100; model_mat.v = 1.0; model_mat.bins = 10; model_mat.n_jobs = 1; model_mat.loss_function = "mse"; model_mat.verbosity = 2;
+        model_mat.m = 100;
+        model_mat.v = 1.0;
+        model_mat.bins = 10;
+        model_mat.n_jobs = 1;
+        model_mat.loss_function = "mse";
+        model_mat.verbosity = 2;
         model_mat.fit(X_train_mat, y_train, sample_weight);
         VectorXd predictions_mat = model_mat.predict(X_test_mat);
         VectorXd feature_importance_mat = model_mat.calculate_feature_importance(X_test_mat);
@@ -3321,7 +3454,12 @@ public:
 
         // Model 2: Using CppDataFrame
         APLRRegressor model_df;
-        model_df.m = 100; model_df.v = 1.0; model_df.bins = 10; model_df.n_jobs = 1; model_df.loss_function = "mse"; model_df.verbosity = 2;
+        model_df.m = 100;
+        model_df.v = 1.0;
+        model_df.bins = 10;
+        model_df.n_jobs = 1;
+        model_df.loss_function = "mse";
+        model_df.verbosity = 2;
         model_df.fit(X_train_df, y_train, sample_weight, {});
         VectorXd predictions_df = model_df.predict(X_test_df);
         VectorXd feature_importance_df = model_df.calculate_feature_importance(X_test_df);
@@ -3369,7 +3507,12 @@ public:
         VectorXd sw_nan = VectorXd::Constant(n_train, 1.0);
 
         APLRRegressor model_df_preproc;
-        model_df_preproc.m = 10; model_df_preproc.v = 1.0; model_df_preproc.bins = 2; model_df_preproc.n_jobs = 1; model_df_preproc.loss_function = "mse"; model_df_preproc.verbosity = 2;
+        model_df_preproc.m = 10;
+        model_df_preproc.v = 1.0;
+        model_df_preproc.bins = 2;
+        model_df_preproc.n_jobs = 1;
+        model_df_preproc.loss_function = "mse";
+        model_df_preproc.verbosity = 2;
         model_df_preproc.preprocess = true;
         model_df_preproc.fit(X_train_df_nan, y_train_nan, sw_nan, {});
         VectorXd predictions_df_preproc = model_df_preproc.predict(X_test_df_nan);
@@ -3977,6 +4120,7 @@ int main()
     tests.test_aplrregressor_gamma_gini_weighted();
     tests.test_aplrregressor_gamma_gini();
     tests.test_aplrregressor_gamma();
+    tests.test_aplrregressor_gamma_validation_ratio();
     tests.test_aplrregressor_group_mse();
     tests.test_aplrregressor_group_mse_cycle();
     tests.test_aplrregressor_int_constr();
@@ -4001,6 +4145,7 @@ int main()
     tests.test_aplrclassifier_two_class_other_params();
     tests.test_aplrclassifier_two_class_val_index();
     tests.test_aplrclassifier_two_class();
+    tests.test_aplrclassifier_two_class_validation_ratio();
     tests.test_aplrclassifier_two_class_penalties();
     tests.test_aplrclassifier_two_class_predictor_specific_penalties_and_learning_rates();
     tests.test_aplrclassifier_two_class_max_terms();

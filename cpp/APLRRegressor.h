@@ -268,6 +268,7 @@ public:
     bool faster_convergence;
     Preprocessor preprocessor;
     bool preprocess;
+    double validation_ratio;
 
     std::vector<VectorXd> cv_validation_predictions_all_folds;
     std::vector<VectorXd> cv_y_all_folds;
@@ -287,7 +288,7 @@ public:
                   size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
                   size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30, size_t early_stopping_rounds = 200,
                   size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0, double penalty_for_interactions = 0.0, size_t max_terms = 0,
-                  double ridge_penalty = 0.0001, bool mean_bias_correction = false, bool faster_convergence = false, bool preprocess = true);
+                  double ridge_penalty = 0.0001, bool mean_bias_correction = false, bool faster_convergence = false, bool preprocess = true, double validation_ratio = std::numeric_limits<double>::quiet_NaN());
     APLRRegressor(const APLRRegressor &other);
     APLRRegressor &operator=(const APLRRegressor &other);
     ~APLRRegressor();
@@ -378,7 +379,7 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
                              size_t group_mse_by_prediction_bins, size_t group_mse_cycle_min_obs_in_bin, size_t early_stopping_rounds,
                              size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity, double penalty_for_interactions, size_t max_terms, double ridge_penalty,
-                             bool mean_bias_correction, bool faster_convergence, bool preprocess)
+                             bool mean_bias_correction, bool faster_convergence, bool preprocess, double validation_ratio)
     : intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, cv_folds{cv_folds}, n_jobs{n_jobs}, random_state{random_state},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
@@ -396,7 +397,7 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
       group_mse_cycle_min_obs_in_bin{group_mse_cycle_min_obs_in_bin}, cv_error{NAN_DOUBLE}, early_stopping_rounds{early_stopping_rounds},
       num_first_steps_with_linear_effects_only{num_first_steps_with_linear_effects_only}, penalty_for_non_linearity{penalty_for_non_linearity},
       penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}, ridge_penalty{ridge_penalty}, mean_bias_correction{mean_bias_correction},
-      faster_convergence{faster_convergence}, preprocess{preprocess}
+      faster_convergence{faster_convergence}, preprocess{preprocess}, validation_ratio{validation_ratio}
 {
 }
 
@@ -433,7 +434,7 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       cv_validation_predictions_all_folds{other.cv_validation_predictions_all_folds},
       cv_y_all_folds{other.cv_y_all_folds}, cv_sample_weight_all_folds{other.cv_sample_weight_all_folds},
       cv_validation_indexes_all_folds{other.cv_validation_indexes_all_folds},
-      preprocessor{other.preprocessor}, preprocess{other.preprocess}
+      preprocessor{other.preprocessor}, preprocess{other.preprocess}, validation_ratio{other.validation_ratio}
 {
 }
 
@@ -506,6 +507,7 @@ APLRRegressor &APLRRegressor::operator=(const APLRRegressor &other)
     cv_validation_indexes_all_folds = other.cv_validation_indexes_all_folds;
     preprocessor = other.preprocessor;
     preprocess = other.preprocess;
+    validation_ratio = other.validation_ratio;
 
     thread_pool.reset();
 
@@ -1028,29 +1030,53 @@ MatrixXi APLRRegressor::preprocess_cv_observations(const MatrixXi &cv_observatio
     MatrixXi output{MatrixXi(0, 0)};
     if (cv_observations_not_provided)
     {
-        bool invalid_cv_folds{cv_folds < 2};
-        if (invalid_cv_folds)
-            throw std::runtime_error("cv_folds must be at least 2.");
-        output = MatrixXi::Constant(y.rows(), cv_folds, 1);
-        VectorXd cv_fold{VectorXd(y.rows())};
-        std::mt19937 mersenne{random_state};
-        std::uniform_int_distribution<int> distribution(0, cv_folds - 1);
-        for (Eigen::Index i = 0; i < y.size(); ++i)
+        std::string error_message_start{"Did not generate enough observations for training or validation. Please try again with a different random_state and/or change "};
+        if (!std::isnan(validation_ratio))
         {
-            int roll{distribution(mersenne)};
-            cv_fold[i] = roll;
-        }
-        for (Eigen::Index i = 0; i < cv_fold.size(); ++i)
-        {
+            if (validation_ratio <= 0.0 || validation_ratio >= 1.0)
+                throw std::runtime_error("validation_ratio must be strictly between 0.0 and 1.0.");
 
-            output.col(cv_fold[i])[i] = -1;
-        }
-        for (Eigen::Index i = 0; i < output.cols(); ++i)
-        {
-            Eigen::Index rows_with_ones{(output.col(i).array() == 1).count()};
-            Eigen::Index rows_with_minus_ones{(output.col(i).array() == -1).count()};
+            output = MatrixXi::Constant(y.rows(), 1, 1);
+            std::mt19937 mersenne{random_state};
+            std::uniform_real_distribution<double> distribution(0.0, 1.0);
+
+            for (Eigen::Index i = 0; i < y.size(); ++i)
+            {
+                if (distribution(mersenne) < validation_ratio)
+                    output(i, 0) = -1;
+            }
+
+            Eigen::Index rows_with_ones{(output.col(0).array() == 1).count()};
+            Eigen::Index rows_with_minus_ones{(output.col(0).array() == -1).count()};
             if (rows_with_ones < MIN_OBSERATIONS_IN_A_CV_FOLD || rows_with_minus_ones < MIN_OBSERATIONS_IN_A_CV_FOLD)
-                throw std::runtime_error("Did not generate enough observations in a fold. Please try again with a different random_state and/or change cv_folds.");
+                throw std::runtime_error(error_message_start + "validation_ratio.");
+        }
+        else
+        {
+            bool invalid_cv_folds{cv_folds < 2};
+            if (invalid_cv_folds)
+                throw std::runtime_error("cv_folds must be at least 2.");
+            output = MatrixXi::Constant(y.rows(), cv_folds, 1);
+            VectorXd cv_fold{VectorXd(y.rows())};
+            std::mt19937 mersenne{random_state};
+            std::uniform_int_distribution<int> distribution(0, cv_folds - 1);
+            for (Eigen::Index i = 0; i < y.size(); ++i)
+            {
+                int roll{distribution(mersenne)};
+                cv_fold[i] = roll;
+            }
+            for (Eigen::Index i = 0; i < cv_fold.size(); ++i)
+            {
+
+                output.col(cv_fold[i])[i] = -1;
+            }
+            for (Eigen::Index i = 0; i < output.cols(); ++i)
+            {
+                Eigen::Index rows_with_ones{(output.col(i).array() == 1).count()};
+                Eigen::Index rows_with_minus_ones{(output.col(i).array() == -1).count()};
+                if (rows_with_ones < MIN_OBSERATIONS_IN_A_CV_FOLD || rows_with_minus_ones < MIN_OBSERATIONS_IN_A_CV_FOLD)
+                    throw std::runtime_error(error_message_start + "cv_folds.");
+            }
         }
     }
     else

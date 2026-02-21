@@ -129,6 +129,7 @@ class APLRRegressor:
         mean_bias_correction: bool = False,
         faster_convergence: bool = False,
         preprocess: bool = True,
+        validation_ratio: float = np.nan,
     ):
         self.m = m
         self.v = v
@@ -179,6 +180,7 @@ class APLRRegressor:
         self.mean_bias_correction = mean_bias_correction
         self.faster_convergence = faster_convergence
         self.preprocess = preprocess
+        self.validation_ratio = validation_ratio
 
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
@@ -243,6 +245,7 @@ class APLRRegressor:
         self.APLRRegressor.mean_bias_correction = self.mean_bias_correction
         self.APLRRegressor.faster_convergence = self.faster_convergence
         self.APLRRegressor.preprocess = self.preprocess
+        self.APLRRegressor.validation_ratio = self.validation_ratio
 
     def fit(
         self,
@@ -601,6 +604,7 @@ class APLRRegressor:
             "mean_bias_correction": self.mean_bias_correction,
             "faster_convergence": self.faster_convergence,
             "preprocess": self.preprocess,
+            "validation_ratio": self.validation_ratio,
         }
 
     # For sklearn
@@ -620,6 +624,8 @@ class APLRRegressor:
             state["faster_convergence"] = False
         if "preprocess" not in state:
             state["preprocess"] = False
+        if "validation_ratio" not in state:
+            state["validation_ratio"] = np.nan
         self.__dict__.update(state)
         self.__set_params_cpp()
 
@@ -648,6 +654,7 @@ class APLRClassifier:
         max_terms: int = 0,
         ridge_penalty: float = 0.0001,
         preprocess: bool = True,
+        validation_ratio: float = np.nan,
     ):
         self.m = m
         self.v = v
@@ -676,6 +683,7 @@ class APLRClassifier:
         self.max_terms = max_terms
         self.ridge_penalty = ridge_penalty
         self.preprocess = preprocess
+        self.validation_ratio = validation_ratio
 
         # Creating aplr_cpp and setting parameters
         self.APLRClassifier = aplr_cpp.APLRClassifier()
@@ -712,6 +720,7 @@ class APLRClassifier:
         self.APLRClassifier.max_terms = self.max_terms
         self.APLRClassifier.ridge_penalty = self.ridge_penalty
         self.APLRClassifier.preprocess = self.preprocess
+        self.APLRClassifier.validation_ratio = self.validation_ratio
 
     def fit(
         self,
@@ -810,6 +819,7 @@ class APLRClassifier:
             max_terms=self.max_terms,
             ridge_penalty=self.ridge_penalty,
             preprocess=self.preprocess,
+            validation_ratio=self.validation_ratio,
         )
 
         logit_model_py.APLRRegressor = logit_model_cpp
@@ -861,6 +871,7 @@ class APLRClassifier:
             "max_terms": self.max_terms,
             "ridge_penalty": self.ridge_penalty,
             "preprocess": self.preprocess,
+            "validation_ratio": self.validation_ratio,
         }
 
     # For sklearn
@@ -880,6 +891,8 @@ class APLRClassifier:
             state["ridge_penalty"] = 0.0
         if "preprocess" not in state:
             state["preprocess"] = False
+        if "validation_ratio" not in state:
+            state["validation_ratio"] = np.nan
         self.__dict__.update(state)
         self.__set_params_cpp()
 

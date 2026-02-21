@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.21.0] - 2026-02-21
+
+### Added
+- **`validation_ratio` Parameter:** Added `validation_ratio` to the constructor of `APLRRegressor` and `APLRClassifier`. This parameter specifies the ratio of training observations used for validation. When specified, `cv_folds` is ignored. This is useful for speeding up hyperparameter tuning.
+
+### Documentation
+- **Updated Examples:** Examples have been updated to use `validation_ratio` for hyperparameter tuning by default, with an option to switch back to cross-validation.
+- **API Reference:** Updated documentation to reflect the new `validation_ratio` parameter.
+- **README:** Restructured the README to improve navigation. Added a dedicated "Documentation" section consolidating resources, examples, and API references. Added a "Citation" section for the published article.
+
 ## [10.20.1] - 2025-12-17
 
 ### Fixed

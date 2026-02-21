@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int = 3000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 4, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 200, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0, ridge_penalty: float = 0.0001, preprocess:bool = True)
+## class aplr.APLRClassifier(m:int = 3000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 4, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 200, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0, ridge_penalty: float = 0.0001, preprocess:bool = True, validation_ratio:float = np.nan)
 
 ### Constructor parameters
 
@@ -17,7 +17,7 @@ Used to randomly split training observations into cv_folds if ***cv_observations
 Multi-threading parameter. If ***0*** then uses all available cores for multi-threading. Any other positive integer specifies the number of cores to use (***1*** means single-threading).
 
 #### cv_folds (default = 5)
-The number of randomly split folds to use in cross validation. The number of boosting steps is automatically tuned to minimize cross validation error.
+The number of randomly split folds to use in cross validation. The number of boosting steps is automatically tuned to minimize cross validation error. This parameter is ignored if ***validation_ratio*** is specified.
 
 #### bins (default = 300)
 Specifies the maximum number of bins to discretize the data into when searching for the best split. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs. Must be greater than 1.
@@ -67,6 +67,9 @@ Specifies the (weighted) ridge penalty applied to the model. Positive values can
 #### preprocess (default = True)
 Controls whether automatic data preprocessing is enabled. If `True`, the model will automatically handle missing values (imputation) and one-hot encode categorical features for `pandas.DataFrame` inputs. If `False`, no preprocessing is performed, and the input `X` must be a purely numeric `numpy.ndarray` or `pandas.DataFrame`. This provides more control for users who prefer to manage their own preprocessing pipelines and can result in performance gains and a lower memory footprint.
 
+#### validation_ratio (default = NaN)
+The ratio of training observations used for validation. Must be strictly between 0.0 and 1.0. If this is specified then ***cv_folds*** is not used. This can be useful to speed up hyperparameter tuning, training the final model by using ***cv_folds*** instead.
+
 
 ## Method: fit(X:Union[pd.DataFrame, FloatMatrix], y:Union[FloatVector, List[str]], sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], interaction_constraints:List[List[int]] = [], predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [], predictor_min_observations_in_split: List[int] = [])
 
@@ -86,7 +89,7 @@ An optional numpy vector with sample weights. If not specified then the observat
 An optional list of strings containing names for each predictor in ***X***. Naming predictors may increase model readability because model terms get names based on ***X_names***. **Note:** This parameter is ignored if ***X*** is a pandas DataFrame; the DataFrame's column names will be used instead.
 
 #### cv_observations
-An optional integer matrix specifying how each training observation is used in cross validation. If this is specified then ***cv_folds*** is not used. Specifying ***cv_observations*** may be useful for example when modelling time series data (you can place more recent observations in the holdout folds). ***cv_observations*** must contain a column for each desired fold combination. For a given column, row values equalling 1 specify that these rows will be used for training, while row values equalling -1 specify that these rows will be used for validation. Row values equalling 0 will not be used.
+An optional integer matrix specifying how each training observation is used in cross validation. If this is specified then ***cv_folds*** and ***validation_ratio*** are not used. Specifying ***cv_observations*** may be useful for example when modelling time series data (you can place more recent observations in the holdout folds). ***cv_observations*** must contain a column for each desired fold combination. For a given column, row values equalling 1 specify that these rows will be used for training, while row values equalling -1 specify that these rows will be used for validation. Row values equalling 0 will not be used.
 
 #### prioritized_predictors_indexes
 An optional list of integers specifying the indexes of predictors (columns) in ***X*** that should be prioritized. Terms of the prioritized predictors will enter the model as long as they reduce the training error and do not contain too few effective observations. They will also be updated more often.

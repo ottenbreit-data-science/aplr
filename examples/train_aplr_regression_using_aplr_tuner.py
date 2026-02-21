@@ -10,6 +10,7 @@ from aplr import APLRTuner
 
 # Settings
 random_state = 0
+validation_ratio = 0.2  # Set to np.nan to use cross-validation during hyperparameter tuning (slower but more accurate)
 
 # Loading data
 diabetes = load_diabetes()
@@ -45,10 +46,17 @@ parameters = {
     "boosting_steps_before_interactions_are_allowed": [
         0
     ],  # Increasing boosting_steps_before_interactions_are_allowed will increase interpretabilty but may decrease predictiveness.
+    "validation_ratio": [validation_ratio],
 }
 aplr_tuner = APLRTuner(parameters=parameters, is_regressor=True)
 aplr_tuner.fit(X=data_train[predictors], y=data_train[response].values)
 best_model = aplr_tuner.get_best_estimator()
+
+if not np.isnan(validation_ratio):
+    print("Refitting the best model with cross-validation...")
+    best_model.set_params(validation_ratio=np.nan)
+    best_model.fit(X=data_train[predictors], y=data_train[response].values)
+
 cv_results = pd.DataFrame(aplr_tuner.get_cv_results())
 print("Done training")
 
