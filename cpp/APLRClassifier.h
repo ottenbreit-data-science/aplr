@@ -36,7 +36,7 @@ public:
     size_t verbosity;
     size_t max_interaction_level;
     size_t max_interactions;
-    size_t min_observations_in_split;
+    double min_observations_in_split;
     size_t ineligible_boosting_steps_added;
     size_t max_eligible_terms;
     MatrixXi cv_observations;
@@ -62,7 +62,7 @@ public:
 
     APLRClassifier(size_t m = 3000, double v = 0.5, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), size_t n_jobs = 0,
                    size_t cv_folds = 5, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1,
-                   size_t max_interactions = 100000, size_t min_observations_in_split = 4, size_t ineligible_boosting_steps_added = 15, size_t max_eligible_terms = 7,
+                   size_t max_interactions = 100000, double min_observations_in_split = 0.3, size_t ineligible_boosting_steps_added = 15, size_t max_eligible_terms = 7,
                    size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
                    size_t early_stopping_rounds = 200, size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0,
                    double penalty_for_interactions = 0.0, size_t max_terms = 0, double ridge_penalty = 0.0001, bool preprocess = true, double validation_ratio = std::numeric_limits<double>::quiet_NaN());
@@ -74,19 +74,19 @@ public:
                       const std::vector<std::vector<size_t>> &interaction_constraints = {}, const std::vector<double> &predictor_learning_rates = {},
                       const std::vector<double> &predictor_penalties_for_non_linearity = {},
                       const std::vector<double> &predictor_penalties_for_interactions = {},
-                      const std::vector<size_t> &predictor_min_observations_in_split = {});
+                      const std::vector<double> &predictor_min_observations_in_split = {});
     void fit(const MatrixXd &X, const std::vector<std::string> &y, const VectorXd &sample_weight = VectorXd(0),
              const std::vector<std::string> &X_names = {}, const MatrixXi &cv_observations = MatrixXi(0, 0),
              const std::vector<size_t> &prioritized_predictors_indexes = {}, const std::vector<int> &monotonic_constraints = {},
              const std::vector<std::vector<size_t>> &interaction_constraints = {}, const std::vector<double> &predictor_learning_rates = {},
              const std::vector<double> &predictor_penalties_for_non_linearity = {},
              const std::vector<double> &predictor_penalties_for_interactions = {},
-             const std::vector<size_t> &predictor_min_observations_in_split = {});
+             const std::vector<double> &predictor_min_observations_in_split = {});
     void fit(const CppDataFrame &X_df, const std::vector<std::string> &y, const VectorXd &sample_weight = VectorXd(0), const std::vector<std::string> &X_names = {},
              const MatrixXi &cv_observations = MatrixXi(0, 0), const std::vector<size_t> &prioritized_predictors_indexes = {},
              const std::vector<int> &monotonic_constraints = {}, const std::vector<std::vector<size_t>> &interaction_constraints = {},
              const std::vector<double> &predictor_learning_rates = {}, const std::vector<double> &predictor_penalties_for_non_linearity = {},
-             const std::vector<double> &predictor_penalties_for_interactions = {}, const std::vector<size_t> &predictor_min_observations_in_split = {});
+             const std::vector<double> &predictor_penalties_for_interactions = {}, const std::vector<double> &predictor_min_observations_in_split = {});
     MatrixXd predict_class_probabilities(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = false);
     MatrixXd predict_class_probabilities_internal(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = false);
     std::vector<std::string> predict(const MatrixXd &X, bool cap_predictions_to_minmax_in_training = false);
@@ -108,7 +108,7 @@ public:
 
 APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, size_t n_jobs, size_t cv_folds,
                                size_t bins, size_t verbosity, size_t max_interaction_level, size_t max_interactions,
-                               size_t min_observations_in_split, size_t ineligible_boosting_steps_added, size_t max_eligible_terms,
+                               double min_observations_in_split, size_t ineligible_boosting_steps_added, size_t max_eligible_terms,
                                size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
                                size_t early_stopping_rounds, size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity,
                                double penalty_for_interactions, size_t max_terms, double ridge_penalty, bool preprocess, double validation_ratio)
@@ -154,7 +154,7 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
                          const std::vector<int> &monotonic_constraints, const std::vector<std::vector<size_t>> &interaction_constraints,
                          const std::vector<double> &predictor_learning_rates, const std::vector<double> &predictor_penalties_for_non_linearity,
                          const std::vector<double> &predictor_penalties_for_interactions,
-                         const std::vector<size_t> &predictor_min_observations_in_split)
+                         const std::vector<double> &predictor_min_observations_in_split)
 {
     if (preprocess)
     {
@@ -171,7 +171,7 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
 }
 
 void APLRClassifier::fit_internal(const MatrixXd &X, const std::vector<std::string> &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
-                                  const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints, const std::vector<std::vector<size_t>> &interaction_constraints, const std::vector<double> &predictor_learning_rates, const std::vector<double> &predictor_penalties_for_non_linearity, const std::vector<double> &predictor_penalties_for_interactions, const std::vector<size_t> &predictor_min_observations_in_split)
+                                  const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints, const std::vector<std::vector<size_t>> &interaction_constraints, const std::vector<double> &predictor_learning_rates, const std::vector<double> &predictor_penalties_for_non_linearity, const std::vector<double> &predictor_penalties_for_interactions, const std::vector<double> &predictor_min_observations_in_split)
 {
     initialize();
     find_categories(y);
@@ -236,7 +236,7 @@ void APLRClassifier::fit(const CppDataFrame &X_df, const std::vector<std::string
                          const std::vector<int> &monotonic_constraints, const std::vector<std::vector<size_t>> &interaction_constraints,
                          const std::vector<double> &predictor_learning_rates, const std::vector<double> &predictor_penalties_for_non_linearity,
                          const std::vector<double> &predictor_penalties_for_interactions,
-                         const std::vector<size_t> &predictor_min_observations_in_split)
+                         const std::vector<double> &predictor_min_observations_in_split)
 {
     std::pair<MatrixXd, std::vector<std::string>> preprocessed_data = preprocess ? preprocessor.fit_transform(X_df, sample_weight) : X_df.to_matrix();
     MatrixXd X = preprocessed_data.first;

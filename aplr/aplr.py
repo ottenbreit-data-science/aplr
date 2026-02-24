@@ -1,4 +1,5 @@
 from typing import List, Callable, Optional, Dict, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 import aplr_cpp
@@ -73,7 +74,7 @@ class APLRRegressor:
         bins: int = 300,
         max_interaction_level: int = 1,
         max_interactions: int = 100000,
-        min_observations_in_split: int = 4,
+        min_observations_in_split: float = 0.3,
         ineligible_boosting_steps_added: int = 15,
         max_eligible_terms: int = 7,
         verbosity: int = 0,
@@ -262,7 +263,7 @@ class APLRRegressor:
         predictor_learning_rates: List[float] = [],
         predictor_penalties_for_non_linearity: List[float] = [],
         predictor_penalties_for_interactions: List[float] = [],
-        predictor_min_observations_in_split: List[int] = [],
+        predictor_min_observations_in_split: List[float] = [],
     ):
         self.__set_params_cpp()
         X = _prepare_input_data(X, self.preprocess)
@@ -642,7 +643,7 @@ class APLRClassifier:
         verbosity: int = 0,
         max_interaction_level: int = 1,
         max_interactions: int = 100000,
-        min_observations_in_split: int = 4,
+        min_observations_in_split: float = 0.3,
         ineligible_boosting_steps_added: int = 15,
         max_eligible_terms: int = 7,
         boosting_steps_before_interactions_are_allowed: int = 0,
@@ -735,17 +736,16 @@ class APLRClassifier:
         predictor_learning_rates: List[float] = [],
         predictor_penalties_for_non_linearity: List[float] = [],
         predictor_penalties_for_interactions: List[float] = [],
-        predictor_min_observations_in_split: List[int] = [],
+        predictor_min_observations_in_split: List[float] = [],
     ):
         self.__set_params_cpp()
 
         X = _prepare_input_data(X, self.preprocess)
 
-        if isinstance(y, np.ndarray):
+        if isinstance(y, (np.ndarray, pd.Series)):
             y = y.astype(str).tolist()
-        elif isinstance(y, list) and y and not isinstance(y[0], str):
-            y = [str(val) for val in y]
-
+        elif isinstance(y, list) and y and any(not isinstance(item, str) for item in y):
+            y = [str(item) for item in y]
         self.APLRClassifier.fit(
             X,
             y,
@@ -900,17 +900,26 @@ class APLRClassifier:
 class APLRTuner:
     def __init__(
         self,
-        parameters: Union[Dict[str, List[float]], List[Dict[str, List[float]]]] = {
+        parameters: Dict[str, List[Any]] = {
             "max_interaction_level": [0, 1],
-            "min_observations_in_split": [4, 10, 20, 100, 500, 1000],
+            "min_observations_in_split": [0.1, 0.3, 0.5, 0.6, 0.7, 0.8],
         },
         is_regressor: bool = True,
+        sequential_tuning: bool = False,
     ):
         self.parameters = parameters
         self.is_regressor = is_regressor
-        self.parameter_grid = self._create_parameter_grid()
+        self.sequential_tuning = sequential_tuning
+        if self.sequential_tuning:
+            if not isinstance(parameters, dict):
+                raise ValueError(
+                    "sequential_tuning=True requires parameters to be a dictionary"
+                )
+            self.parameter_grid = []
+        else:
+            self.parameter_grid = self._create_parameter_grid()
 
-    def _create_parameter_grid(self) -> List[Dict[str, float]]:
+    def _create_parameter_grid(self) -> List[Dict[str, Any]]:
         items = sorted(self.parameters.items())
         keys, values = zip(*items)
         combinations = list(itertools.product(*values))
@@ -918,21 +927,61 @@ class APLRTuner:
         return grid
 
     def fit(self, X: Union[pd.DataFrame, FloatMatrix], y: FloatVector, **kwargs):
-        self.cv_results: List[Dict[str, float]] = []
+        self.cv_results: List[Dict[str, Any]] = []
         best_validation_result = np.inf
-        for params in self.parameter_grid:
-            if self.is_regressor:
-                model = APLRRegressor(**params)
-            else:
-                model = APLRClassifier(**params)
-            model.fit(X, y, **kwargs)
-            cv_error_for_this_model = model.get_cv_error()
-            cv_results_for_this_model = model.get_params()
-            cv_results_for_this_model["cv_error"] = cv_error_for_this_model
-            self.cv_results.append(cv_results_for_this_model)
-            if cv_error_for_this_model < best_validation_result:
-                best_validation_result = cv_error_for_this_model
-                self.best_model = model
+
+        if self.sequential_tuning:
+            keys = self.parameters.keys()
+            current_params = {k: self.parameters[k][0] for k in keys}
+            results_cache = {}
+
+            for key in keys:
+                best_val_for_key = current_params[key]
+                min_error_for_key = np.inf
+
+                for val in self.parameters[key]:
+                    trial_params = current_params.copy()
+                    trial_params[key] = val
+                    params_hash = tuple(sorted(trial_params.items()))
+
+                    if params_hash in results_cache:
+                        error = results_cache[params_hash]
+                    else:
+                        if self.is_regressor:
+                            model = APLRRegressor(**trial_params)
+                        else:
+                            model = APLRClassifier(**trial_params)
+                        model.fit(X, y, **kwargs)
+                        error = model.get_cv_error()
+
+                        cv_results_for_this_model = model.get_params()
+                        cv_results_for_this_model["cv_error"] = error
+                        self.cv_results.append(cv_results_for_this_model)
+                        results_cache[params_hash] = error
+
+                        if error < best_validation_result:
+                            best_validation_result = error
+                            self.best_model = model
+
+                    if error < min_error_for_key:
+                        min_error_for_key = error
+                        best_val_for_key = val
+
+                current_params[key] = best_val_for_key
+        else:
+            for params in self.parameter_grid:
+                if self.is_regressor:
+                    model = APLRRegressor(**params)
+                else:
+                    model = APLRClassifier(**params)
+                model.fit(X, y, **kwargs)
+                cv_error_for_this_model = model.get_cv_error()
+                cv_results_for_this_model = model.get_params()
+                cv_results_for_this_model["cv_error"] = cv_error_for_this_model
+                self.cv_results.append(cv_results_for_this_model)
+                if cv_error_for_this_model < best_validation_result:
+                    best_validation_result = cv_error_for_this_model
+                    self.best_model = model
         self.cv_results = sorted(self.cv_results, key=lambda x: x["cv_error"])
 
     def predict(
@@ -958,5 +1007,5 @@ class APLRTuner:
     def get_best_estimator(self) -> Union[APLRClassifier, APLRRegressor]:
         return self.best_model
 
-    def get_cv_results(self) -> List[Dict[str, float]]:
+    def get_cv_results(self) -> List[Dict[str, Any]]:
         return self.cv_results

@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int = 3000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:int = 4, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 200, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0, ridge_penalty: float = 0.0001, preprocess:bool = True, validation_ratio:float = np.nan)
+## class aplr.APLRClassifier(m:int = 3000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:float = 0.3, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 200, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0, ridge_penalty: float = 0.0001, preprocess:bool = True, validation_ratio:float = np.nan)
 
 ### Constructor parameters
 
@@ -31,8 +31,8 @@ Specifies the maximum allowed depth of interaction terms. ***0*** means that int
 #### max_interactions (default = 100000)
 The maximum number of interactions allowed in each underlying model. A lower value may be used to reduce computational time or to increase interpretability.
 
-#### min_observations_in_split (default = 4)
-The minimum effective number of observations that a term in the model must rely on as well as the minimum number of boundary value observations where there cannot be splits. This hyperparameter should be tuned. Larger values are more appropriate for larger datasets. Larger values result in more robust models (lower variance), potentially at the expense of increased bias.
+#### min_observations_in_split (default = 0.3)
+The minimum effective number of observations that a term in the model must rely on as well as the minimum number of boundary value observations where there cannot be splits. Values below 1.0 are interpreted as a power of the total number of training observations. For example, with 10,000 training observations, a value of `0.5` results in a minimum of `ceil(10000**0.5) = 100` observations. This hyperparameter should be tuned. Larger values are more appropriate for larger datasets. Larger values result in more robust models (lower variance), potentially at the expense of increased bias.
 
 #### ineligible_boosting_steps_added (default = 15)
 Controls how many boosting steps a term that becomes ineligible has to remain ineligible. The default value works well according to empirical results. This hyperparameter is intended for reducing computational costs.
@@ -71,7 +71,7 @@ Controls whether automatic data preprocessing is enabled. If `True`, the model w
 The ratio of training observations used for validation. Must be strictly between 0.0 and 1.0. If this is specified then ***cv_folds*** is not used. This can be useful to speed up hyperparameter tuning, training the final model by using ***cv_folds*** instead.
 
 
-## Method: fit(X:Union[pd.DataFrame, FloatMatrix], y:Union[FloatVector, List[str]], sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], interaction_constraints:List[List[int]] = [], predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [], predictor_min_observations_in_split: List[int] = [])
+## Method: fit(X:Union[pd.DataFrame, FloatMatrix], y:Union[FloatVector, List[str]], sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], interaction_constraints:List[List[int]] = [], predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [], predictor_min_observations_in_split: List[float] = [])
 
 ***This method fits the model to data.***
 
@@ -110,7 +110,7 @@ An optional list of floats specifying penalties for non-linearity for each predi
 An optional list of floats specifying interaction penalties for each predictor. If provided then this supercedes ***penalty_for_interactions***. For example, if there are two predictors in ***X***, then predictor_penalties_for_interactions = [0.1,0.2] means that all terms using the first predictor in ***X*** as a main effect will have an interaction penalty of 0.1 and that all terms using the second predictor in ***X*** as a main effect will have an interaction penalty of 0.2.
 
 #### predictor_min_observations_in_split
-An optional list of integers specifying the minimum effective number of observations in a split for each predictor. If provided then this supercedes ***min_observations_in_split***.
+An optional list of floats specifying the minimum effective number of observations in a split for each predictor. If provided then this supercedes ***min_observations_in_split***. Values below 1.0 are interpreted as a power of the total number of training observations. For example, with 10,000 training observations, a value of `0.5` results in a minimum of `ceil(10000**0.5) = 100` observations.
 
 
 ## Method: predict_class_probabilities(X:Union[pd.DataFrame, FloatMatrix], cap_predictions_to_minmax_in_training:bool = False)

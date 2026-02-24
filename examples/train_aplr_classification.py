@@ -9,7 +9,9 @@ from aplr import APLRClassifier
 
 # Settings
 random_state = 0
-validation_ratio = 0.2  # Set to np.nan to use cross-validation during hyperparameter tuning (slower but more accurate)
+validation_ratio = (
+    np.nan
+)  # Set to a float (e.g. 0.2) to use a validation set instead of cross-validation for hyperparameter tuning (faster but less accurate)
 
 # Loading data
 iris = load_iris()
@@ -31,8 +33,8 @@ best_validation_result = np.inf
 param_grid = ParameterGrid(
     {
         "max_interaction_level": [0, 1],
-        "min_observations_in_split": [1, 4, 20],
-        "ridge_penalty": [0, 0.0001, 0.001],
+        "min_observations_in_split": [0.1, 0.3, 0.5, 0.6, 0.7],
+        "ridge_penalty": [0, 0.0001],
     }
 )
 best_model: APLRClassifier = None

@@ -9,7 +9,9 @@ from aplr import APLRTuner
 
 # Settings
 random_state = 0
-validation_ratio = 0.2  # Set to np.nan to use cross-validation during hyperparameter tuning (slower but more accurate)
+validation_ratio = (
+    np.nan
+)  # Set to a float (e.g. 0.2) to use a validation set instead of cross-validation for hyperparameter tuning (faster but less accurate)
 
 # Loading data
 iris = load_iris()
@@ -29,11 +31,11 @@ predicted = "predicted"
 parameters = {
     "random_state": [random_state],
     "max_interaction_level": [0, 1],
-    "min_observations_in_split": [1, 4, 20],
+    "min_observations_in_split": [0.1, 0.3, 0.5, 0.6, 0.7],
     "verbosity": [2],
     "m": [3000],
     "v": [0.5],
-    "ridge_penalty": [0, 0.0001, 0.001],
+    "ridge_penalty": [0, 0.0001],
     "num_first_steps_with_linear_effects_only": [
         0
     ],  # Increasing num_first_steps_with_linear_effects_only will increase interpretabilty but may decrease predictiveness.
@@ -42,7 +44,11 @@ parameters = {
     ],  # Increasing boosting_steps_before_interactions_are_allowed will increase interpretabilty but may decrease predictiveness.
     "validation_ratio": [validation_ratio],
 }
-aplr_tuner = APLRTuner(parameters=parameters, is_regressor=False)
+aplr_tuner = APLRTuner(
+    parameters=parameters,
+    is_regressor=False,
+    sequential_tuning=False,  # Set to True to use sequential tuning (faster but may not find the best model)
+)
 aplr_tuner.fit(X=data_train[predictors], y=data_train[response].values)
 best_model = aplr_tuner.get_best_estimator()
 

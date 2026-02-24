@@ -121,7 +121,7 @@ PYBIND11_MODULE(aplr_cpp, m)
             }));
 
     py::class_<APLRRegressor>(m, "APLRRegressor", py::module_local())
-        .def(py::init<int &, double &, int &, std::string &, std::string &, int &, int &, int &, int &, int &, int &, int &, int &, int &, double &, std::string &,
+        .def(py::init<int &, double &, int &, std::string &, std::string &, int &, int &, int &, int &, int &, int &, double &, int &, int &, double &, std::string &,
                       double &, std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)> &,
                       std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)> &, // 20
                       std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)> &,
@@ -130,7 +130,7 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("m") = 3000, py::arg("v") = 0.5, py::arg("random_state") = 0, py::arg("loss_function") = "mse", py::arg("link_function") = "identity",
              py::arg("n_jobs") = 0, py::arg("cv_folds") = 5,
              py::arg("bins") = 300, py::arg("verbosity") = 0,
-             py::arg("max_interaction_level") = 1, py::arg("max_interactions") = 100000, py::arg("min_observations_in_split") = 4,
+             py::arg("max_interaction_level") = 1, py::arg("max_interactions") = 100000, py::arg("min_observations_in_split") = 0.3,
              py::arg("ineligible_boosting_steps_added") = 15, py::arg("max_eligible_terms") = 7,
              py::arg("dispersion_parameter") = 1.5,
              py::arg("validation_tuning_metric") = "default",
@@ -147,23 +147,23 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.0, py::arg("max_terms") = 0,
              py::arg("ridge_penalty") = 0.0001, py::arg("mean_bias_correction") = false, py::arg("faster_convergence") = true,
              py::arg("preprocess") = true, py::arg("validation_ratio") = std::numeric_limits<double>::quiet_NaN())
-        .def("fit", py::overload_cast<const Eigen::MatrixXd &, const Eigen::VectorXd &, const Eigen::VectorXd &, const std::vector<std::string> &, const Eigen::MatrixXi &, const std::vector<size_t> &, const std::vector<int> &, const Eigen::VectorXi &, const std::vector<std::vector<size_t>> &, const Eigen::MatrixXd &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &, const std::vector<size_t> &>(&APLRRegressor::fit), py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
+        .def("fit", py::overload_cast<const Eigen::MatrixXd &, const Eigen::VectorXd &, const Eigen::VectorXd &, const std::vector<std::string> &, const Eigen::MatrixXi &, const std::vector<size_t> &, const std::vector<int> &, const Eigen::VectorXi &, const std::vector<std::vector<size_t>> &, const Eigen::MatrixXd &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &>(&APLRRegressor::fit), py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("cv_observations") = MatrixXd(0, 0), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),
              py::arg("monotonic_constraints") = std::vector<int>(), py::arg("group") = VectorXi(0),
              py::arg("interaction_constraints") = std::vector<std::vector<size_t>>(), py::arg("other_data") = MatrixXd(0, 0),
              py::arg("predictor_learning_rates") = std::vector<double>(),
              py::arg("predictor_penalties_for_non_linearity") = std::vector<double>(),
              py::arg("predictor_penalties_for_interactions") = std::vector<double>(),
-             py::arg("predictor_min_observations_in_split") = std::vector<size_t>(),
+             py::arg("predictor_min_observations_in_split") = std::vector<double>(),
              py::call_guard<py::scoped_ostream_redirect, py::scoped_estream_redirect>())
-        .def("fit", py::overload_cast<const CppDataFrame &, const VectorXd &, const VectorXd &, const std::vector<std::string> &, const MatrixXi &, const std::vector<size_t> &, const std::vector<int> &, const VectorXi &, const std::vector<std::vector<size_t>> &, const MatrixXd &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &, const std::vector<size_t> &>(&APLRRegressor::fit), py::arg("X_df"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
+        .def("fit", py::overload_cast<const CppDataFrame &, const VectorXd &, const VectorXd &, const std::vector<std::string> &, const MatrixXi &, const std::vector<size_t> &, const std::vector<int> &, const VectorXi &, const std::vector<std::vector<size_t>> &, const MatrixXd &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &>(&APLRRegressor::fit), py::arg("X_df"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("cv_observations") = MatrixXd(0, 0), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),
              py::arg("monotonic_constraints") = std::vector<int>(), py::arg("group") = VectorXi(0),
              py::arg("interaction_constraints") = std::vector<std::vector<size_t>>(), py::arg("other_data") = MatrixXd(0, 0),
              py::arg("predictor_learning_rates") = std::vector<double>(),
              py::arg("predictor_penalties_for_non_linearity") = std::vector<double>(),
              py::arg("predictor_penalties_for_interactions") = std::vector<double>(),
-             py::arg("predictor_min_observations_in_split") = std::vector<size_t>(),
+             py::arg("predictor_min_observations_in_split") = std::vector<double>(),
              py::call_guard<py::scoped_ostream_redirect, py::scoped_estream_redirect>())
         .def("predict", py::overload_cast<const Eigen::MatrixXd &, bool>(&APLRRegressor::predict), py::arg("X"), py::arg("cap_predictions_to_minmax_in_training") = true)
         .def("set_term_names", &APLRRegressor::set_term_names, py::arg("X_names"))
@@ -306,7 +306,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                 VectorXd term_coefficients = t[14].cast<VectorXd>();
                 std::vector<Term> terms = t[15].cast<std::vector<Term>>();
                 size_t interactions_eligible = t[16].cast<size_t>();
-                size_t min_observations_in_split = t[17].cast<size_t>();
+                double min_observations_in_split = t[17].cast<double>();
                 size_t ineligible_boosting_steps_added = t[18].cast<size_t>();
                 size_t max_eligible_terms = t[19].cast<size_t>();
                 size_t number_of_base_terms = t[20].cast<size_t>();
@@ -438,31 +438,31 @@ PYBIND11_MODULE(aplr_cpp, m)
             }));
 
     py::class_<APLRClassifier>(m, "APLRClassifier", py::module_local())
-        .def(py::init<int &, double &, int &, int &, int &, int &, int &, int &, int &, int &, int &, int &, int &, bool &, int &, int &,
+        .def(py::init<int &, double &, int &, int &, int &, int &, int &, int &, int &, double &, int &, int &, int &, bool &, int &, int &,
                       double &, double &, int &, double &, bool &, double &>(),
              py::arg("m") = 3000, py::arg("v") = 0.5, py::arg("random_state") = 0, py::arg("n_jobs") = 0, py::arg("cv_folds") = 5,
              py::arg("bins") = 300, py::arg("verbosity") = 0,
-             py::arg("max_interaction_level") = 1, py::arg("max_interactions") = 100000, py::arg("min_observations_in_split") = 4,
+             py::arg("max_interaction_level") = 1, py::arg("max_interactions") = 100000, py::arg("min_observations_in_split") = 0.3,
              py::arg("ineligible_boosting_steps_added") = 15, py::arg("max_eligible_terms") = 7,
              py::arg("boosting_steps_before_interactions_are_allowed") = 0, py::arg("monotonic_constraints_ignore_interactions") = false,
              py::arg("early_stopping_rounds") = 200, py::arg("num_first_steps_with_linear_effects_only") = 0,
              py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.0, py::arg("max_terms") = 0,
              py::arg("ridge_penalty") = 0.0001, py::arg("preprocess") = true, py::arg("validation_ratio") = std::numeric_limits<double>::quiet_NaN())
-        .def("fit", py::overload_cast<const Eigen::MatrixXd &, const std::vector<std::string> &, const Eigen::VectorXd &, const std::vector<std::string> &, const Eigen::MatrixXi &, const std::vector<size_t> &, const std::vector<int> &, const std::vector<std::vector<size_t>> &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &, const std::vector<size_t> &>(&APLRClassifier::fit), py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
+        .def("fit", py::overload_cast<const Eigen::MatrixXd &, const std::vector<std::string> &, const Eigen::VectorXd &, const std::vector<std::string> &, const Eigen::MatrixXi &, const std::vector<size_t> &, const std::vector<int> &, const std::vector<std::vector<size_t>> &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &>(&APLRClassifier::fit), py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("cv_observations") = MatrixXd(0, 0), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),
              py::arg("monotonic_constraints") = std::vector<int>(), py::arg("interaction_constraints") = std::vector<std::vector<size_t>>(),
              py::arg("predictor_learning_rates") = std::vector<double>(),
              py::arg("predictor_penalties_for_non_linearity") = std::vector<double>(),
              py::arg("predictor_penalties_for_interactions") = std::vector<double>(),
-             py::arg("predictor_min_observations_in_split") = std::vector<size_t>(),
+             py::arg("predictor_min_observations_in_split") = std::vector<double>(),
              py::call_guard<py::scoped_ostream_redirect, py::scoped_estream_redirect>())
-        .def("fit", py::overload_cast<const CppDataFrame &, const std::vector<std::string> &, const VectorXd &, const std::vector<std::string> &, const MatrixXi &, const std::vector<size_t> &, const std::vector<int> &, const std::vector<std::vector<size_t>> &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &, const std::vector<size_t> &>(&APLRClassifier::fit), py::arg("X_df"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
+        .def("fit", py::overload_cast<const CppDataFrame &, const std::vector<std::string> &, const VectorXd &, const std::vector<std::string> &, const MatrixXi &, const std::vector<size_t> &, const std::vector<int> &, const std::vector<std::vector<size_t>> &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &>(&APLRClassifier::fit), py::arg("X_df"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("cv_observations") = MatrixXd(0, 0), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),
              py::arg("monotonic_constraints") = std::vector<int>(), py::arg("interaction_constraints") = std::vector<std::vector<size_t>>(),
              py::arg("predictor_learning_rates") = std::vector<double>(),
              py::arg("predictor_penalties_for_non_linearity") = std::vector<double>(),
              py::arg("predictor_penalties_for_interactions") = std::vector<double>(),
-             py::arg("predictor_min_observations_in_split") = std::vector<size_t>(),
+             py::arg("predictor_min_observations_in_split") = std::vector<double>(),
              py::call_guard<py::scoped_ostream_redirect, py::scoped_estream_redirect>())
         .def("predict_class_probabilities", py::overload_cast<const Eigen::MatrixXd &, bool>(&APLRClassifier::predict_class_probabilities), py::arg("X"), py::arg("cap_predictions_to_minmax_in_training") = false)
         .def("predict", py::overload_cast<const Eigen::MatrixXd &, bool>(&APLRClassifier::predict), py::arg("X"), py::arg("cap_predictions_to_minmax_in_training") = false)
@@ -535,7 +535,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                 size_t verbosity = t[6].cast<size_t>();
                 size_t max_interaction_level = t[7].cast<size_t>();
                 size_t max_interactions = t[8].cast<size_t>();
-                size_t min_observations_in_split = t[9].cast<size_t>();
+                double min_observations_in_split = t[9].cast<double>();
                 size_t ineligible_boosting_steps_added = t[10].cast<size_t>();
                 size_t max_eligible_terms = t[11].cast<size_t>();
                 std::map<std::string, APLRRegressor> logit_models = t[12].cast<std::map<std::string, APLRRegressor>>();

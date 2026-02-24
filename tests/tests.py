@@ -2,6 +2,7 @@ import unittest
 import pandas as pd
 import numpy as np
 from aplr import APLRClassifier, APLRRegressor
+from aplr import APLRClassifier, APLRRegressor, APLRTuner
 from aplr.aplr import _dataframe_to_cpp_dataframe
 
 
@@ -149,6 +150,54 @@ class TestAPLRPreprocessing(unittest.TestCase):
         X_test = pd.DataFrame({"feat1": [np.nan]})
         predictions = model.predict(X_test)
         self.assertEqual(len(predictions), 1)
+
+    def test_classifier_response_types(self):
+        """Tests APLRClassifier with different response variable types."""
+        X = pd.DataFrame({"feat1": np.arange(100)})
+
+        # 1. List of strings
+        y_list_str = ["A" if i % 2 == 0 else "B" for i in range(100)]
+        model = APLRClassifier(random_state=0, m=10)
+        model.fit(X, y_list_str)
+        self.assertTrue(all(isinstance(c, str) for c in model.get_categories()))
+
+        # 2. List of integers
+        y_list_int = [i % 2 for i in range(100)]
+        model = APLRClassifier(random_state=0, m=10)
+        model.fit(X, y_list_int)
+        self.assertTrue(all(isinstance(c, str) for c in model.get_categories()))
+        self.assertIn("0", model.get_categories())
+
+        # 3. List of mixed types
+        y_list_mixed = ["A" if i % 2 == 0 else 1 for i in range(100)]
+        model = APLRClassifier(random_state=0, m=10)
+        model.fit(X, y_list_mixed)
+        self.assertTrue(all(isinstance(c, str) for c in model.get_categories()))
+        self.assertIn("1", model.get_categories())
+
+        # 4. Numpy array of integers
+        y_np_int = np.array([i % 2 for i in range(100)])
+        model = APLRClassifier(random_state=0, m=10)
+        model.fit(X, y_np_int)
+        self.assertTrue(all(isinstance(c, str) for c in model.get_categories()))
+
+        # 5. Numpy array of strings
+        y_np_str = np.array(["A" if i % 2 == 0 else "B" for i in range(100)])
+        model = APLRClassifier(random_state=0, m=10)
+        model.fit(X, y_np_str)
+        self.assertTrue(all(isinstance(c, str) for c in model.get_categories()))
+
+        # 6. Pandas Series of integers
+        y_pd_int = pd.Series([i % 2 for i in range(100)])
+        model = APLRClassifier(random_state=0, m=10)
+        model.fit(X, y_pd_int)
+        self.assertTrue(all(isinstance(c, str) for c in model.get_categories()))
+
+        # 7. Pandas Series of strings
+        y_pd_str = pd.Series(["A" if i % 2 == 0 else "B" for i in range(100)])
+        model = APLRClassifier(random_state=0, m=10)
+        model.fit(X, y_pd_str)
+        self.assertTrue(all(isinstance(c, str) for c in model.get_categories()))
 
     def test_missing_value_imputation_with_sample_weight(self):
         """Tests missing value imputation with sample weights."""
@@ -450,6 +499,186 @@ class TestAPLRPreprocessing(unittest.TestCase):
             "Please ensure all columns are numeric or set preprocess=True.",
         ):
             model.fit(X_train_df_mixed, y_single)
+
+
+class TestAPLRTuner(unittest.TestCase):
+    def setUp(self):
+        """Set up common data for tuner tests."""
+        np.random.seed(42)
+        # Regression data
+        self.X_reg = pd.DataFrame(
+            {"feat1": np.random.rand(50), "feat2": np.random.rand(50) * 10}
+        )
+        self.y_reg = self.X_reg["feat1"] + 2 * self.X_reg["feat2"] + np.random.rand(50)
+
+        # Classification data
+        self.X_clf = pd.DataFrame(
+            {"feat1": np.random.rand(50), "feat2": np.random.rand(50)}
+        )
+        self.y_clf = (self.X_clf["feat1"] + self.X_clf["feat2"] > 1).astype(int)
+
+    def test_tuner_for_regressor(self):
+        """Tests APLRTuner with APLRRegressor."""
+        parameters = {
+            "max_interaction_level": [0, 1],
+            "v": [0.1, 0.5],
+            "loss_function": ["mse", "mae"],
+            "m": [100],  # Fixed parameter for all runs
+            "random_state": [0],  # Fixed parameter for all runs
+        }
+        tuner = APLRTuner(parameters=parameters, is_regressor=True)
+
+        tuner.fit(self.X_reg, self.y_reg)
+
+        # 1. Test get_best_estimator
+        best_model = tuner.get_best_estimator()
+        self.assertIsInstance(best_model, APLRRegressor)
+        self.assertEqual(best_model.get_params()["random_state"], 0)
+        self.assertEqual(best_model.get_params()["m"], 100)
+
+        # 2. Test get_cv_results
+        cv_results = tuner.get_cv_results()
+        self.assertIsInstance(cv_results, list)
+        self.assertEqual(len(cv_results), 8)  # 2*2*2 combinations
+        self.assertIn("cv_error", cv_results[0])
+        # Check if results are sorted by cv_error
+        errors = [res["cv_error"] for res in cv_results]
+        self.assertEqual(errors, sorted(errors))
+        # Check that fixed params are in results
+        self.assertEqual(cv_results[0]["m"], 100)
+        # Check that string parameter was tuned
+        self.assertTrue(any(r["loss_function"] == "mae" for r in cv_results))
+
+        # Check that the best model corresponds to the lowest CV error
+        self.assertEqual(best_model.get_cv_error(), cv_results[0]["cv_error"])
+
+        # 3. Test predict
+        predictions = tuner.predict(self.X_reg)
+        self.assertEqual(predictions.shape, (50,))
+
+        # 4. Test predict_class_probabilities raises error
+        with self.assertRaisesRegex(
+            TypeError, "predict_class_probabilities is only possible"
+        ):
+            tuner.predict_class_probabilities(self.X_reg)
+
+        # 5. Test with numpy array
+        tuner_np = APLRTuner(parameters=parameters, is_regressor=True)
+        tuner_np.fit(self.X_reg.values, self.y_reg, X_names=["feat1", "feat2"])
+        predictions_np = tuner_np.predict(self.X_reg.values)
+        np.testing.assert_allclose(predictions, predictions_np)
+
+    def test_sequential_tuning_regressor(self):
+        """Tests sequential tuning for APLRRegressor."""
+        parameters = {
+            "v": [0.1, 0.5, 0.9],
+            "max_interaction_level": [0, 1],
+            "loss_function": ["mse", "mae"],
+            "m": [50],
+            "random_state": [0],
+        }
+
+        # Expected runs:
+        # 1. Tune 'v' (3 values): 3 runs
+        # 2. Tune 'max_interaction_level' (2 values): 1 new run
+        # 3. Tune 'loss_function' (2 values): 1 new run
+        # Total unique runs = 3 + 1 + 1 = 5.
+
+        tuner = APLRTuner(
+            parameters=parameters, is_regressor=True, sequential_tuning=True
+        )
+        tuner.fit(self.X_reg, self.y_reg)
+
+        cv_results = tuner.get_cv_results()
+
+        self.assertEqual(len(cv_results), 5)
+
+        best_model = tuner.get_best_estimator()
+        lowest_error = min(r["cv_error"] for r in cv_results)
+        self.assertEqual(best_model.get_cv_error(), lowest_error)
+
+        errors = [res["cv_error"] for res in cv_results]
+        self.assertEqual(errors, sorted(errors))
+
+        with self.assertRaisesRegex(
+            ValueError, "sequential_tuning=True requires parameters to be a dictionary"
+        ):
+            tuner_list = APLRTuner(parameters=[{"v": [0.1]}], sequential_tuning=True)
+            tuner_list.fit(self.X_reg, self.y_reg)
+
+    def test_sequential_tuning_classifier(self):
+        """Tests sequential tuning for APLRClassifier."""
+        parameters = {
+            "v": [0.1, 0.5, 0.9],
+            "max_interaction_level": [0, 1],
+            "m": [50],
+            "random_state": [0],
+        }
+
+        # Expected runs:
+        # 1. Tune 'v' (3 values): 3 runs
+        # 2. Tune 'max_interaction_level' (2 values): 1 new run
+        # Total unique runs = 3 + 1 = 4.
+
+        tuner = APLRTuner(
+            parameters=parameters, is_regressor=False, sequential_tuning=True
+        )
+        tuner.fit(self.X_clf, self.y_clf)
+
+        cv_results = tuner.get_cv_results()
+
+        self.assertEqual(len(cv_results), 4)
+
+        best_model = tuner.get_best_estimator()
+        lowest_error = min(r["cv_error"] for r in cv_results)
+        self.assertEqual(best_model.get_cv_error(), lowest_error)
+
+        errors = [res["cv_error"] for res in cv_results]
+        self.assertEqual(errors, sorted(errors))
+
+        # Check that the best model is a classifier
+        self.assertIsInstance(best_model, APLRClassifier)
+
+        # Check predict and predict_proba
+        predictions = tuner.predict(self.X_clf)
+        self.assertEqual(len(predictions), 50)
+        self.assertTrue(all(isinstance(p, str) for p in predictions))
+
+        probs = tuner.predict_proba(self.X_clf)
+        self.assertEqual(probs.shape, (50, 2))
+
+    def test_tuner_for_classifier(self):
+        """Tests APLRTuner with APLRClassifier."""
+        parameters = {
+            "max_interaction_level": [0, 1],
+            "v": [0.1, 0.5],
+            "m": [100],
+            "random_state": [0],
+        }
+        tuner = APLRTuner(parameters=parameters, is_regressor=False)
+
+        tuner.fit(self.X_clf, self.y_clf)
+
+        # 1. Test get_best_estimator
+        best_model = tuner.get_best_estimator()
+        self.assertIsInstance(best_model, APLRClassifier)
+
+        # Check that the best model corresponds to the lowest CV error
+        cv_results = tuner.get_cv_results()
+        self.assertEqual(best_model.get_cv_error(), cv_results[0]["cv_error"])
+
+        # 2. Test predict
+        predictions = tuner.predict(self.X_clf)
+        self.assertEqual(len(predictions), 50)
+        self.assertTrue(all(isinstance(p, str) for p in predictions))
+
+        # 3. Test predict_class_probabilities and predict_proba
+        probs = tuner.predict_class_probabilities(self.X_clf)
+        self.assertEqual(probs.shape, (50, 2))
+        np.testing.assert_allclose(np.sum(probs, axis=1), 1.0)
+
+        probs2 = tuner.predict_proba(self.X_clf)
+        np.testing.assert_array_equal(probs, probs2)
 
 
 class TestAPLRCvResults(unittest.TestCase):

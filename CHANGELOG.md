@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.22.0] - 2026-02-22
+
+### Added
+- **Sequential Tuning in `APLRTuner`:** Introduced a new `sequential_tuning` boolean parameter to `APLRTuner`. When `True`, hyperparameters are tuned sequentially in the order they appear in the `parameters` dictionary, which can be significantly faster than a full grid search. This method avoids re-testing duplicate parameter combinations.
+
+### Changed
+- **`min_observations_in_split` Parameter:** The `min_observations_in_split` and `predictor_min_observations_in_split` parameters are now floats. The default for `min_observations_in_split` has been updated to `0.3`. Values below 1.0 are interpreted as a power of the total number of training observations. For example, with 10,000 training observations, a value of `0.5` results in a minimum of `ceil(10000**0.5) = 100` observations.
+
+### Fixed
+- **`APLRClassifier` Type Handling:** Fixed a `TypeError` in `APLRClassifier` that occurred when the target variable `y` was a `pandas.Series` of integers. The model now correctly handles this input by converting it to the expected string format. This also resolves issues when using `APLRTuner` for classification with a `pandas.Series` target.
+- **`APLRClassifier` List Handling:** Improved robustness when the target variable `y` is a list. Previously, only the first element was checked to determine if conversion to string was necessary. Now, the entire list is checked, ensuring that mixed-type lists or lists where the first element is a string but others are not are correctly converted to strings.
+- **`APLRTuner` Type Hinting:** Corrected the type hint for the `parameters` argument in `APLRTuner` to `Dict[str, List[Any]]`, accurately reflecting that it accepts lists of various value types (e.g., floats, integers, and strings).
+
+### Documentation
+- **Updated Examples:** Examples have been updated to reflect the changes to `min_observations_in_split` and to explicitly show the usage of the `sequential_tuning` parameter in `APLRTuner` (set to `False` by default). Additionally, `validation_ratio` is no longer used by default for hyperparameter tuning in the examples.
+- **API Reference and Presentation:** Updated documentation to reflect the new behavior of `min_observations_in_split` and `predictor_min_observations_in_split`, the new `sequential_tuning` parameter in `APLRTuner`, and corrected type hints.
+
 ## [10.21.0] - 2026-02-21
 
 ### Added

@@ -1,14 +1,17 @@
 # APLRTuner
 
-## class aplr.APLRTuner(parameters: Union[Dict[str, List[float]], List[Dict[str, List[float]]]] = {"max_interaction_level": [0, 1], "min_observations_in_split": [4, 10, 20, 100, 500, 1000]}, is_regressor: bool = True)
+## class aplr.APLRTuner(parameters: Dict[str, List[Any]] = {"max_interaction_level": [0, 1], "min_observations_in_split": [0.1, 0.3, 0.5, 0.6, 0.7, 0.8]}, is_regressor: bool = True, sequential_tuning: bool = False)
 
 ### Constructor parameters
 
-#### parameters (default = {"max_interaction_level": [0, 1], "min_observations_in_split": [4, 10, 20, 100, 500, 1000]})
-The parameters that you wish to tune.
+#### parameters (default = {"max_interaction_level": [0, 1], "min_observations_in_split": [0.1, 0.3, 0.5, 0.6, 0.7, 0.8]})
+A dictionary where keys are parameter names and values are lists of parameter settings to try.
 
 #### is_regressor (default = True)
 Whether you want to use APLRRegressor (True) or APLRClassifier (False).
+
+#### sequential_tuning (default = False)
+If True, hyperparameters are tuned sequentially instead of performing a full grid search. The tuning order is determined by the key order in the `parameters` dictionary. This can be much faster but may not find the global optimum.
 
 
 ## Method: fit(X: Union[pd.DataFrame, FloatMatrix], y: FloatVector, **kwargs)
@@ -73,4 +76,4 @@ Optional parameters sent to the predict_class_probabilities method in the best t
 
 ## Method: get_cv_results()
 
-***Returns the cv results from the tuning as a list of dictionaries, List[Dict[str, float]].***
+***Returns the cv results from the tuning as a list of dictionaries, List[Dict[str, Any]].***
