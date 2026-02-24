@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [10.22.0] - 2026-02-22
+## [10.22.0] - 2026-02-24
 
 ### Added
 - **Sequential Tuning in `APLRTuner`:** Introduced a new `sequential_tuning` boolean parameter to `APLRTuner`. When `True`, hyperparameters are tuned sequentially in the order they appear in the `parameters` dictionary, which can be significantly faster than a full grid search. This method avoids re-testing duplicate parameter combinations.
