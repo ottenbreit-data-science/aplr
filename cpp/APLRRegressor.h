@@ -364,6 +364,7 @@ public:
     VectorXd get_cv_sample_weight(size_t fold_index);
     VectorXi get_cv_validation_indexes(size_t fold_index);
     void clear_cv_results();
+    void adjust_fit_arguments(const Preprocessor &preprocessor, const std::vector<std::string> &transformed_names, size_t num_transformed_cols, const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints, const std::vector<std::vector<size_t>> &interaction_constraints, const std::vector<double> &predictor_learning_rates, const std::vector<double> &predictor_penalties_for_non_linearity, const std::vector<double> &predictor_penalties_for_interactions, const std::vector<double> &predictor_min_observations_in_split, std::vector<size_t> &adjusted_prioritized_predictors_indexes, std::vector<int> &adjusted_monotonic_constraints, std::vector<std::vector<size_t>> &adjusted_interaction_constraints, std::vector<double> &adjusted_predictor_learning_rates, std::vector<double> &adjusted_predictor_penalties_for_non_linearity, std::vector<double> &adjusted_predictor_penalties_for_interactions, std::vector<double> &adjusted_predictor_min_observations_in_split);
 
     friend class APLRClassifier;
 };
@@ -530,10 +531,29 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
     if (preprocess)
     {
         auto preprocessed_data = preprocessor.fit_transform(X, sample_weight, X_names);
-        fit_internal(preprocessed_data.first, y, sample_weight, preprocessed_data.second, cv_observations, prioritized_predictors_indexes,
-                     monotonic_constraints, group, interaction_constraints, other_data, predictor_learning_rates,
-                     predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
-                     predictor_min_observations_in_split);
+
+        std::vector<size_t> adjusted_prioritized_predictors_indexes;
+        std::vector<int> adjusted_monotonic_constraints;
+        std::vector<std::vector<size_t>> adjusted_interaction_constraints;
+        std::vector<double> adjusted_predictor_learning_rates;
+        std::vector<double> adjusted_predictor_penalties_for_non_linearity;
+        std::vector<double> adjusted_predictor_penalties_for_interactions;
+        std::vector<double> adjusted_predictor_min_observations_in_split;
+
+        adjust_fit_arguments(preprocessor, preprocessed_data.second, preprocessed_data.first.cols(),
+                             prioritized_predictors_indexes, monotonic_constraints, interaction_constraints,
+                             predictor_learning_rates, predictor_penalties_for_non_linearity,
+                             predictor_penalties_for_interactions, predictor_min_observations_in_split,
+                             adjusted_prioritized_predictors_indexes, adjusted_monotonic_constraints,
+                             adjusted_interaction_constraints, adjusted_predictor_learning_rates,
+                             adjusted_predictor_penalties_for_non_linearity, adjusted_predictor_penalties_for_interactions,
+                             adjusted_predictor_min_observations_in_split);
+
+        fit_internal(preprocessed_data.first, y, sample_weight, preprocessed_data.second, cv_observations,
+                     adjusted_prioritized_predictors_indexes, adjusted_monotonic_constraints, group,
+                     adjusted_interaction_constraints, other_data, adjusted_predictor_learning_rates,
+                     adjusted_predictor_penalties_for_non_linearity, adjusted_predictor_penalties_for_interactions,
+                     adjusted_predictor_min_observations_in_split);
     }
     else
     {
@@ -593,10 +613,160 @@ void APLRRegressor::fit(const CppDataFrame &X_df, const VectorXd &y, const Vecto
     std::pair<MatrixXd, std::vector<std::string>> preprocessed_data = preprocess ? preprocessor.fit_transform(X_df, sample_weight) : X_df.to_matrix();
     MatrixXd X = preprocessed_data.first;
     std::vector<std::string> X_names = preprocessed_data.second;
-    fit_internal(X, y, sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
-                 monotonic_constraints, group, interaction_constraints, other_data, predictor_learning_rates,
-                 predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
-                 predictor_min_observations_in_split);
+
+    if (preprocess)
+    {
+        std::vector<size_t> adjusted_prioritized_predictors_indexes;
+        std::vector<int> adjusted_monotonic_constraints;
+        std::vector<std::vector<size_t>> adjusted_interaction_constraints;
+        std::vector<double> adjusted_predictor_learning_rates;
+        std::vector<double> adjusted_predictor_penalties_for_non_linearity;
+        std::vector<double> adjusted_predictor_penalties_for_interactions;
+        std::vector<double> adjusted_predictor_min_observations_in_split;
+
+        adjust_fit_arguments(preprocessor, X_names, X.cols(),
+                             prioritized_predictors_indexes, monotonic_constraints, interaction_constraints,
+                             predictor_learning_rates, predictor_penalties_for_non_linearity,
+                             predictor_penalties_for_interactions, predictor_min_observations_in_split,
+                             adjusted_prioritized_predictors_indexes, adjusted_monotonic_constraints,
+                             adjusted_interaction_constraints, adjusted_predictor_learning_rates,
+                             adjusted_predictor_penalties_for_non_linearity, adjusted_predictor_penalties_for_interactions,
+                             adjusted_predictor_min_observations_in_split);
+
+        fit_internal(X, y, sample_weight, X_names, cv_observations,
+                     adjusted_prioritized_predictors_indexes, adjusted_monotonic_constraints, group,
+                     adjusted_interaction_constraints, other_data, adjusted_predictor_learning_rates,
+                     adjusted_predictor_penalties_for_non_linearity, adjusted_predictor_penalties_for_interactions,
+                     adjusted_predictor_min_observations_in_split);
+    }
+    else
+    {
+        fit_internal(X, y, sample_weight, X_names, cv_observations, prioritized_predictors_indexes, monotonic_constraints, group, interaction_constraints, other_data, predictor_learning_rates, predictor_penalties_for_non_linearity, predictor_penalties_for_interactions, predictor_min_observations_in_split);
+    }
+}
+void APLRRegressor::adjust_fit_arguments(const Preprocessor &preprocessor, const std::vector<std::string> &transformed_names, size_t num_transformed_cols, const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints, const std::vector<std::vector<size_t>> &interaction_constraints, const std::vector<double> &predictor_learning_rates, const std::vector<double> &predictor_penalties_for_non_linearity, const std::vector<double> &predictor_penalties_for_interactions, const std::vector<double> &predictor_min_observations_in_split, std::vector<size_t> &adjusted_prioritized_predictors_indexes, std::vector<int> &adjusted_monotonic_constraints, std::vector<std::vector<size_t>> &adjusted_interaction_constraints, std::vector<double> &adjusted_predictor_learning_rates, std::vector<double> &adjusted_predictor_penalties_for_non_linearity, std::vector<double> &adjusted_predictor_penalties_for_interactions, std::vector<double> &adjusted_predictor_min_observations_in_split)
+{
+    std::map<size_t, std::vector<size_t>> original_to_transformed_map;
+    std::vector<std::string> original_names = preprocessor.get_original_column_names();
+
+    // Map each transformed column back to its original column index
+    for (size_t t_idx = 0; t_idx < transformed_names.size(); ++t_idx)
+    {
+        const std::string &t_name = transformed_names[t_idx];
+        size_t original_idx = std::numeric_limits<size_t>::max();
+
+        // 1. Check for exact match
+        for (size_t o_idx = 0; original_idx == std::numeric_limits<size_t>::max() && o_idx < original_names.size(); ++o_idx)
+        {
+            if (t_name == original_names[o_idx])
+                original_idx = o_idx;
+        }
+
+        // 2. Check for missing value indicator suffix
+        if (original_idx == std::numeric_limits<size_t>::max())
+        {
+            const std::string suffix = "_is_missing";
+            if (t_name.length() > suffix.length() && t_name.substr(t_name.length() - suffix.length()) == suffix)
+            {
+                std::string base_name = t_name.substr(0, t_name.length() - suffix.length());
+                for (size_t o_idx = 0; original_idx == std::numeric_limits<size_t>::max() && o_idx < original_names.size(); ++o_idx)
+                {
+                    if (base_name == original_names[o_idx])
+                        original_idx = o_idx;
+                }
+            }
+        }
+
+        // 3. Check for categorical dummy prefix (longest match wins to handle overlapping names)
+        if (original_idx == std::numeric_limits<size_t>::max())
+        {
+            size_t best_match_len = 0;
+            for (size_t o_idx = 0; o_idx < original_names.size(); ++o_idx)
+            {
+                std::string prefix = original_names[o_idx] + "_";
+                if (t_name.length() > prefix.length() && t_name.compare(0, prefix.length(), prefix) == 0 && prefix.length() > best_match_len)
+                {
+                    original_idx = o_idx;
+                    best_match_len = prefix.length();
+                }
+            }
+        }
+
+        if (original_idx != std::numeric_limits<size_t>::max())
+            original_to_transformed_map[original_idx].push_back(t_idx);
+    }
+
+    adjusted_prioritized_predictors_indexes.clear();
+    for (size_t orig_idx : prioritized_predictors_indexes)
+    {
+        if (original_to_transformed_map.count(orig_idx))
+        {
+            for (size_t trans_idx : original_to_transformed_map.at(orig_idx))
+            {
+                adjusted_prioritized_predictors_indexes.push_back(trans_idx);
+            }
+        }
+    }
+
+    if (!monotonic_constraints.empty())
+    {
+        adjusted_monotonic_constraints.assign(num_transformed_cols, 0);
+        for (size_t i = 0; i < std::min(original_names.size(), monotonic_constraints.size()); ++i)
+        {
+            if (original_to_transformed_map.count(i))
+            {
+                const auto &trans_indices = original_to_transformed_map.at(i);
+                // Monotonic constraints apply only to numeric columns.
+                // These are columns not processed by a one-hot encoder.
+                if (preprocessor.one_hot_encoders_.find(original_names[i]) == preprocessor.one_hot_encoders_.end())
+                {
+                    if (!trans_indices.empty())
+                        adjusted_monotonic_constraints[trans_indices[0]] = monotonic_constraints[i];
+                }
+            }
+        }
+    }
+
+    adjusted_interaction_constraints.clear();
+    for (const auto &group : interaction_constraints)
+    {
+        std::vector<size_t> adjusted_group;
+        for (size_t orig_idx : group)
+        {
+            if (original_to_transformed_map.count(orig_idx))
+            {
+                for (size_t trans_idx : original_to_transformed_map.at(orig_idx))
+                {
+                    adjusted_group.push_back(trans_idx);
+                }
+            }
+        }
+        if (!adjusted_group.empty())
+            adjusted_interaction_constraints.push_back(adjusted_group);
+    }
+
+    auto adjust_predictor_values = [&](const std::vector<double> &orig_values, double default_val)
+    {
+        if (orig_values.empty())
+            return std::vector<double>();
+        std::vector<double> adjusted_values(num_transformed_cols, default_val);
+        for (size_t i = 0; i < std::min(original_names.size(), orig_values.size()); ++i)
+        {
+            if (original_to_transformed_map.count(i))
+            {
+                for (size_t trans_idx : original_to_transformed_map.at(i))
+                {
+                    adjusted_values[trans_idx] = orig_values[i];
+                }
+            }
+        }
+        return adjusted_values;
+    };
+
+    adjusted_predictor_learning_rates = adjust_predictor_values(predictor_learning_rates, v);
+    adjusted_predictor_penalties_for_non_linearity = adjust_predictor_values(predictor_penalties_for_non_linearity, penalty_for_non_linearity);
+    adjusted_predictor_penalties_for_interactions = adjust_predictor_values(predictor_penalties_for_interactions, penalty_for_interactions);
+    adjusted_predictor_min_observations_in_split = adjust_predictor_values(predictor_min_observations_in_split, min_observations_in_split);
 }
 
 void APLRRegressor::preprocess_prioritized_predictors_and_interaction_constraints(

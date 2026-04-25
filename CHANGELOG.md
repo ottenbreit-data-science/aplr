@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.22.1] - 2026-04-25
+
+### Fixed
+- **Preprocessing-Aware Fit Arguments:** Fixed a bug where predictor-specific fit arguments were not correctly mapped to transformed columns when `preprocess=True`. The model now correctly handles cases where raw features are expanded into multiple columns due to one-hot encoding or the addition of missing value indicator flags. This ensures that constraints (e.g., monotonicity), prioritization, and custom penalties/learning rates are properly applied to the resulting features. For monotonicity, constraints are applied to the primary numeric feature but specifically excluded (set to 0) for generated dummy columns and missing value flags. Affected arguments include `prioritized_predictors_indexes`, `monotonic_constraints`, `interaction_constraints`, `predictor_learning_rates`, `predictor_penalties_for_non_linearity`, `predictor_penalties_for_interactions`, and `predictor_min_observations_in_split`.
+
 ## [10.22.0] - 2026-02-24
 
 ### Added

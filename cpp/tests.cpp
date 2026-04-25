@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <numeric>
+#include <algorithm>
 #include "../dependencies/eigen-3.4.0/Eigen/Dense"
 #include "APLRRegressor.h"
 #include "APLRClassifier.h"
@@ -4367,11 +4368,109 @@ public:
 
         std::cout << "CV results functionality tests passed." << std::endl;
     }
+
+    void test_adjust_fit_arguments()
+    {
+        current_test_suite_name = "test_adjust_fit_arguments";
+
+        // 1. Setup Preprocessor with a mix of features
+        Preprocessor preprocessor;
+        CppDataFrame df;
+        df.add_column("num_nan", std::vector<double>{1.0, NAN_DOUBLE, 3.0}); // index 0 (has NaNs)
+        df.add_column("cat", std::vector<std::string>{"a", "b", "c"});       // index 1 (3 levels)
+        df.add_column("num_no_nan", std::vector<double>{10.0, 20.0, 30.0});  // index 2 (no NaNs)
+
+        VectorXd weights = VectorXd::Constant(3, 1.0);
+        preprocessor.fit(df, weights);
+
+        // Expected transformed indices:
+        // 0: num_nan (primary)
+        // 1: num_nan_is_missing (indicator)
+        // 2: num_no_nan (primary)
+        // 3: cat_a (dummy)
+        // 4: cat_b (dummy)
+        // 5: cat_c (dummy)
+        std::vector<std::string> trans_names = preprocessor.get_transformed_column_names();
+        size_t n_cols = trans_names.size();
+
+        // 2. Define raw user inputs
+        std::vector<size_t> prioritized = {1};                    // raw categorical prioritized
+        std::vector<int> monotonic = {1, -1, 1};                  // constraint -1 on categorical
+        std::vector<std::vector<size_t>> interactions = {{0, 2}}; // interaction between the two numeric features
+        std::vector<double> learning_rates = {0.1, 0.2, 0.3};
+        std::vector<double> p_non_lin = {0.01, 0.02, 0.03};
+        std::vector<double> p_int = {0.04, 0.05, 0.06};
+        std::vector<double> min_obs = {5, 10, 15};
+
+        // 3. Run adjustment
+        std::vector<size_t> adj_prioritized;
+        std::vector<int> adj_monotonic;
+        std::vector<std::vector<size_t>> adj_interactions;
+        std::vector<double> adj_lr, adj_p_non_lin, adj_p_int, adj_min_obs;
+
+        APLRRegressor model;
+        model.v = 0.5;
+        model.penalty_for_non_linearity = 0.0;
+        model.penalty_for_interactions = 0.0;
+        model.min_observations_in_split = 0.3;
+
+        model.adjust_fit_arguments(preprocessor, trans_names, n_cols,
+                                   prioritized, monotonic, interactions,
+                                   learning_rates, p_non_lin, p_int, min_obs,
+                                   adj_prioritized, adj_monotonic, adj_interactions,
+                                   adj_lr, adj_p_non_lin, adj_p_int, adj_min_obs);
+
+        // 4. Verification
+
+        // Categorical prioritization should expand to all levels
+        bool prio_ok = adj_prioritized.size() == 3 &&
+                       std::find(adj_prioritized.begin(), adj_prioritized.end(), 3) != adj_prioritized.end() &&
+                       std::find(adj_prioritized.begin(), adj_prioritized.end(), 4) != adj_prioritized.end() &&
+                       std::find(adj_prioritized.begin(), adj_prioritized.end(), 5) != adj_prioritized.end();
+        add_test("prioritized: expanded categorical levels", prio_ok);
+
+        // Monotonic constraints: dummy variables and missing flags MUST be 0
+        bool mono_ok = adj_monotonic.size() == 6 &&
+                       adj_monotonic[0] == 1 && // num_nan primary
+                       adj_monotonic[1] == 0 && // num_nan missing flag (OVERRIDDEN)
+                       adj_monotonic[2] == 1 && // num_no_nan primary
+                       adj_monotonic[3] == 0 && // cat_a (OVERRIDDEN)
+                       adj_monotonic[4] == 0 && // cat_b (OVERRIDDEN)
+                       adj_monotonic[5] == 0;   // cat_c (OVERRIDDEN)
+        add_test("monotonic: indicator and dummy override to zero", mono_ok);
+
+        // Interaction constraints: should expand for numeric missing indicator
+        bool int_ok = adj_interactions.size() == 1 && adj_interactions[0].size() == 3 &&
+                      std::find(adj_interactions[0].begin(), adj_interactions[0].end(), 0) != adj_interactions[0].end() &&
+                      std::find(adj_interactions[0].begin(), adj_interactions[0].end(), 1) != adj_interactions[0].end() &&
+                      std::find(adj_interactions[0].begin(), adj_interactions[0].end(), 2) != adj_interactions[0].end();
+        add_test("interactions: expanded group with missing indicator", int_ok);
+
+        // Broadcasting of value parameters
+        bool lr_ok = adj_lr.size() == 6 &&
+                     adj_lr[0] == 0.1 && adj_lr[1] == 0.1 &&                     // broadcast to flag
+                     adj_lr[3] == 0.2 && adj_lr[4] == 0.2 && adj_lr[5] == 0.2 && // broadcast to levels
+                     adj_lr[2] == 0.3;
+        add_test("learning_rates: broadcasting to expanded features", lr_ok);
+
+        bool penalty_ok = adj_p_non_lin.size() == 6 &&
+                          adj_p_non_lin[1] == 0.01 &&
+                          adj_p_non_lin[4] == 0.02 &&
+                          adj_p_non_lin[2] == 0.03;
+        add_test("penalties: broadcasting to expanded features", penalty_ok);
+
+        bool min_obs_ok = adj_min_obs.size() == 6 &&
+                          adj_min_obs[1] == 5 &&
+                          adj_min_obs[4] == 10 &&
+                          adj_min_obs[2] == 15;
+        add_test("min_obs: broadcasting to expanded features", min_obs_ok);
+    }
 };
 
 int main()
 {
     Tests tests{Tests()};
+    tests.test_adjust_fit_arguments();
     tests.test_aplrregressor_huber();
     tests.test_aplrregressor_huber_log_link();
     tests.test_aplrregressor_mean_bias_correction();
