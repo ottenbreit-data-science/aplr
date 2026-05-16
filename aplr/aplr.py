@@ -131,6 +131,12 @@ class APLRRegressor:
         faster_convergence: bool = False,
         preprocess: bool = True,
         validation_ratio: float = np.nan,
+        calculate_custom_hessian_function: Optional[
+            Callable[
+                [FloatVector, FloatVector, FloatVector, FloatMatrix],
+                FloatVector,
+            ]
+        ] = None,
     ):
         self.m = m
         self.v = v
@@ -182,6 +188,7 @@ class APLRRegressor:
         self.faster_convergence = faster_convergence
         self.preprocess = preprocess
         self.validation_ratio = validation_ratio
+        self.calculate_custom_hessian_function = calculate_custom_hessian_function
 
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
@@ -247,6 +254,9 @@ class APLRRegressor:
         self.APLRRegressor.faster_convergence = self.faster_convergence
         self.APLRRegressor.preprocess = self.preprocess
         self.APLRRegressor.validation_ratio = self.validation_ratio
+        self.APLRRegressor.calculate_custom_hessian_function = (
+            self.calculate_custom_hessian_function
+        )
 
     def fit(
         self,
@@ -560,6 +570,7 @@ class APLRRegressor:
         self.calculate_custom_validation_error_function = None
         self.calculate_custom_loss_function = None
         self.calculate_custom_negative_gradient_function = None
+        self.calculate_custom_hessian_function = None
 
     def clear_cv_results(self):
         """
@@ -606,6 +617,7 @@ class APLRRegressor:
             "faster_convergence": self.faster_convergence,
             "preprocess": self.preprocess,
             "validation_ratio": self.validation_ratio,
+            "calculate_custom_hessian_function": self.calculate_custom_hessian_function,
         }
 
     # For sklearn
@@ -627,6 +639,8 @@ class APLRRegressor:
             state["preprocess"] = False
         if "validation_ratio" not in state:
             state["validation_ratio"] = np.nan
+        if "calculate_custom_hessian_function" not in state:
+            state["calculate_custom_hessian_function"] = None
         self.__dict__.update(state)
         self.__set_params_cpp()
 

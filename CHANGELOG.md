@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.23.0] - 2026-05-16
+
+### Added
+- **Hessian-Based Optimization:** Integrated second-order derivative information (Hessian) to accelerate convergence for models using non-MSE loss functions or non-identity link functions (e.g., `logit`, `log`). This improvement allows for more precise updates in each boosting step, often leading to better performance in fewer iterations.
+- **Custom Hessian Support:** Added the `calculate_custom_hessian_function` parameter to `APLRRegressor`. Users can now provide a custom function to compute the second-order derivative for their own loss functions, ensuring that custom objectives also benefit from faster convergence.
+
+### Deprecated
+- **`faster_convergence` Parameter:** The `faster_convergence` parameter in `APLRRegressor` is now deprecated. It is superseded by the more robust and mathematically sound Hessian-based optimization, which is now the standard method for accelerating convergence in relevant tasks.
+
 ## [10.22.1] - 2026-04-25
 
 ### Fixed

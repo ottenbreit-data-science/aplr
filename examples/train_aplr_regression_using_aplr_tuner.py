@@ -7,7 +7,6 @@ from sklearn.datasets import load_diabetes
 import matplotlib.pyplot as plt
 from aplr import APLRTuner
 
-
 # Settings
 random_state = 0
 validation_ratio = (

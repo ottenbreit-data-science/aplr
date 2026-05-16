@@ -46,6 +46,9 @@ private:
     VectorXd predictions_current;
     VectorXd predictions_current_validation;
     VectorXd neg_gradient_current;
+    VectorXd neg_gradient_current_over_hessian;
+    VectorXd hessian_current;
+    VectorXd sample_weight_train_for_fitting;
     double neg_gradient_nullmodel_errors_sum;
     size_t best_term_index;
     VectorXd linear_predictor_update;
@@ -90,6 +93,7 @@ private:
     bool stopped_early;
     std::vector<double> ridge_penalty_weights;
     double min_validation_error_for_current_fold;
+    bool mse_identity_case;
 
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
@@ -128,6 +132,7 @@ private:
     void setup_groups_for_group_mse_cycle();
     VectorXi create_groups_for_group_mse_sorted_by_vector(const VectorXd &vector, const std::set<int> &unique_groups_in_vector);
     VectorXd calculate_neg_gradient_current();
+    VectorXd calculate_hessian_current();
     VectorXd calculate_neg_gradient_current_for_group_mse(GroupData &group_residuals_and_count, const VectorXi &group,
                                                           const std::set<int> &unique_groups);
     void execute_boosting_steps(Eigen::Index fold_index);
@@ -270,6 +275,7 @@ public:
     Preprocessor preprocessor;
     bool preprocess;
     double validation_ratio;
+    std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)> calculate_custom_hessian_function;
 
     std::vector<VectorXd> cv_validation_predictions_all_folds;
     std::vector<VectorXd> cv_y_all_folds;
@@ -289,7 +295,8 @@ public:
                   size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
                   size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30, size_t early_stopping_rounds = 200,
                   size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0, double penalty_for_interactions = 0.0, size_t max_terms = 0,
-                  double ridge_penalty = 0.0001, bool mean_bias_correction = false, bool faster_convergence = false, bool preprocess = true, double validation_ratio = std::numeric_limits<double>::quiet_NaN());
+                  double ridge_penalty = 0.0001, bool mean_bias_correction = false, bool faster_convergence = false, bool preprocess = true, double validation_ratio = std::numeric_limits<double>::quiet_NaN(),
+                  const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_hessian_function = {});
     APLRRegressor(const APLRRegressor &other);
     APLRRegressor &operator=(const APLRRegressor &other);
     ~APLRRegressor();
@@ -381,7 +388,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
                              size_t group_mse_by_prediction_bins, size_t group_mse_cycle_min_obs_in_bin, size_t early_stopping_rounds,
                              size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity, double penalty_for_interactions, size_t max_terms, double ridge_penalty,
-                             bool mean_bias_correction, bool faster_convergence, bool preprocess, double validation_ratio)
+                             bool mean_bias_correction, bool faster_convergence, bool preprocess, double validation_ratio,
+                             const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_hessian_function)
     : intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, cv_folds{cv_folds}, n_jobs{n_jobs}, random_state{random_state},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
@@ -399,7 +407,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
       group_mse_cycle_min_obs_in_bin{group_mse_cycle_min_obs_in_bin}, cv_error{NAN_DOUBLE}, early_stopping_rounds{early_stopping_rounds},
       num_first_steps_with_linear_effects_only{num_first_steps_with_linear_effects_only}, penalty_for_non_linearity{penalty_for_non_linearity},
       penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}, ridge_penalty{ridge_penalty}, mean_bias_correction{mean_bias_correction},
-      faster_convergence{faster_convergence}, preprocess{preprocess}, validation_ratio{validation_ratio}
+      faster_convergence{faster_convergence}, preprocess{preprocess}, validation_ratio{validation_ratio},
+      calculate_custom_hessian_function{calculate_custom_hessian_function}, mse_identity_case{false}
 {
 }
 
@@ -436,7 +445,9 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       cv_validation_predictions_all_folds{other.cv_validation_predictions_all_folds},
       cv_y_all_folds{other.cv_y_all_folds}, cv_sample_weight_all_folds{other.cv_sample_weight_all_folds},
       cv_validation_indexes_all_folds{other.cv_validation_indexes_all_folds},
-      preprocessor{other.preprocessor}, preprocess{other.preprocess}, validation_ratio{other.validation_ratio}
+      preprocessor{other.preprocessor}, preprocess{other.preprocess}, validation_ratio{other.validation_ratio},
+      calculate_custom_hessian_function{other.calculate_custom_hessian_function},
+      mse_identity_case{other.mse_identity_case}
 {
 }
 
@@ -510,6 +521,8 @@ APLRRegressor &APLRRegressor::operator=(const APLRRegressor &other)
     preprocessor = other.preprocessor;
     preprocess = other.preprocess;
     validation_ratio = other.validation_ratio;
+    calculate_custom_hessian_function = other.calculate_custom_hessian_function;
+    mse_identity_case = other.mse_identity_case;
 
     thread_pool.reset();
 
@@ -1406,6 +1419,12 @@ void APLRRegressor::initialize(const std::vector<int> &monotonic_constraints)
         }
     }
 
+    mse_identity_case = loss_function == "mse" && link_function == "identity";
+    if (mse_identity_case)
+    {
+        sample_weight_train_for_fitting = sample_weight_train;
+    }
+
     bool loss_function_is_group_mse_cycle{loss_function == "group_mse_cycle"};
     if (loss_function_is_group_mse_cycle)
     {
@@ -1612,27 +1631,84 @@ VectorXd APLRRegressor::calculate_neg_gradient_current()
     if (link_function != "identity")
         output = output.array() * differentiate_predictions_wrt_linear_predictor().array();
 
-    if (faster_convergence && (link_function == "identity" || link_function == "log"))
+    return output;
+}
+
+VectorXd APLRRegressor::calculate_hessian_current()
+{
+    VectorXd output;
+    if (loss_function == "custom_function")
     {
-        double standard_deviation_of_neg_gradient{calculate_standard_deviation(output, sample_weight_train)};
-        if (is_approximately_zero(standard_deviation_of_neg_gradient))
+        try
         {
-            return output;
+            output = calculate_custom_hessian_function(y_train, predictions_current, group_train, other_data_train);
         }
-
-        ArrayXd denominator{ArrayXd::Ones(y_train.size())};
-        if (link_function != "identity")
+        catch (const std::exception &e)
         {
-            denominator = differentiate_predictions_wrt_linear_predictor().array();
+            std::string error_msg{"Error when calculating custom hessian function: " + static_cast<std::string>(e.what())};
+            throw std::runtime_error(error_msg);
         }
-
-        double desired_standard_deviation{
-            calculate_standard_deviation((y_train - predictions_current).array() / denominator, sample_weight_train)};
-        double adjustment_factor = desired_standard_deviation / standard_deviation_of_neg_gradient;
-
-        if (std::isfinite(adjustment_factor))
-            output *= adjustment_factor;
     }
+    else if (loss_function == "mse" || loss_function == "group_mse" || loss_function == "group_mse_cycle" || loss_function == "huber")
+    {
+        output = VectorXd::Ones(y_train.size());
+    }
+    else if (loss_function == "binomial")
+    {
+        output = 1.0 / (predictions_current.array() * (1.0 - predictions_current.array()));
+    }
+    else if (loss_function == "poisson")
+    {
+        output = 1.0 / predictions_current.array();
+    }
+    else if (loss_function == "gamma")
+    {
+        output = 1.0 / predictions_current.array().pow(2);
+    }
+    else if (loss_function == "tweedie")
+    {
+        output = predictions_current.array().pow(-dispersion_parameter);
+    }
+    else if (loss_function == "negative_binomial")
+    {
+        output = 1.0 / (predictions_current.array() * (dispersion_parameter * predictions_current.array() + 1.0));
+    }
+    else if (loss_function == "weibull")
+    {
+        output = (dispersion_parameter * dispersion_parameter) / predictions_current.array().pow(2);
+    }
+    else if (loss_function == "exponential_power")
+    {
+        double p = dispersion_parameter;
+        if (p <= 1.0)
+        {
+            output = VectorXd::Ones(y_train.size());
+        }
+        else
+        {
+            ArrayXd residuals = (y_train.array() - predictions_current.array()).abs();
+            ArrayXd exact_hessian = p * (p - 1.0) * residuals.pow(p - 2.0);
+            output = (residuals == 0.0).select(VectorXd::Ones(y_train.size()), exact_hessian);
+        }
+    }
+    else if (loss_function == "cauchy")
+    {
+        ArrayXd residuals = y_train.array() - predictions_current.array();
+        double d_sq = dispersion_parameter * dispersion_parameter;
+        output = 2.0 / (d_sq + residuals.pow(2));
+    }
+    else
+    {
+        output = VectorXd::Ones(y_train.size());
+    }
+
+    if (link_function != "identity")
+    {
+        ArrayXd d_mu_d_eta = differentiate_predictions_wrt_linear_predictor().array();
+        output = output.array() * d_mu_d_eta * d_mu_d_eta;
+    }
+
+    output = output.array().isFinite().select((output.array() > 0.0).select(output, 1e-4), 1.0);
 
     return output;
 }
@@ -1652,10 +1728,10 @@ VectorXd APLRRegressor::calculate_neg_gradient_current_for_group_mse(GroupData &
 VectorXd APLRRegressor::differentiate_predictions_wrt_linear_predictor()
 {
     if (link_function == "logit")
-        return 10.0 / 4.0 * (linear_predictor_current.array() / 2.0).cosh().array().pow(-2);
+        return predictions_current.array() * (1.0 - predictions_current.array());
     else if (link_function == "log")
     {
-        return linear_predictor_current.array().exp();
+        return predictions_current;
     }
     else if (link_function == "custom_function")
     {
@@ -1773,10 +1849,10 @@ void APLRRegressor::execute_boosting_step(size_t boosting_step, Eigen::Index fol
 void APLRRegressor::update_intercept(size_t boosting_step)
 {
     double intercept_update;
-    intercept_update = v * (neg_gradient_current.array() * sample_weight_train.array()).sum() / sample_weight_train.array().sum();
+    intercept_update = v * (neg_gradient_current_over_hessian.array() * sample_weight_train_for_fitting.array()).sum() / sample_weight_train_for_fitting.array().sum();
     if (model_has_changed_in_this_boosting_step == false)
         model_has_changed_in_this_boosting_step = !is_approximately_equal(intercept_update, 0.0);
-    linear_predictor_update = VectorXd::Constant(neg_gradient_current.size(), intercept_update);
+    linear_predictor_update = VectorXd::Constant(neg_gradient_current_over_hessian.size(), intercept_update);
     linear_predictor_update_validation = VectorXd::Constant(y_validation.size(), intercept_update);
     update_linear_predictor_and_predictions();
     update_gradient_and_errors();
@@ -1814,7 +1890,22 @@ void APLRRegressor::update_linear_predictor_and_predictions()
 void APLRRegressor::update_gradient_and_errors()
 {
     neg_gradient_current = calculate_neg_gradient_current();
-    neg_gradient_nullmodel_errors_sum = calculate_sum_error(calculate_errors(neg_gradient_current, linear_predictor_null_model, sample_weight_train, MSE_LOSS_FUNCTION));
+    if (mse_identity_case)
+    {
+        neg_gradient_current_over_hessian = neg_gradient_current;
+    }
+    else
+    {
+        hessian_current = calculate_hessian_current();
+        neg_gradient_current_over_hessian = (neg_gradient_current.array() / hessian_current.array()).matrix();
+        sample_weight_train_for_fitting = sample_weight_train.array() * hessian_current.array();
+        double fitting_weight_sum = sample_weight_train_for_fitting.sum();
+        if (fitting_weight_sum > 0.0)
+        {
+            sample_weight_train_for_fitting *= (sample_weight_train.sum() / fitting_weight_sum);
+        }
+    }
+    neg_gradient_nullmodel_errors_sum = calculate_sum_error(calculate_errors(neg_gradient_current_over_hessian, linear_predictor_null_model, sample_weight_train_for_fitting, MSE_LOSS_FUNCTION));
 }
 
 std::vector<size_t> APLRRegressor::find_terms_eligible_current_indexes_for_a_base_term(size_t base_term)
@@ -1844,7 +1935,7 @@ void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms,
             results.emplace_back(
                 thread_pool->enqueue([term_ptr, this]
                                      { term_ptr->estimate_split_point(
-                                           this->X_train, this->neg_gradient_current, this->sample_weight_train, this->bins,
+                                           this->X_train, this->neg_gradient_current_over_hessian, this->sample_weight_train_for_fitting, this->bins,
                                            this->predictor_learning_rates[term_ptr->base_term],
                                            static_cast<size_t>(this->predictor_min_observations_in_split[term_ptr->base_term]),
                                            this->linear_effects_only_in_this_boosting_step,
@@ -1862,7 +1953,7 @@ void APLRRegressor::estimate_split_point_for_each_term(std::vector<Term> &terms,
     {
         for (size_t i = 0; i < terms_indexes.size(); ++i)
         {
-            terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current, sample_weight_train, bins,
+            terms[terms_indexes[i]].estimate_split_point(X_train, neg_gradient_current_over_hessian, sample_weight_train_for_fitting, bins,
                                                          predictor_learning_rates[terms[terms_indexes[i]].base_term],
                                                          static_cast<size_t>(predictor_min_observations_in_split[terms[terms_indexes[i]].base_term]),
                                                          linear_effects_only_in_this_boosting_step,
@@ -2346,7 +2437,7 @@ void APLRRegressor::update_term_eligibility()
 void APLRRegressor::update_a_term_coefficient_round_robin(size_t boosting_step)
 {
     update_intercept(boosting_step);
-    terms_eligible_current[term_to_update_in_this_boosting_step].estimate_split_point(X_train, neg_gradient_current, sample_weight_train,
+    terms_eligible_current[term_to_update_in_this_boosting_step].estimate_split_point(X_train, neg_gradient_current_over_hessian, sample_weight_train_for_fitting,
                                                                                       bins,
                                                                                       predictor_learning_rates[terms_eligible_current[term_to_update_in_this_boosting_step].base_term],
                                                                                       static_cast<size_t>(predictor_min_observations_in_split[terms_eligible_current[term_to_update_in_this_boosting_step].base_term]),
@@ -3422,6 +3513,7 @@ void APLRRegressor::remove_provided_custom_functions()
     calculate_custom_validation_error_function = {};
     calculate_custom_loss_function = {};
     calculate_custom_negative_gradient_function = {};
+    calculate_custom_hessian_function = {};
 }
 
 void APLRRegressor::validate_fold_index(size_t fold_index)

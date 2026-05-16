@@ -6,7 +6,6 @@ from sklearn.datasets import load_iris
 from sklearn.metrics import balanced_accuracy_score
 from aplr import APLRTuner
 
-
 # Settings
 random_state = 0
 validation_ratio = (

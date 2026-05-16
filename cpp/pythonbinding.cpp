@@ -19,6 +19,7 @@ std::function<double(VectorXd, VectorXd, VectorXd, VectorXi, MatrixXd)> empty_ca
 std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> empty_calculate_custom_negative_gradient_function = {};
 std::function<VectorXd(VectorXd)> empty_calculate_custom_transform_linear_predictor_to_predictions_function = {};
 std::function<VectorXd(VectorXd)> empty_calculate_custom_differentiate_predictions_wrt_linear_predictor_function = {};
+std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> empty_calculate_custom_hessian_function = {};
 
 PYBIND11_MODULE(aplr_cpp, m)
 {
@@ -126,7 +127,8 @@ PYBIND11_MODULE(aplr_cpp, m)
                       std::function<double(const VectorXd &y, const VectorXd &predictions, const VectorXd &sample_weight, const VectorXi &group, const MatrixXd &other_data)> &, // 20
                       std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)> &,
                       std::function<VectorXd(const VectorXd &linear_predictor)> &, std::function<VectorXd(const VectorXd &linear_predictor)> &,
-                      int &, bool &, int &, int &, int &, int &, double &, double &, int &, double &, bool &, bool &, bool &, double &>(),
+                      int &, bool &, int &, int &, int &, int &, double &, double &, int &, double &, bool &, bool &, bool &, double &,
+                      std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)> &>(),
              py::arg("m") = 3000, py::arg("v") = 0.5, py::arg("random_state") = 0, py::arg("loss_function") = "mse", py::arg("link_function") = "identity",
              py::arg("n_jobs") = 0, py::arg("cv_folds") = 5,
              py::arg("bins") = 300, py::arg("verbosity") = 0,
@@ -146,7 +148,8 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("early_stopping_rounds") = 200, py::arg("num_first_steps_with_linear_effects_only") = 0,
              py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.0, py::arg("max_terms") = 0,
              py::arg("ridge_penalty") = 0.0001, py::arg("mean_bias_correction") = false, py::arg("faster_convergence") = true,
-             py::arg("preprocess") = true, py::arg("validation_ratio") = std::numeric_limits<double>::quiet_NaN())
+             py::arg("preprocess") = true, py::arg("validation_ratio") = std::numeric_limits<double>::quiet_NaN(),
+             py::arg("calculate_custom_hessian_function") = empty_calculate_custom_hessian_function)
         .def("fit", py::overload_cast<const Eigen::MatrixXd &, const Eigen::VectorXd &, const Eigen::VectorXd &, const std::vector<std::string> &, const Eigen::MatrixXi &, const std::vector<size_t> &, const std::vector<int> &, const Eigen::VectorXi &, const std::vector<std::vector<size_t>> &, const Eigen::MatrixXd &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &>(&APLRRegressor::fit), py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("cv_observations") = MatrixXd(0, 0), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),
              py::arg("monotonic_constraints") = std::vector<int>(), py::arg("group") = VectorXi(0),
@@ -264,6 +267,7 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def_readwrite("preprocessor", &APLRRegressor::preprocessor)
         .def_readwrite("preprocess", &APLRRegressor::preprocess)
         .def_readwrite("validation_ratio", &APLRRegressor::validation_ratio)
+        .def_readwrite("calculate_custom_hessian_function", &APLRRegressor::calculate_custom_hessian_function)
         .def(py::pickle(
             [](const APLRRegressor &a) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
