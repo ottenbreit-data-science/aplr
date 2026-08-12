@@ -49,8 +49,8 @@ for params in param_grid:
         loss_function=loss_function,
         link_function=link_function,
         validation_tuning_metric="mse",
-        num_first_steps_with_linear_effects_only=0,  # Increasing this will increase interpretabilty but may decrease predictiveness.
-        boosting_steps_before_interactions_are_allowed=0,  # Increasing this will increase interpretabilty but may decrease predictivenes.
+        penalty_for_non_linearity=0.0,  # Increasing this will increase interpretabilty but may decrease predictiveness. Maximum is 1.0.
+        penalty_for_interactions=0.0,  # Increasing this will increase interpretabilty but may decrease predictiveness. Maximum is 1.0.
         validation_ratio=validation_ratio,
         **params,
     )

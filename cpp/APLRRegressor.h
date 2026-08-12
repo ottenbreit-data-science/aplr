@@ -6,6 +6,10 @@
 #include <vector>
 #include <thread>
 #include <unordered_map>
+#include <map>
+#include <set>
+#include <memory>
+#include <functional>
 #include "../dependencies/eigen-3.4.0/Eigen/Dense"
 #include "functions.h"
 #include "term.h"
@@ -93,7 +97,7 @@ private:
     bool stopped_early;
     std::vector<double> ridge_penalty_weights;
     double min_validation_error_for_current_fold;
-    bool mse_identity_case;
+    bool skip_hessian;
 
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
@@ -132,6 +136,7 @@ private:
     void setup_groups_for_group_mse_cycle();
     VectorXi create_groups_for_group_mse_sorted_by_vector(const VectorXd &vector, const std::set<int> &unique_groups_in_vector);
     VectorXd calculate_neg_gradient_current();
+    VectorXd calculate_neg_gradient_current_wrt_mu();
     VectorXd calculate_hessian_current();
     VectorXd calculate_neg_gradient_current_for_group_mse(GroupData &group_residuals_and_count, const VectorXi &group,
                                                           const std::set<int> &unique_groups);
@@ -197,6 +202,7 @@ private:
     void throw_error_if_vector_contains_non_positive_values(const VectorXd &y, const std::string &error_message);
     void throw_error_if_dispersion_parameter_is_invalid();
     VectorXd differentiate_predictions_wrt_linear_predictor();
+    VectorXd differentiate2_predictions_wrt_linear_predictor();
     void correct_mean_bias();
     void scale_response_if_using_log_link_function();
     void revert_scaling_if_using_log_link_function();
@@ -276,6 +282,7 @@ public:
     bool preprocess;
     double validation_ratio;
     std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)> calculate_custom_hessian_function;
+    std::function<VectorXd(const VectorXd &linear_predictor)> calculate_custom_differentiate2_predictions_wrt_linear_predictor_function;
 
     std::vector<VectorXd> cv_validation_predictions_all_folds;
     std::vector<VectorXd> cv_y_all_folds;
@@ -296,7 +303,8 @@ public:
                   size_t group_mse_by_prediction_bins = 10, size_t group_mse_cycle_min_obs_in_bin = 30, size_t early_stopping_rounds = 200,
                   size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0, double penalty_for_interactions = 0.0, size_t max_terms = 0,
                   double ridge_penalty = 0.0001, bool mean_bias_correction = false, bool faster_convergence = false, bool preprocess = true, double validation_ratio = std::numeric_limits<double>::quiet_NaN(),
-                  const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_hessian_function = {});
+                  const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_hessian_function = {},
+                  const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate2_predictions_wrt_linear_predictor_function = {});
     APLRRegressor(const APLRRegressor &other);
     APLRRegressor &operator=(const APLRRegressor &other);
     ~APLRRegressor();
@@ -389,7 +397,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              size_t group_mse_by_prediction_bins, size_t group_mse_cycle_min_obs_in_bin, size_t early_stopping_rounds,
                              size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity, double penalty_for_interactions, size_t max_terms, double ridge_penalty,
                              bool mean_bias_correction, bool faster_convergence, bool preprocess, double validation_ratio,
-                             const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_hessian_function)
+                             const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_hessian_function,
+                             const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate2_predictions_wrt_linear_predictor_function)
     : intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, cv_folds{cv_folds}, n_jobs{n_jobs}, random_state{random_state},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
@@ -408,7 +417,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
       num_first_steps_with_linear_effects_only{num_first_steps_with_linear_effects_only}, penalty_for_non_linearity{penalty_for_non_linearity},
       penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}, ridge_penalty{ridge_penalty}, mean_bias_correction{mean_bias_correction},
       faster_convergence{faster_convergence}, preprocess{preprocess}, validation_ratio{validation_ratio},
-      calculate_custom_hessian_function{calculate_custom_hessian_function}, mse_identity_case{false}
+      calculate_custom_hessian_function{calculate_custom_hessian_function}, skip_hessian{false},
+      calculate_custom_differentiate2_predictions_wrt_linear_predictor_function{calculate_custom_differentiate2_predictions_wrt_linear_predictor_function}
 {
 }
 
@@ -446,8 +456,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       cv_y_all_folds{other.cv_y_all_folds}, cv_sample_weight_all_folds{other.cv_sample_weight_all_folds},
       cv_validation_indexes_all_folds{other.cv_validation_indexes_all_folds},
       preprocessor{other.preprocessor}, preprocess{other.preprocess}, validation_ratio{other.validation_ratio},
-      calculate_custom_hessian_function{other.calculate_custom_hessian_function},
-      mse_identity_case{other.mse_identity_case}
+      calculate_custom_hessian_function{other.calculate_custom_hessian_function}, skip_hessian{other.skip_hessian},
+      calculate_custom_differentiate2_predictions_wrt_linear_predictor_function{other.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function}
 {
 }
 
@@ -522,7 +532,8 @@ APLRRegressor &APLRRegressor::operator=(const APLRRegressor &other)
     preprocess = other.preprocess;
     validation_ratio = other.validation_ratio;
     calculate_custom_hessian_function = other.calculate_custom_hessian_function;
-    mse_identity_case = other.mse_identity_case;
+    skip_hessian = other.skip_hessian;
+    calculate_custom_differentiate2_predictions_wrt_linear_predictor_function = other.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function;
 
     thread_pool.reset();
 
@@ -1419,8 +1430,9 @@ void APLRRegressor::initialize(const std::vector<int> &monotonic_constraints)
         }
     }
 
-    mse_identity_case = loss_function == "mse" && link_function == "identity";
-    if (mse_identity_case)
+    skip_hessian = (loss_function == "mse" && link_function == "identity") ||
+                   loss_function == "binomial" || link_function == "logit";
+    if (skip_hessian)
     {
         sample_weight_train_for_fitting = sample_weight_train;
     }
@@ -1544,7 +1556,7 @@ VectorXi APLRRegressor::create_groups_for_group_mse_sorted_by_vector(const Vecto
     return group;
 }
 
-VectorXd APLRRegressor::calculate_neg_gradient_current()
+VectorXd APLRRegressor::calculate_neg_gradient_current_wrt_mu()
 {
     VectorXd output;
     if (loss_function == "mse")
@@ -1628,6 +1640,12 @@ VectorXd APLRRegressor::calculate_neg_gradient_current()
         }
     }
 
+    return output;
+}
+
+VectorXd APLRRegressor::calculate_neg_gradient_current()
+{
+    VectorXd output = calculate_neg_gradient_current_wrt_mu();
     if (link_function != "identity")
         output = output.array() * differentiate_predictions_wrt_linear_predictor().array();
 
@@ -1649,63 +1667,75 @@ VectorXd APLRRegressor::calculate_hessian_current()
             throw std::runtime_error(error_msg);
         }
     }
-    else if (loss_function == "mse" || loss_function == "group_mse" || loss_function == "group_mse_cycle" || loss_function == "huber")
+    else
     {
-        output = VectorXd::Ones(y_train.size());
-    }
-    else if (loss_function == "binomial")
-    {
-        output = 1.0 / (predictions_current.array() * (1.0 - predictions_current.array()));
-    }
-    else if (loss_function == "poisson")
-    {
-        output = 1.0 / predictions_current.array();
-    }
-    else if (loss_function == "gamma")
-    {
-        output = 1.0 / predictions_current.array().pow(2);
-    }
-    else if (loss_function == "tweedie")
-    {
-        output = predictions_current.array().pow(-dispersion_parameter);
-    }
-    else if (loss_function == "negative_binomial")
-    {
-        output = 1.0 / (predictions_current.array() * (dispersion_parameter * predictions_current.array() + 1.0));
-    }
-    else if (loss_function == "weibull")
-    {
-        output = (dispersion_parameter * dispersion_parameter) / predictions_current.array().pow(2);
-    }
-    else if (loss_function == "exponential_power")
-    {
-        double p = dispersion_parameter;
-        if (p <= 1.0)
+        // Differentiate -neg_gradient_current_wrt_mu with respect to mu so the result is the loss Hessian wrt mu.
+        if (loss_function == "mse")
         {
-            output = VectorXd::Ones(y_train.size());
+            output = VectorXd::Constant(y_train.size(), 1.0);
+        }
+        else if (loss_function == "poisson")
+        {
+            output = y_train.array() / predictions_current.array().square();
+        }
+        else if (loss_function == "gamma")
+        {
+            ArrayXd mu = predictions_current.array();
+            output = -1.0 / mu.square() + 2.0 * y_train.array() / mu.cube();
+        }
+        else if (loss_function == "tweedie")
+        {
+            double d = dispersion_parameter;
+            ArrayXd mu = predictions_current.array();
+            output = (1.0 - d) * mu.pow(-d) + d * y_train.array() * mu.pow(-d - 1.0);
+        }
+        else if (loss_function == "negative_binomial")
+        {
+            double r = dispersion_parameter;
+            ArrayXd mu = predictions_current.array();
+            ArrayXd denom = mu.square() * (1.0 + r * mu).square();
+            output = (1.0 + r * mu) / denom + (y_train.array() - mu) * (1.0 + 2.0 * r * mu) / denom;
+        }
+        else if (loss_function == "weibull")
+        {
+            double r = dispersion_parameter;
+            ArrayXd mu = predictions_current.array();
+            output = -r * (1.0 / mu.square() - (r + 1.0) * (y_train.array() / mu).pow(r) / mu.square());
+        }
+        else if (loss_function == "exponential_power")
+        {
+            double p = dispersion_parameter;
+            ArrayXd residuals = y_train.array() - predictions_current.array();
+            ArrayXd abs_residuals = residuals.abs();
+            if (p <= 1.0)
+            {
+                output = VectorXd::Zero(y_train.size());
+            }
+            else
+            {
+                ArrayXd exact_hessian = p * (p - 1.0) * abs_residuals.pow(p - 2.0);
+                output = (residuals == 0.0).select(VectorXd::Zero(y_train.size()), exact_hessian);
+            }
+        }
+        else if (loss_function == "cauchy")
+        {
+            ArrayXd residuals = y_train.array() - predictions_current.array();
+            double d_sq = dispersion_parameter * dispersion_parameter;
+            output = 2.0 / (d_sq + residuals.pow(2));
         }
         else
         {
-            ArrayXd residuals = (y_train.array() - predictions_current.array()).abs();
-            ArrayXd exact_hessian = p * (p - 1.0) * residuals.pow(p - 2.0);
-            output = (residuals == 0.0).select(VectorXd::Ones(y_train.size()), exact_hessian);
+            output = VectorXd::Ones(y_train.size());
         }
     }
-    else if (loss_function == "cauchy")
-    {
-        ArrayXd residuals = y_train.array() - predictions_current.array();
-        double d_sq = dispersion_parameter * dispersion_parameter;
-        output = 2.0 / (d_sq + residuals.pow(2));
-    }
-    else
-    {
-        output = VectorXd::Ones(y_train.size());
-    }
 
+    // Apply the chain rule to convert the Hessian wrt mu into the Hessian wrt the linear predictor.
     if (link_function != "identity")
     {
         ArrayXd d_mu_d_eta = differentiate_predictions_wrt_linear_predictor().array();
-        output = output.array() * d_mu_d_eta * d_mu_d_eta;
+        ArrayXd d2_mu_d_eta2 = differentiate2_predictions_wrt_linear_predictor().array();
+        VectorXd neg_gradient_wrt_mu = calculate_neg_gradient_current_wrt_mu();
+        output = output.array() * d_mu_d_eta * d_mu_d_eta - neg_gradient_wrt_mu.array() * d2_mu_d_eta2;
     }
 
     output = output.array().isFinite().select((output.array() > 0.0).select(output, 1e-4), 1.0);
@@ -1728,7 +1758,7 @@ VectorXd APLRRegressor::calculate_neg_gradient_current_for_group_mse(GroupData &
 VectorXd APLRRegressor::differentiate_predictions_wrt_linear_predictor()
 {
     if (link_function == "logit")
-        return predictions_current.array() * (1.0 - predictions_current.array());
+        return 10.0 / 4.0 * (linear_predictor_current.array() / 2.0).cosh().array().pow(-2); // multiplied by 10 for faster convergence
     else if (link_function == "log")
     {
         return predictions_current;
@@ -1742,6 +1772,27 @@ VectorXd APLRRegressor::differentiate_predictions_wrt_linear_predictor()
         catch (const std::exception &e)
         {
             std::string error_msg{"Error when executing calculate_custom_differentiate_predictions_wrt_linear_predictor_function: " + static_cast<std::string>(e.what())};
+            throw std::runtime_error(error_msg);
+        }
+    }
+    return VectorXd(0);
+}
+
+VectorXd APLRRegressor::differentiate2_predictions_wrt_linear_predictor()
+{
+    if (link_function == "log")
+    {
+        return predictions_current;
+    }
+    else if (link_function == "custom_function")
+    {
+        try
+        {
+            return calculate_custom_differentiate2_predictions_wrt_linear_predictor_function(linear_predictor_current);
+        }
+        catch (const std::exception &e)
+        {
+            std::string error_msg{"Error when executing calculate_custom_differentiate2_predictions_wrt_linear_predictor_function: " + static_cast<std::string>(e.what())};
             throw std::runtime_error(error_msg);
         }
     }
@@ -1890,7 +1941,7 @@ void APLRRegressor::update_linear_predictor_and_predictions()
 void APLRRegressor::update_gradient_and_errors()
 {
     neg_gradient_current = calculate_neg_gradient_current();
-    if (mse_identity_case)
+    if (skip_hessian)
     {
         neg_gradient_current_over_hessian = neg_gradient_current;
     }

@@ -1,6 +1,6 @@
 # APLRRegressor
 
-## class aplr.APLRRegressor(m:int = 3000, v:float = 0.5, random_state:int = 0, loss_function:str = "mse", link_function:str = "identity", n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:float = 0.3, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, verbosity:int = 0, dispersion_parameter:float = 1.5, validation_tuning_metric:str = "default", quantile:float = 0.5, calculate_custom_validation_error_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatVector, FloatMatrix], float]] = None, calculate_custom_loss_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatVector, FloatMatrix], float]] = None, calculate_custom_negative_gradient_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatMatrix],FloatVector]] = None, calculate_custom_transform_linear_predictor_to_predictions_function:Optional[Callable[[FloatVector], FloatVector]] = None, calculate_custom_differentiate_predictions_wrt_linear_predictor_function:Optional[Callable[[FloatVector], FloatVector]] = None, boosting_steps_before_interactions_are_allowed:int = 0, monotonic_constraints_ignore_interactions:bool = False, group_mse_by_prediction_bins:int = 10, group_mse_cycle_min_obs_in_bin:int = 30, early_stopping_rounds:int = 200, num_first_steps_with_linear_effects_only:int = 0, penalty_for_non_linearity:float = 0.0, penalty_for_interactions:float = 0.0, max_terms:int = 0, ridge_penalty: float = 0.0001, mean_bias_correction:bool = False, faster_convergence:bool = False, preprocess:bool = True, validation_ratio:float = np.nan, calculate_custom_hessian_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatMatrix],FloatVector]] = None)
+## class aplr.APLRRegressor(m:int = 3000, v:float = 0.5, random_state:int = 0, loss_function:str = "mse", link_function:str = "identity", n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:float = 0.3, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, verbosity:int = 0, dispersion_parameter:float = 1.5, validation_tuning_metric:str = "default", quantile:float = 0.5, calculate_custom_validation_error_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatVector, FloatMatrix], float]] = None, calculate_custom_loss_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatVector, FloatMatrix], float]] = None, calculate_custom_negative_gradient_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatMatrix],FloatVector]] = None, calculate_custom_transform_linear_predictor_to_predictions_function:Optional[Callable[[FloatVector], FloatVector]] = None, calculate_custom_differentiate_predictions_wrt_linear_predictor_function:Optional[Callable[[FloatVector], FloatVector]] = None, boosting_steps_before_interactions_are_allowed:int = 0, monotonic_constraints_ignore_interactions:bool = False, group_mse_by_prediction_bins:int = 10, group_mse_cycle_min_obs_in_bin:int = 30, early_stopping_rounds:int = 200, num_first_steps_with_linear_effects_only:int = 0, penalty_for_non_linearity:float = 0.0, penalty_for_interactions:float = 0.0, max_terms:int = 0, ridge_penalty: float = 0.0001, mean_bias_correction:bool = False, faster_convergence:bool = False, preprocess:bool = True, validation_ratio:float = np.nan, calculate_custom_hessian_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatMatrix],FloatVector]] = None, calculate_custom_differentiate2_predictions_wrt_linear_predictor_function:Optional[Callable[[FloatVector], FloatVector]] = None)
 
 ### Constructor parameters
 
@@ -93,13 +93,23 @@ def calculate_custom_transform_linear_predictor_to_predictions(linear_predictor)
 ```
 
 #### calculate_custom_differentiate_predictions_wrt_linear_predictor_function (default = None)
-A Python function that does a first order differentiation of the predictions with respect to the linear predictor. Example:
+A Python function that does a first order differentiation of the predictions with respect to the linear predictor. This is used when `link_function` is "custom_function". Example:
 
 ```
 def calculate_custom_differentiate_predictions_wrt_linear_predictor(linear_predictor):
     #This particular example is prone to numerical problems (requires small and non-negative response values).
     differentiated_predictions = np.exp(linear_predictor)
     return differentiated_predictions
+```
+
+#### calculate_custom_differentiate2_predictions_wrt_linear_predictor_function (default = None)
+A Python function that does a second order differentiation of the predictions with respect to the linear predictor. This is used when `link_function` is "custom_function". Example:
+
+```
+def calculate_custom_differentiate2_predictions_wrt_linear_predictor(linear_predictor):
+    # This example assumes the transformed predictions are exp(linear_predictor).
+    second_derivative_predictions = np.exp(linear_predictor)
+    return second_derivative_predictions
 ```
 
 #### boosting_steps_before_interactions_are_allowed (default = 0)

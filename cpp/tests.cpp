@@ -54,6 +54,12 @@ VectorXd calculate_custom_differentiate_predictions_wrt_linear_predictor(const V
     return differentiated_predictions;
 }
 
+VectorXd calculate_custom_differentiate2_predictions_wrt_linear_predictor(const VectorXd &linear_predictor)
+{
+    VectorXd differentiated_predictions{linear_predictor.array().exp()};
+    return differentiated_predictions;
+}
+
 bool are_matrices_approx_equal(const Eigen::MatrixXd &a, const Eigen::MatrixXd &b)
 {
     if (a.rows() != b.rows() || a.cols() != b.cols())
@@ -650,9 +656,9 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 1.9089918776430017));
+        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 1.90606355089018));
 
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.078519039312707581));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.076302824480380074));
     }
 
     void test_aplrregressor_mean_bias_correction()
@@ -1453,6 +1459,7 @@ public:
         model.max_eligible_terms = 5;
         model.calculate_custom_transform_linear_predictor_to_predictions_function = calculate_custom_transform_linear_predictor_to_predictions;
         model.calculate_custom_differentiate_predictions_wrt_linear_predictor_function = calculate_custom_differentiate_predictions_wrt_linear_predictor;
+        model.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function = calculate_custom_differentiate2_predictions_wrt_linear_predictor;
         model.ridge_penalty = 0.0;
 
         // Data
@@ -1487,7 +1494,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.526613939603276));
+        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.529817315660214));
     }
 
     void test_aplrregressor_gamma_custom_validation()
@@ -1543,8 +1550,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.555068816303912));
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 7.5399664045598414));
+        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.530551285457467));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 7.7918854481799364));
     }
 
     void test_aplrregressor_gamma_gini_weighted()
@@ -1599,8 +1606,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.555068816303912));
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), -0.94130723051226006));
+        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.530551285457467));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), -0.94091346037527657));
     }
 
     void test_aplrregressor_gamma_gini()
@@ -1655,8 +1662,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.555068816303912));
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), -0.94130723051226006));
+        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.530551285457467));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), -0.94091346037527657));
     }
 
     void test_aplrregressor_gamma()
@@ -1711,8 +1718,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.555068816303912));
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 7.5399664045598414));
+        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.530551285457467));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 7.7918854481799364));
     }
 
     void test_aplrregressor_gamma_validation_ratio()
@@ -1768,8 +1775,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.650292611049451));
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 8.0585654382602545));
+        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.619576825123065));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 8.3601614783175808));
     }
 
     void test_aplrregressor_group_mse()
@@ -1981,8 +1988,8 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.441961247097055));
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 2.0130302049323427));
+        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.258547724040792));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 2.24969291442163));
     }
 
     void test_aplrregressor_logit()
@@ -2036,7 +2043,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 0.076201731026640809));
+        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 0.08759688291222073));
     }
 
     void test_aplrregressor_mae()
@@ -2254,7 +2261,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 1.8833673862498712));
+        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 1.8821274543467934));
     }
 
     void test_aplrregressor_poisson()
@@ -2308,7 +2315,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 1.8898886326880908));
+        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 1.8898886326880906));
     }
 
     void test_aplrregressor_poissongamma()
@@ -2363,7 +2370,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 1.8841034810857415));
+        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 1.8833623107601971));
     }
 
     void test_aplrregressor_quantile()
@@ -2558,7 +2565,7 @@ public:
         save_as_csv_file("data/output.csv", predictions);
 
         std::cout << predictions.mean() << "\n\n";
-        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.62108223279424));
+        add_test("predictions.mean()", is_approximately_equal(predictions.mean(), 23.600377152075122));
     }
 
     void test_aplrregressor()
@@ -2833,11 +2840,11 @@ public:
 
         MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
         VectorXd feature_importance{model.get_feature_importance()};
-        add_test("feature_importance.mean()", is_approximately_equal(feature_importance.mean(), 0.26233205004936733));
+        add_test("feature_importance.mean()", is_approximately_equal(feature_importance.mean(), 0.25420178743878397));
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.23571540896059459));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.24647671959943313, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -2845,7 +2852,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.13601660855852193));
+        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.17780678779228751, 0.00001));
     }
 
     void test_aplrclassifier_multi_class()
@@ -2905,11 +2912,11 @@ public:
 
         MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
         VectorXd feature_importance{model.get_feature_importance()};
-        add_test("feature_importance.mean()", is_approximately_equal(feature_importance.mean(), 0.18693292790092289));
+        add_test("feature_importance.mean()", is_approximately_equal(feature_importance.mean(), 0.1760445038452387));
 
         std::cout << "validation_error\n"
                   << model.get_cv_error() << "\n\n";
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.23816424479771647));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.227717, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -2917,7 +2924,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.11855481987035686));
+        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.154628, 0.00001));
     }
 
     void test_aplrclassifier_two_class_other_params()
@@ -2981,7 +2988,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.30043283538796706));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.29875, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -2989,7 +2996,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.31310636028981309));
+        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.27518427823404712, 0.00001));
     }
 
     void test_aplrclassifier_two_class_val_index()
@@ -3053,7 +3060,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.20897466968105177));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.23802511407945728));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -3061,7 +3068,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.16814636243361039));
+        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.10989690600027999));
     }
 
     void test_aplrclassifier_two_class()
@@ -3123,7 +3130,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.17027706395952766));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.16491496201017047, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -3131,7 +3138,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.33668264508945389));
+        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.22620950269183793, 0.00001));
     }
 
     void test_aplrclassifier_two_class_min_obs_float()
@@ -3193,7 +3200,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.16974359062913749));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.16363276997309142));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -3201,7 +3208,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.33656054602836366));
+        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.23155726026427978));
     }
 
     void test_aplrclassifier_two_class_validation_ratio()
@@ -3264,7 +3271,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.1148813782811193));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.12839603257570481));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -3272,7 +3279,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.32002288370208082));
+        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.29296429278474267));
     }
 
     void test_aplrclassifier_two_class_penalties()
@@ -3334,13 +3341,13 @@ public:
         // MatrixXd lfc_model1{model.get_logit_model("0.000000").calculate_local_feature_contribution(X_test)};
         // MatrixXd lfc_model2{model.get_logit_model("1.000000").calculate_local_feature_contribution(X_test)};
         std::vector<size_t> base_predictors_in_the_second_affiliation{model.get_base_predictors_in_each_unique_term_affiliation()[1]};
-        std::vector<size_t> correct_base_predictors_in_the_second_affiliation{{0, 3, 5, 6}};
+        std::vector<size_t> correct_base_predictors_in_the_second_affiliation{{0, 3, 5}};
         std::string the_second_unique_term_affiliation{model.get_unique_term_affiliations()[1]};
-        std::string the_correct_second_unique_term_affiliation{"X1 & X4 & X6 & X7"};
+        std::string the_correct_second_unique_term_affiliation{"X1 & X4 & X6"};
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.15514743249571869));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.15942686880196807, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -3348,7 +3355,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.076438602502310021));
+        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.05891072116542774, 0.00001));
         add_test("base_predictors_in_the_second_affiliation", base_predictors_in_the_second_affiliation == correct_base_predictors_in_the_second_affiliation);
         add_test("the_second_unique_term_affiliation", the_second_unique_term_affiliation == the_correct_second_unique_term_affiliation);
     }
@@ -3414,7 +3421,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.1233678302600654));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.14420733842494515, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -3422,7 +3429,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.17277978945842895));
+        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.10357828243742498, 0.00001));
     }
 
     void test_aplrclassifier_two_class_max_terms()
@@ -3485,7 +3492,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.17816849244122235));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.1889066318262117, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -3493,7 +3500,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.50914877581513784));
+        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.37047735615744898, 0.00001));
     }
 
     void test_aplrclassifier_two_class_predictor_min_observations_in_split()
@@ -3550,7 +3557,7 @@ public:
         MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.17820019442266416));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.18970198357702517, 0.000001));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -3558,7 +3565,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.65205535570688378));
+        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.46597769437683995, 0.00001));
     }
 
     void test_aplrclassifier_two_class_predictor_min_observations_in_split_float()
@@ -3615,7 +3622,7 @@ public:
         MatrixXd local_feature_contribution{model.calculate_local_feature_contribution(X_test)};
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.17893693935317728));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.19136507262335367));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -3623,7 +3630,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.51999466819702722));
+        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.37395286244469345));
     }
 
     void test_aplr_regressor_cppdataframe_overloads()
@@ -3965,7 +3972,7 @@ public:
 
         std::cout << "cv_error\n"
                   << model.get_cv_error() << "\n\n";
-        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.16239550000756592));
+        add_test("model.get_cv_error()", is_approximately_equal(model.get_cv_error(), 0.18274188043364559));
 
         std::cout << "predicted_class_prob_mean\n"
                   << predicted_class_probabilities.mean() << "\n\n";
@@ -3973,7 +3980,7 @@ public:
 
         std::cout << "local_feature_importance_mean\n"
                   << local_feature_contribution.mean() << "\n\n";
-        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.15120970268426462));
+        add_test("local_feature_contribution.mean()", is_approximately_equal(local_feature_contribution.mean(), 0.027256376715801025));
     }
 
     void test_functions()

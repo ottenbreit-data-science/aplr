@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.24.0] - 2026-08-12
+
+### Added
+- **Python 3.15 Support:** Added compatibility with Python 3.15.
+
+### Fixed
+- **Corrected Hessian Usage and Hessian Calculations:** Disabled Hessian-based updates for `binomial` loss and `logit` link models because the non-Hessian formulation is more predictive in those settings. Also corrected the underlying Hessian calculations for the remaining supported cases.
+- **Resolved Segmentation Fault in Python Fit Bindings:** Removed the pybind11 output-redirection guard from the native `fit` bindings because it caused a segmentation fault during training in the Python extension. As a result, C++ console output from the training process is emitted directly to the terminal instead of being captured/re-directed by Python.
+
+### Documentation
+- **Updated Examples and Presentation:** Examples and the presentation have been updated to mention `penalty_for_non_linearity` and `penalty_for_interactions` instead of `num_first_steps_with_linear_effects_only` and `boosting_steps_before_interactions_are_allowed` respectively.
+- **API Reference:** Updated the API reference with information on how to pass the custom function `calculate_custom_differentiate2_predictions_wrt_linear_predictor_function` (second order differentiation).
+
 ## [10.23.0] - 2026-05-16
 
 ### Added
