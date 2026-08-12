@@ -1,4 +1,4 @@
-name: Build_wheels
+name: Build_wheels_cp38
 on: [workflow_dispatch]
 jobs:
   build_wheels:
