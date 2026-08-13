@@ -56,6 +56,7 @@ public:
     std::map<std::string, size_t> unique_term_affiliation_map;
     std::vector<std::vector<size_t>> base_predictors_in_each_unique_term_affiliation;
     double ridge_penalty;
+    std::function<void(const std::string &)> progress_callback;
     Preprocessor preprocessor;
     bool preprocess;
     double validation_ratio;
@@ -104,6 +105,8 @@ public:
     std::vector<std::string> predict(const CppDataFrame &X_df, bool cap_predictions_to_minmax_in_training = false);
     MatrixXd calculate_local_feature_contribution(const CppDataFrame &X_df);
     void clear_cv_results();
+    void set_progress_callback(const std::function<void(const std::string &)> &callback);
+    void clear_progress_callback();
 };
 
 APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, size_t n_jobs, size_t cv_folds,
@@ -140,8 +143,8 @@ APLRClassifier::APLRClassifier(const APLRClassifier &other)
       max_terms{other.max_terms}, unique_term_affiliations{other.unique_term_affiliations},
       unique_term_affiliation_map{other.unique_term_affiliation_map},
       base_predictors_in_each_unique_term_affiliation{other.base_predictors_in_each_unique_term_affiliation},
-      ridge_penalty{other.ridge_penalty},
-      preprocessor{other.preprocessor}, preprocess{other.preprocess}, validation_ratio{other.validation_ratio}
+      ridge_penalty{other.ridge_penalty}, preprocessor{other.preprocessor}, preprocess{other.preprocess},
+      validation_ratio{other.validation_ratio}, progress_callback{other.progress_callback}
 {
 }
 
@@ -194,6 +197,7 @@ void APLRClassifier::fit_internal(const MatrixXd &X, const std::vector<std::stri
         logit_models[categories[0]].ridge_penalty = ridge_penalty;
         logit_models[categories[0]].preprocess = false;
         logit_models[categories[0]].validation_ratio = validation_ratio;
+        logit_models[categories[0]].set_progress_callback(progress_callback);
         logit_models[categories[0]].fit_internal(X, response_values[categories[0]], sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
                                                  monotonic_constraints, VectorXi(0), interaction_constraints, MatrixXd(0, 0), predictor_learning_rates,
                                                  predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
@@ -219,6 +223,7 @@ void APLRClassifier::fit_internal(const MatrixXd &X, const std::vector<std::stri
             logit_models[category].ridge_penalty = ridge_penalty;
             logit_models[category].preprocess = false;
             logit_models[category].validation_ratio = validation_ratio;
+            logit_models[category].set_progress_callback(progress_callback);
             logit_models[category].fit_internal(X, response_values[category], sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
                                                 monotonic_constraints, VectorXi(0), interaction_constraints, MatrixXd(0, 0), predictor_learning_rates,
                                                 predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
@@ -489,7 +494,9 @@ APLRRegressor APLRClassifier::get_logit_model(const std::string &category)
     if (category_does_not_exist)
         throw std::runtime_error("Invalid category provided.");
 
-    return logit_models[category];
+    APLRRegressor model = logit_models[category];
+    model.set_progress_callback(progress_callback);
+    return model;
 }
 
 MatrixXd APLRClassifier::get_validation_error_steps()
@@ -523,5 +530,23 @@ void APLRClassifier::clear_cv_results()
     for (auto &pair : logit_models)
     {
         pair.second.clear_cv_results();
+    }
+}
+
+void APLRClassifier::set_progress_callback(const std::function<void(const std::string &)> &callback)
+{
+    progress_callback = callback;
+    for (auto &pair : logit_models)
+    {
+        pair.second.set_progress_callback(callback);
+    }
+}
+
+void APLRClassifier::clear_progress_callback()
+{
+    progress_callback = nullptr;
+    for (auto &pair : logit_models)
+    {
+        pair.second.clear_progress_callback();
     }
 }

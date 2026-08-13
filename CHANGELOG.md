@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.24.1] - 2026-08-13
+
+### Fixed
+- **Restored Safe Output Redirection in Python Fit Bindings:** Fixed the regression in version `10.24.0` where the native `fit` bindings wrote C++ training output directly to `stdout` instead of redirecting it through Python. The fix restores a safe redirection guard so training output is captured correctly without bypassing the Python output stream.
+
 ## [10.24.0] - 2026-08-12
 
 ### Added

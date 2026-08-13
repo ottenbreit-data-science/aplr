@@ -1,4 +1,3 @@
-from typing import List, Callable, Optional, Dict, Union
 from typing import Any, Callable, Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
@@ -59,6 +58,16 @@ def _prepare_input_data(
                 )
             return X.to_numpy(dtype=np.float64)
     return X
+
+
+def _build_progress_callback(verbosity: int):
+    if verbosity <= 0:
+        return None
+
+    def _progress_callback(message: str):
+        print(message, flush=True)
+
+    return _progress_callback
 
 
 class APLRRegressor:
@@ -286,23 +295,31 @@ class APLRRegressor:
     ):
         self.__set_params_cpp()
         X = _prepare_input_data(X, self.preprocess)
+        progress_callback = _build_progress_callback(self.verbosity)
+        if progress_callback is not None:
+            self.APLRRegressor.set_progress_callback(progress_callback)
+        else:
+            self.APLRRegressor.clear_progress_callback()
 
-        self.APLRRegressor.fit(
-            X,
-            y,
-            sample_weight,
-            X_names,
-            cv_observations,
-            prioritized_predictors_indexes,
-            monotonic_constraints,
-            group,
-            interaction_constraints,
-            other_data,
-            predictor_learning_rates,
-            predictor_penalties_for_non_linearity,
-            predictor_penalties_for_interactions,
-            predictor_min_observations_in_split,
-        )
+        try:
+            self.APLRRegressor.fit(
+                X,
+                y,
+                sample_weight,
+                X_names,
+                cv_observations,
+                prioritized_predictors_indexes,
+                monotonic_constraints,
+                group,
+                interaction_constraints,
+                other_data,
+                predictor_learning_rates,
+                predictor_penalties_for_non_linearity,
+                predictor_penalties_for_interactions,
+                predictor_min_observations_in_split,
+            )
+        finally:
+            self.APLRRegressor.clear_progress_callback()
 
     def predict(
         self,
@@ -777,20 +794,29 @@ class APLRClassifier:
             y = y.astype(str).tolist()
         elif isinstance(y, list) and y and any(not isinstance(item, str) for item in y):
             y = [str(item) for item in y]
-        self.APLRClassifier.fit(
-            X,
-            y,
-            sample_weight,
-            X_names,
-            cv_observations,
-            prioritized_predictors_indexes,
-            monotonic_constraints,
-            interaction_constraints,
-            predictor_learning_rates,
-            predictor_penalties_for_non_linearity,
-            predictor_penalties_for_interactions,
-            predictor_min_observations_in_split,
-        )
+        progress_callback = _build_progress_callback(self.verbosity)
+        if progress_callback is not None:
+            self.APLRClassifier.set_progress_callback(progress_callback)
+        else:
+            self.APLRClassifier.clear_progress_callback()
+
+        try:
+            self.APLRClassifier.fit(
+                X,
+                y,
+                sample_weight,
+                X_names,
+                cv_observations,
+                prioritized_predictors_indexes,
+                monotonic_constraints,
+                interaction_constraints,
+                predictor_learning_rates,
+                predictor_penalties_for_non_linearity,
+                predictor_penalties_for_interactions,
+                predictor_min_observations_in_split,
+            )
+        finally:
+            self.APLRClassifier.clear_progress_callback()
         # For sklearn
         self.classes_ = np.arange(len(self.APLRClassifier.get_categories()))
 

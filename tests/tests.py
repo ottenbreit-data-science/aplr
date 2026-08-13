@@ -1,9 +1,94 @@
+import copy
+import io
 import unittest
+from contextlib import redirect_stdout
+
 import pandas as pd
 import numpy as np
 from aplr import APLRClassifier, APLRRegressor
 from aplr import APLRClassifier, APLRRegressor, APLRTuner
 from aplr.aplr import _dataframe_to_cpp_dataframe
+
+
+class TestVerbosityAndObjectCopy(unittest.TestCase):
+    def test_regressor_verbosity_output_and_object_copy(self):
+        rng = np.random.default_rng(0)
+        X = pd.DataFrame(
+            {
+                "x1": np.linspace(0.0, 1.0, 80),
+                "x2": np.linspace(1.0, 2.0, 80),
+            }
+        )
+        y = 2.0 + 3.0 * X["x1"] - 1.5 * X["x2"] + rng.normal(0.0, 0.05, size=len(X))
+        cv_observations = np.array(
+            [[1] if i < 60 else [-1] for i in range(len(X))], dtype=int
+        )
+
+        quiet_model = APLRRegressor(m=10, verbosity=0)
+        quiet_output = io.StringIO()
+        with redirect_stdout(quiet_output):
+            quiet_model.fit(X, y, cv_observations=cv_observations)
+        self.assertEqual(quiet_output.getvalue(), "")
+
+        verbose_model = APLRRegressor(m=10, verbosity=1)
+        verbose_output = io.StringIO()
+        with redirect_stdout(verbose_output):
+            verbose_model.fit(X, y, cv_observations=cv_observations)
+        self.assertTrue(verbose_output.getvalue())
+
+        copied = copy.deepcopy(verbose_model)
+        self.assertIsNot(copied, verbose_model)
+        self.assertEqual(copied.verbosity, 1)
+        self.assertEqual(copied.APLRRegressor.verbosity, 1)
+        self.assertEqual(len(copied.predict(X.iloc[:5])), 5)
+
+    def test_classifier_verbosity_output_and_object_copy(self):
+        X = pd.DataFrame(
+            {
+                "x1": np.linspace(0.0, 1.0, 80),
+                "x2": np.linspace(1.0, 2.0, 80),
+            }
+        )
+        y = np.where(X["x1"] > 0.5, "A", "B")
+        cv_observations = np.array(
+            [[1] if i < 60 else [-1] for i in range(len(X))], dtype=int
+        )
+
+        quiet_model = APLRClassifier(m=10, verbosity=0)
+        quiet_output = io.StringIO()
+        with redirect_stdout(quiet_output):
+            quiet_model.fit(X, y, cv_observations=cv_observations)
+        self.assertEqual(quiet_output.getvalue(), "")
+
+        verbose_model = APLRClassifier(m=10, verbosity=1)
+        verbose_output = io.StringIO()
+        with redirect_stdout(verbose_output):
+            verbose_model.fit(X, y, cv_observations=cv_observations)
+        self.assertTrue(verbose_output.getvalue())
+
+        copied = copy.copy(verbose_model)
+        self.assertIsNot(copied, verbose_model)
+        self.assertEqual(copied.verbosity, 1)
+        self.assertEqual(copied.APLRClassifier.verbosity, 1)
+        self.assertEqual(len(copied.predict(X.iloc[:5])), 5)
+
+    def test_unfitted_model_copy_keeps_empty_callback_state(self):
+        regressor = APLRRegressor(m=10, verbosity=1)
+        classifier = APLRClassifier(m=10, verbosity=1)
+
+        regressor_copy = copy.deepcopy(regressor)
+        classifier_copy = copy.copy(classifier)
+
+        self.assertIsNot(regressor_copy, regressor)
+        self.assertIsNot(classifier_copy, classifier)
+        self.assertEqual(regressor_copy.verbosity, 1)
+        self.assertEqual(classifier_copy.verbosity, 1)
+        self.assertFalse(regressor_copy.APLRRegressor is None)
+        self.assertFalse(classifier_copy.APLRClassifier is None)
+
+        # Unfitted models should still be copyable, and a missing callback should remain a safe default.
+        self.assertEqual(regressor_copy.APLRRegressor.verbosity, 1)
+        self.assertEqual(classifier_copy.APLRClassifier.verbosity, 1)
 
 
 class TestAPLRPreprocessing(unittest.TestCase):

@@ -98,6 +98,7 @@ private:
     std::vector<double> ridge_penalty_weights;
     double min_validation_error_for_current_fold;
     bool skip_hessian;
+    std::function<void(const std::string &)> progress_callback;
 
     void validate_input_to_fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes,
@@ -220,6 +221,7 @@ private:
                                                                           const std::vector<size_t> &base_predictors_used);
     void validate_sample_weight(const MatrixXd &X, const VectorXd &sample_weight);
     void set_term_coefficients();
+    void emit_progress_message(const std::string &message);
 
 public:
     double intercept;
@@ -379,6 +381,8 @@ public:
     VectorXd get_cv_sample_weight(size_t fold_index);
     VectorXi get_cv_validation_indexes(size_t fold_index);
     void clear_cv_results();
+    void set_progress_callback(const std::function<void(const std::string &)> &callback);
+    void clear_progress_callback();
     void adjust_fit_arguments(const Preprocessor &preprocessor, const std::vector<std::string> &transformed_names, size_t num_transformed_cols, const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints, const std::vector<std::vector<size_t>> &interaction_constraints, const std::vector<double> &predictor_learning_rates, const std::vector<double> &predictor_penalties_for_non_linearity, const std::vector<double> &predictor_penalties_for_interactions, const std::vector<double> &predictor_min_observations_in_split, std::vector<size_t> &adjusted_prioritized_predictors_indexes, std::vector<int> &adjusted_monotonic_constraints, std::vector<std::vector<size_t>> &adjusted_interaction_constraints, std::vector<double> &adjusted_predictor_learning_rates, std::vector<double> &adjusted_predictor_penalties_for_non_linearity, std::vector<double> &adjusted_predictor_penalties_for_interactions, std::vector<double> &adjusted_predictor_min_observations_in_split);
 
     friend class APLRClassifier;
@@ -457,7 +461,8 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       cv_validation_indexes_all_folds{other.cv_validation_indexes_all_folds},
       preprocessor{other.preprocessor}, preprocess{other.preprocess}, validation_ratio{other.validation_ratio},
       calculate_custom_hessian_function{other.calculate_custom_hessian_function}, skip_hessian{other.skip_hessian},
-      calculate_custom_differentiate2_predictions_wrt_linear_predictor_function{other.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function}
+      calculate_custom_differentiate2_predictions_wrt_linear_predictor_function{other.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function},
+      progress_callback{other.progress_callback}
 {
 }
 
@@ -534,6 +539,7 @@ APLRRegressor &APLRRegressor::operator=(const APLRRegressor &other)
     calculate_custom_hessian_function = other.calculate_custom_hessian_function;
     skip_hessian = other.skip_hessian;
     calculate_custom_differentiate2_predictions_wrt_linear_predictor_function = other.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function;
+    progress_callback = other.progress_callback;
 
     thread_pool.reset();
 
@@ -1882,7 +1888,7 @@ void APLRRegressor::execute_boosting_step(size_t boosting_step, Eigen::Index fol
                 abort_boosting = true;
                 if (verbosity >= 1)
                 {
-                    std::cout << "No further reduction in training loss was possible. Terminating the boosting procedure.\n";
+                    emit_progress_message("No further reduction in training loss was possible. Terminating the boosting procedure.");
                 }
             }
         }
@@ -2358,7 +2364,7 @@ void APLRRegressor::calculate_and_validate_validation_error(size_t boosting_step
     {
         abort_boosting = true;
         std::string warning_message{"Warning: Encountered numerical problems when calculating validation error in the previous boosting step. Not continuing with further boosting steps. One potential reason is if the combination of loss_function and link_function is invalid. Another potential reason could be that too many observations have zero sample_weight."};
-        std::cout << warning_message << "\n";
+        emit_progress_message(warning_message);
     }
 }
 
@@ -2518,7 +2524,7 @@ void APLRRegressor::print_summary_after_boosting_step(size_t boosting_step, Eige
 {
     if (verbosity >= 2)
     {
-        std::cout << "Fold: " << fold_index << ". Boosting step: " << boosting_step + 1 << ". Model terms: " << terms.size() << ". Terms eligible: " << number_of_eligible_terms << ". Validation error: " << validation_error_steps.col(0)[boosting_step] << ".\n";
+        emit_progress_message("Fold: " + std::to_string(fold_index) + ". Boosting step: " + std::to_string(boosting_step + 1) + ". Model terms: " + std::to_string(terms.size()) + ". Terms eligible: " + std::to_string(number_of_eligible_terms) + ". Validation error: " + std::to_string(validation_error_steps.col(0)[boosting_step]) + ".");
     }
 }
 
@@ -2544,7 +2550,7 @@ void APLRRegressor::abort_boosting_when_no_validation_error_improvement_in_the_l
             {
                 abort_boosting = true;
                 if (verbosity >= 1)
-                    std::cout << "Aborting boosting because of no validation error improvement in the last " << std::to_string(early_stopping_rounds) << " steps.\n";
+                    emit_progress_message("Aborting boosting because of no validation error improvement in the last " + std::to_string(early_stopping_rounds) + " steps.");
             }
         }
     }
@@ -2554,7 +2560,7 @@ void APLRRegressor::print_final_summary()
 {
     if (verbosity >= 1)
     {
-        std::cout << "Model terms: " << terms.size() << ". Terms available in final boosting step: " << terms_eligible_current.size() << ".\n";
+        emit_progress_message("Model terms: " + std::to_string(terms.size()) + ". Terms available in final boosting step: " + std::to_string(terms_eligible_current.size()) + ".");
     }
 }
 
@@ -3622,4 +3628,29 @@ void APLRRegressor::clear_cv_results()
     cv_y_all_folds.clear();
     cv_sample_weight_all_folds.clear();
     cv_validation_indexes_all_folds.clear();
+}
+
+void APLRRegressor::set_progress_callback(const std::function<void(const std::string &)> &callback)
+{
+    progress_callback = callback;
+}
+
+void APLRRegressor::clear_progress_callback()
+{
+    progress_callback = nullptr;
+}
+
+void APLRRegressor::emit_progress_message(const std::string &message)
+{
+    if (progress_callback)
+    {
+        try
+        {
+            progress_callback(message);
+        }
+        catch (...)
+        {
+            // Avoid crash if the callback throws an exception.
+        }
+    }
 }
