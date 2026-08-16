@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.25.0] - 2026-08-16
+
+### Changed
+- **Default Interaction Penalty Increased:** Updated the default value of `penalty_for_interactions` from `0.0` to `0.5` in both `APLRRegressor` and `APLRClassifier`. This default was chosen based on empirical evidence, while also improving model interpretability by discouraging unnecessary interactions.
+- **Updated Default `APLRTuner` Search Space:** Expanded and rebalanced the default tuning grid to include `penalty_for_interactions` as a tunable parameter. The new defaults are `m=[3000]`, `v=[0.5]`, `max_interaction_level=[1]`, `penalty_for_interactions=[0.0, 0.5, 1.0]`, `min_observations_in_split=[0.3, 0.4, 0.5]`, and `ridge_penalty=[0, 0.0001]`.
+
+### Added
+- **Wheel CI Test Gating with Pytest:** Added `pytest` to cibuildwheel on non-Windows wheels; Windows wheel tests are currently skipped.
+- **Smoke Test Coverage:** Added a smoke test in `tests/tests.py` that fits both regressor and classifier models on a dataset with 1000 rows and verifies prediction paths.
+- **Build Optimization Defaults:** Added conservative cross-platform compiler optimization flags in `setup.py` (`-O2` on Linux/macOS and `/O2` on Windows), which are applied during source extension and wheel builds to provide consistent release performance without aggressive optimizations.
+
+### Documentation
+- **API References Updated:** Updated API reference docs for regression, classification, and tuner defaults to reflect the new `penalty_for_interactions` default and updated tuner grid.
+- **Examples Updated:** Updated training examples to align with the revised tuning strategy and to include `penalty_for_interactions` in tuning.
+
 ## [10.24.1] - 2026-08-13
 
 ### Fixed

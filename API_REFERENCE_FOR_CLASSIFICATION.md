@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int = 3000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:float = 0.3, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 200, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.0, max_terms: int = 0, ridge_penalty: float = 0.0001, preprocess:bool = True, validation_ratio:float = np.nan)
+## class aplr.APLRClassifier(m:int = 3000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:float = 0.3, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 200, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.5, max_terms: int = 0, ridge_penalty: float = 0.0001, preprocess:bool = True, validation_ratio:float = np.nan)
 
 ### Constructor parameters
 
@@ -55,8 +55,8 @@ Specifies the number of initial boosting steps that are reserved only for linear
 #### penalty_for_non_linearity (default = 0.0)
 Specifies a penalty in the range [0.0, 1.0] on terms that are not linear effects. A higher value increases model interpretability but can hurt predictiveness. Values outside of the [0.0, 1.0] range are rounded to the nearest boundary within the range.
 
-#### penalty_for_interactions (default = 0.0)
-Specifies a penalty in the range [0.0, 1.0] on interaction terms. A higher value increases model interpretability but can hurt predictiveness. Values outside of the [0.0, 1.0] range are rounded to the nearest boundary within the range.
+#### penalty_for_interactions (default = 0.5)
+Specifies a penalty in the range [0.0, 1.0] on interaction terms. Increasing this will increase interpretability. Should be tuned for best predictiveness. This parameter has no effect if ***max_interaction_level*** is 0, and setting ***penalty_for_interactions*** to 1.0 also disables interaction search. Values outside of the [0.0, 1.0] range are rounded to the nearest boundary within the range.
 
 #### max_terms (default = 0)
 Restricts the maximum number of terms in any of the underlying models trained to ***max_terms***. The default value of 0 means no limit. After the limit is reached, the remaining boosting steps are used to further update the coefficients of already included terms. An optional tuning objective could be to find the lowest positive value of ***max_terms*** that does not increase the prediction error significantly. Low positive values can speed up the training process significantly. Setting a limit with ***max_terms*** may require a higher learning rate for best results.

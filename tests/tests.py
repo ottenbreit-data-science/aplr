@@ -10,6 +10,29 @@ from aplr import APLRClassifier, APLRRegressor, APLRTuner
 from aplr.aplr import _dataframe_to_cpp_dataframe
 
 
+class TestSmoke(unittest.TestCase):
+    def test_smoke_fit_and_predict(self):
+        n_rows = 1000
+        X = pd.DataFrame(
+            {
+                "x1": np.linspace(0.0, 1.0, n_rows),
+                "x2": np.linspace(1.0, 2.0, n_rows),
+            }
+        )
+
+        y_reg = 1.0 + 2.0 * X["x1"] - 0.5 * X["x2"]
+        regressor = APLRRegressor(m=10, random_state=0)
+        regressor.fit(X, y_reg)
+        reg_predictions = regressor.predict(X.iloc[:5])
+        self.assertEqual(reg_predictions.shape, (5,))
+
+        y_clf = np.where(X["x1"] > 0.5, "A", "B")
+        classifier = APLRClassifier(m=10, random_state=0)
+        classifier.fit(X, y_clf)
+        clf_predictions = classifier.predict(X.iloc[:5])
+        self.assertEqual(len(clf_predictions), 5)
+
+
 class TestVerbosityAndObjectCopy(unittest.TestCase):
     def test_regressor_verbosity_output_and_object_copy(self):
         rng = np.random.default_rng(0)

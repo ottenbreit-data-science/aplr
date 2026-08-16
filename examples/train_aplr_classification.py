@@ -31,21 +31,20 @@ cv_results = pd.DataFrame()
 best_validation_result = np.inf
 param_grid = ParameterGrid(
     {
-        "max_interaction_level": [0, 1],
-        "min_observations_in_split": [0.1, 0.3, 0.5, 0.6, 0.7],
+        "penalty_for_interactions": [0.0, 0.5, 1.0],
+        "min_observations_in_split": [0.3, 0.4, 0.5],
         "ridge_penalty": [0, 0.0001],
     }
 )
 best_model: APLRClassifier = None
 for params in param_grid:
     model = APLRClassifier(
-        random_state=random_state,
-        verbosity=2,
         m=3000,
         v=0.5,
-        penalty_for_non_linearity=0.0,  # Increasing this will increase interpretabilty but may decrease predictiveness. Maximum is 1.0.
-        penalty_for_interactions=0.0,  # Increasing this will increase interpretabilty but may decrease predictiveness. Maximum is 1.0.
+        max_interaction_level=1,
         validation_ratio=validation_ratio,
+        random_state=random_state,
+        verbosity=2,
         **params,
     )
     model.fit(data_train[predictors], data_train[response].values)

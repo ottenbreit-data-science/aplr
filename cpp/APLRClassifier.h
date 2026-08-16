@@ -66,7 +66,7 @@ public:
                    size_t max_interactions = 100000, double min_observations_in_split = 0.3, size_t ineligible_boosting_steps_added = 15, size_t max_eligible_terms = 7,
                    size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
                    size_t early_stopping_rounds = 200, size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0,
-                   double penalty_for_interactions = 0.0, size_t max_terms = 0, double ridge_penalty = 0.0001, bool preprocess = true, double validation_ratio = std::numeric_limits<double>::quiet_NaN());
+                   double penalty_for_interactions = 0.5, size_t max_terms = 0, double ridge_penalty = 0.0001, bool preprocess = true, double validation_ratio = std::numeric_limits<double>::quiet_NaN());
     APLRClassifier(const APLRClassifier &other);
     ~APLRClassifier();
     void fit_internal(const MatrixXd &X, const std::vector<std::string> &y, const VectorXd &sample_weight = VectorXd(0),

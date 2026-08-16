@@ -1,10 +1,10 @@
 # APLRTuner
 
-## class aplr.APLRTuner(parameters: Dict[str, List[Any]] = {"max_interaction_level": [0, 1], "min_observations_in_split": [0.1, 0.3, 0.5, 0.6, 0.7, 0.8]}, is_regressor: bool = True, sequential_tuning: bool = False)
+## class aplr.APLRTuner(parameters: Dict[str, List[Any]] = {"m": [3000], "v": [0.5], "max_interaction_level": [1], "penalty_for_interactions": [0.0, 0.5, 1.0], "min_observations_in_split": [0.3, 0.4, 0.5], "ridge_penalty": [0, 0.0001]}, is_regressor: bool = True, sequential_tuning: bool = False)
 
 ### Constructor parameters
 
-#### parameters (default = {"max_interaction_level": [0, 1], "min_observations_in_split": [0.1, 0.3, 0.5, 0.6, 0.7, 0.8]})
+#### parameters (default = {"m": [3000], "v": [0.5], "max_interaction_level": [1], "penalty_for_interactions": [0.0, 0.5, 1.0], "min_observations_in_split": [0.3, 0.4, 0.5], "ridge_penalty": [0, 0.0001]})
 A dictionary where keys are parameter names and values are lists of parameter settings to try.
 
 #### is_regressor (default = True)

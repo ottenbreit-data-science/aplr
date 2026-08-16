@@ -148,7 +148,7 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("monotonic_constraints_ignore_interactions") = false,
              py::arg("group_mse_by_prediction_bins") = 10, py::arg("group_mse_cycle_min_obs_in_bin") = 30,
              py::arg("early_stopping_rounds") = 200, py::arg("num_first_steps_with_linear_effects_only") = 0,
-             py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.0, py::arg("max_terms") = 0,
+             py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.5, py::arg("max_terms") = 0,
              py::arg("ridge_penalty") = 0.0001, py::arg("mean_bias_correction") = false, py::arg("faster_convergence") = true,
              py::arg("preprocess") = true, py::arg("validation_ratio") = std::numeric_limits<double>::quiet_NaN(),
              py::arg("calculate_custom_hessian_function") = empty_calculate_custom_hessian_function,
@@ -454,7 +454,7 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("ineligible_boosting_steps_added") = 15, py::arg("max_eligible_terms") = 7,
              py::arg("boosting_steps_before_interactions_are_allowed") = 0, py::arg("monotonic_constraints_ignore_interactions") = false,
              py::arg("early_stopping_rounds") = 200, py::arg("num_first_steps_with_linear_effects_only") = 0,
-             py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.0, py::arg("max_terms") = 0,
+             py::arg("penalty_for_non_linearity") = 0.0, py::arg("penalty_for_interactions") = 0.5, py::arg("max_terms") = 0,
              py::arg("ridge_penalty") = 0.0001, py::arg("preprocess") = true, py::arg("validation_ratio") = std::numeric_limits<double>::quiet_NaN())
         .def("fit", py::overload_cast<const Eigen::MatrixXd &, const std::vector<std::string> &, const Eigen::VectorXd &, const std::vector<std::string> &, const Eigen::MatrixXi &, const std::vector<size_t> &, const std::vector<int> &, const std::vector<std::vector<size_t>> &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &>(&APLRClassifier::fit), py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("cv_observations") = MatrixXd(0, 0), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),

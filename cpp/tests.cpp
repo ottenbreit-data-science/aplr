@@ -576,6 +576,7 @@ public:
         current_test_suite_name = "test_aplrregressor_huber";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.1;
         model.bins = 10;
@@ -622,6 +623,7 @@ public:
         current_test_suite_name = "test_aplrregressor_huber_log_link";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.1;
         model.bins = 10;
@@ -666,6 +668,7 @@ public:
         current_test_suite_name = "test_aplrregressor_mean_bias_correction";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -707,6 +710,7 @@ public:
         current_test_suite_name = "test_aplrregressor_ridge";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.1;
         model.bins = 300;
@@ -747,6 +751,7 @@ public:
         current_test_suite_name = "test_aplrregressor_mse_predictor_min_observations_in_split";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -797,6 +802,7 @@ public:
         current_test_suite_name = "test_aplrregressor_mse_predictor_min_observations_in_split_float";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -847,6 +853,7 @@ public:
         current_test_suite_name = "test_aplrregressor_cauchy_term_limit";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -902,6 +909,7 @@ public:
         current_test_suite_name = "test_aplrregressor_cauchy_predictor_specific_penalties_and_learning_rates";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 200;
@@ -959,6 +967,7 @@ public:
         current_test_suite_name = "test_aplrregressor_cauchy_penalties";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 200;
@@ -1014,6 +1023,7 @@ public:
         current_test_suite_name = "test_aplrregressor_cauchy_linear_effects_only_first";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 200;
@@ -1069,6 +1079,7 @@ public:
         current_test_suite_name = "test_aplrregressor_cauchy_linear_effects_only_first_2";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 200;
@@ -1125,6 +1136,7 @@ public:
         current_test_suite_name = "test_aplrregressor_cauchy_group_mse_validation";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -1207,6 +1219,7 @@ public:
         current_test_suite_name = "test_aplrregressor_cauchy_group_mse_by_prediction_validation";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -1266,6 +1279,7 @@ public:
         current_test_suite_name = "test_aplrregressor_cauchy";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -1321,6 +1335,7 @@ public:
         current_test_suite_name = "test_aplrregressor_custom_loss_and_validation";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -1384,6 +1399,7 @@ public:
         current_test_suite_name = "test_aplrregressor_custom_loss";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -1445,6 +1461,7 @@ public:
         current_test_suite_name = "test_aplrregressor_gamma_custom_link";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.1;
         model.bins = 300;
@@ -1502,6 +1519,7 @@ public:
         current_test_suite_name = "test_aplrregressor_gamma_custom_validation";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.1;
         model.bins = 300;
@@ -1559,6 +1577,7 @@ public:
         current_test_suite_name = "test_aplrregressor_gamma_gini_weighted";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.1;
         model.bins = 300;
@@ -1615,6 +1634,7 @@ public:
         current_test_suite_name = "test_aplrregressor_gamma_gini";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.1;
         model.bins = 300;
@@ -1671,6 +1691,7 @@ public:
         current_test_suite_name = "test_aplrregressor_gamma";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.1;
         model.bins = 300;
@@ -1727,6 +1748,7 @@ public:
         current_test_suite_name = "test_aplrregressor_gamma_validation_ratio";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.1;
         model.bins = 300;
@@ -1784,6 +1806,7 @@ public:
         current_test_suite_name = "test_aplrregressor_group_mse";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -1841,6 +1864,7 @@ public:
         current_test_suite_name = "test_aplrregressor_group_mse_cycle";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -1886,6 +1910,7 @@ public:
         current_test_suite_name = "test_aplrregressor_int_constr";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -1940,6 +1965,7 @@ public:
         current_test_suite_name = "test_aplrregressor_inversegaussian";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.1;
         model.bins = 300;
@@ -1997,6 +2023,7 @@ public:
         current_test_suite_name = "test_aplrregressor_logit";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.05;
         model.bins = 300;
@@ -2051,6 +2078,7 @@ public:
         current_test_suite_name = "test_aplrregressor_mae";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -2105,6 +2133,7 @@ public:
         current_test_suite_name = "test_aplrregressor_monotonic";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -2159,6 +2188,7 @@ public:
         current_test_suite_name = "test_aplrregressor_monotonic_ignore_interactions";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -2214,6 +2244,7 @@ public:
         current_test_suite_name = "test_aplrregressor_negative_binomial";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.1;
         model.bins = 300;
@@ -2269,6 +2300,7 @@ public:
         current_test_suite_name = "test_aplrregressor_poisson";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.1;
         model.bins = 300;
@@ -2323,6 +2355,7 @@ public:
         current_test_suite_name = "test_aplrregressor_poissongamma";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.1;
         model.bins = 300;
@@ -2378,6 +2411,7 @@ public:
         current_test_suite_name = "test_aplrregressor_quantile";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -2432,6 +2466,7 @@ public:
         current_test_suite_name = "test_aplrregressor_neg_top_quantile_mean_response";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -2475,6 +2510,7 @@ public:
         current_test_suite_name = "test_aplrregressor_bottom_quantile_mean_response";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -2518,6 +2554,7 @@ public:
         current_test_suite_name = "test_aplrregressor_weibull";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.1;
         model.bins = 300;
@@ -2573,6 +2610,7 @@ public:
         current_test_suite_name = "test_aplrregressor";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -2662,6 +2700,7 @@ public:
         current_test_suite_name = "test_aplrregressor_min_obs_float";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -2747,6 +2786,7 @@ public:
         current_test_suite_name = "test_aplrregressor_exponential_power";
         // Model
         APLRRegressor model{APLRRegressor()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 1.0;
         model.bins = 10;
@@ -2788,6 +2828,7 @@ public:
         current_test_suite_name = "test_aplr_classifier_multi_class_other_params";
         // Model
         APLRClassifier model{APLRClassifier()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.05;
         model.bins = 300;
@@ -2860,6 +2901,7 @@ public:
         current_test_suite_name = "test_aplrclassifier_multi_class";
         // Model
         APLRClassifier model{APLRClassifier()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.05;
         model.bins = 300;
@@ -2932,6 +2974,7 @@ public:
         current_test_suite_name = "test_aplrclassifier_two_class_other_params";
         // Model
         APLRClassifier model{APLRClassifier()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.05;
         model.bins = 300;
@@ -3004,6 +3047,7 @@ public:
         current_test_suite_name = "test_aplrclassifier_two_class_val_index";
         // Model
         APLRClassifier model{APLRClassifier()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.05;
         model.bins = 300;
@@ -3076,6 +3120,7 @@ public:
         current_test_suite_name = "test_aplrclassifier_two_class";
         // Model
         APLRClassifier model{APLRClassifier()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.05;
         model.bins = 300;
@@ -3146,6 +3191,7 @@ public:
         current_test_suite_name = "test_aplrclassifier_two_class_min_obs_float";
         // Model
         APLRClassifier model{APLRClassifier()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.05;
         model.bins = 300;
@@ -3216,6 +3262,7 @@ public:
         current_test_suite_name = "test_aplrclassifier_two_class_validation_ratio";
         // Model
         APLRClassifier model{APLRClassifier()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.05;
         model.bins = 300;
@@ -3287,6 +3334,7 @@ public:
         current_test_suite_name = "test_aplrclassifier_two_class_penalties";
         // Model
         APLRClassifier model{APLRClassifier()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.05;
         model.bins = 300;
@@ -3365,6 +3413,7 @@ public:
         current_test_suite_name = "test_aplrclassifier_two_class_predictor_specific_penalties_and_learning_rates";
         // Model
         APLRClassifier model{APLRClassifier()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.05;
         model.bins = 300;
@@ -3437,6 +3486,7 @@ public:
         current_test_suite_name = "test_aplrclassifier_two_class_max_terms";
         // Model
         APLRClassifier model{APLRClassifier()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.05;
         model.bins = 300;
@@ -3508,6 +3558,7 @@ public:
         current_test_suite_name = "test_aplrclassifier_two_class_predictor_min_observations_in_split";
         // Model
         APLRClassifier model{APLRClassifier()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.05;
         model.bins = 300;
@@ -3573,6 +3624,7 @@ public:
         current_test_suite_name = "test_aplrclassifier_two_class_predictor_min_observations_in_split_float";
         // Model
         APLRClassifier model{APLRClassifier()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.05;
         model.bins = 300;
@@ -3922,6 +3974,7 @@ public:
         current_test_suite_name = "test_aplrclassifier_two_class_ridge";
         // Model
         APLRClassifier model{APLRClassifier()};
+        model.penalty_for_interactions = 0.0;
         model.m = 100;
         model.v = 0.5;
         model.n_jobs = 0;

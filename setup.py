@@ -5,12 +5,16 @@ import pybind11
 extra_compile_args = []
 extra_link_args = []
 if "darwin" in sys.platform:
+    extra_compile_args.append("-O2")
     extra_compile_args.append("-stdlib=libc++")
     extra_compile_args.append("-Xpreprocessor")
     extra_compile_args.append("-std=c++17")
     extra_compile_args.append("-pthread")
     extra_link_args.append("-stdlib=libc++")
+elif "win" in sys.platform:
+    extra_compile_args.append("/O2")
 elif "win" not in sys.platform:
+    extra_compile_args.append("-O2")
     extra_compile_args.append("-std=c++17")
     extra_compile_args.append("-pthread")
 
@@ -25,7 +29,7 @@ sfc_module = setuptools.Extension(
 
 setuptools.setup(
     name="aplr",
-    version="10.24.1",
+    version="10.25.0",
     description="Automatic Piecewise Linear Regression",
     ext_modules=[sfc_module],
     author="Mathias von Ottenbreit",
