@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [10.26.0] - 2026-08-23
+
+### Added
+- **Scikit-learn Estimator Compatibility:** `APLRRegressor` and `APLRClassifier` now follow the essential sklearn estimator contract without requiring `scikit-learn` as a runtime dependency. Their `fit()` methods return `self`, both expose `n_features_in_` after fitting, and the standard estimator metadata is now present for compatibility with common sklearn workflows such as cloning, pipelines, and parameter search.
+- **Scikit-learn Compatibility Test Coverage:** Added a dedicated `test` extra to `setup.py` (`pytest` and `scikit-learn`) and a focused compatibility suite in `tests/test_sklearn_compatibility.py`. The wheel CI test environment runs this compatibility suite when the target supports `scikit-learn` and skips it cleanly otherwise, while normal installs remain lean.
+- **Expanded Unit Test Coverage:** Reworked the C++ tests to use deterministic synthetic data and added broad coverage for preprocessing, losses, links, interactions, constraints, ridge penalties, bin construction, threading, validation, and model APIs. Expanded the Python tests to cover wrapper behavior, callbacks, advanced fit arguments, serialization, plotting, classifier modes, tuner behavior, and error handling.
+
+### Changed
+- **Wheel Test Validation:** Unix wheel builds now compile and run `cpp/tests.cpp` before running the Python test suite. The wheel workflows attempt to install `scikit-learn` on supported targets and skip the compatibility test cleanly when it is unavailable, while also running on every push and weekly on the repository's default branch. Uploaded wheel artifacts are retained for seven days. Windows wheel test jobs remain skipped as configured.
+
 ## [10.25.0] - 2026-08-16
 
 ### Changed

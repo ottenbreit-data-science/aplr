@@ -13,6 +13,7 @@ if "darwin" in sys.platform:
     extra_link_args.append("-stdlib=libc++")
 elif "win" in sys.platform:
     extra_compile_args.append("/O2")
+    extra_compile_args.append("/std:c++17")
 elif "win" not in sys.platform:
     extra_compile_args.append("-O2")
     extra_compile_args.append("-std=c++17")
@@ -29,7 +30,7 @@ sfc_module = setuptools.Extension(
 
 setuptools.setup(
     name="aplr",
-    version="10.25.0",
+    version="10.26.0",
     description="Automatic Piecewise Linear Regression",
     ext_modules=[sfc_module],
     author="Mathias von Ottenbreit",
@@ -38,7 +39,10 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     packages=["aplr"],
     install_requires=["numpy>=1.11", "pandas>=1.0.0"],
-    extras_require={"plots": ["matplotlib>=3.0"]},
+    extras_require={
+        "plots": ["matplotlib>=3.0"],
+        "test": ["pytest", "scikit-learn"],
+    },
     python_requires=">=3.8",
     classifiers=["License :: OSI Approved :: MIT License"],
     license="MIT",

@@ -1,5 +1,9 @@
 name: Build_wheels
-on: [workflow_dispatch]
+on:
+  push:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
 jobs:
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
@@ -14,13 +18,17 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.2.0
         env:
-          CIBW_SKIP: "*musllinux* pp*"
+          CIBW_SKIP: "*musllinux*"
           CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=11.0
           CIBW_TEST_SKIP: "*-win*"
           CIBW_TEST_REQUIRES: pytest
+          # Try to install sklearn when the target supports it; otherwise skip the
+          # sklearn compatibility module cleanly at runtime.
+          CIBW_BEFORE_TEST: python -m pip install scikit-learn || true
           CIBW_TEST_SOURCES: "tests"
-          CIBW_TEST_COMMAND: pytest {project}/tests/tests.py -q
+          CIBW_TEST_COMMAND: c++ -std=c++17 -O2 -pthread {project}/cpp/tests.cpp -o /tmp/aplr_cpp_tests && /tmp/aplr_cpp_tests && pytest {project}/tests/tests.py {project}/tests/test_sklearn_compatibility.py -q
       - uses: actions/upload-artifact@v4
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
+          retention-days: 7

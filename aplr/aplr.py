@@ -4,6 +4,33 @@ import pandas as pd
 import aplr_cpp
 import itertools
 
+try:
+    from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
+except ImportError:
+
+    class BaseEstimator:
+        def __sklearn_tags__(self):
+            return None
+
+    class ClassifierMixin:
+        def __sklearn_tags__(self):
+            return None
+
+        def score(self, X, y, sample_weight=None):
+            raise ImportError(
+                "scikit-learn is required for score() and sklearn estimator compatibility."
+            )
+
+    class RegressorMixin:
+        def __sklearn_tags__(self):
+            return None
+
+        def score(self, X, y, sample_weight=None):
+            raise ImportError(
+                "scikit-learn is required for score() and sklearn estimator compatibility."
+            )
+
+
 FloatVector = np.ndarray
 FloatMatrix = np.ndarray
 IntVector = np.ndarray
@@ -70,7 +97,15 @@ def _build_progress_callback(verbosity: int):
     return _progress_callback
 
 
-class APLRRegressor:
+class APLRRegressor(RegressorMixin, BaseEstimator):
+    _estimator_type = "regressor"
+
+    def __sklearn_tags__(self):
+        method = getattr(super(), "__sklearn_tags__", None)
+        if method is not None:
+            return method()
+        return None
+
     def __init__(
         self,
         m: int = 3000,
@@ -293,6 +328,7 @@ class APLRRegressor:
         predictor_penalties_for_interactions: List[float] = [],
         predictor_min_observations_in_split: List[float] = [],
     ):
+        self.n_features_in_ = X.shape[1]
         self.__set_params_cpp()
         X = _prepare_input_data(X, self.preprocess)
         progress_callback = _build_progress_callback(self.verbosity)
@@ -320,6 +356,7 @@ class APLRRegressor:
             )
         finally:
             self.APLRRegressor.clear_progress_callback()
+        return self
 
     def predict(
         self,
@@ -679,7 +716,15 @@ class APLRRegressor:
         self.__set_params_cpp()
 
 
-class APLRClassifier:
+class APLRClassifier(ClassifierMixin, BaseEstimator):
+    _estimator_type = "classifier"
+
+    def __sklearn_tags__(self):
+        method = getattr(super(), "__sklearn_tags__", None)
+        if method is not None:
+            return method()
+        return None
+
     def __init__(
         self,
         m: int = 3000,
@@ -786,6 +831,7 @@ class APLRClassifier:
         predictor_penalties_for_interactions: List[float] = [],
         predictor_min_observations_in_split: List[float] = [],
     ):
+        self.n_features_in_ = X.shape[1]
         self.__set_params_cpp()
 
         X = _prepare_input_data(X, self.preprocess)
@@ -818,7 +864,9 @@ class APLRClassifier:
         finally:
             self.APLRClassifier.clear_progress_callback()
         # For sklearn
-        self.classes_ = np.arange(len(self.APLRClassifier.get_categories()))
+        categories = self.APLRClassifier.get_categories()
+        self.classes_ = np.asarray(categories, dtype=object)
+        return self
 
     def predict_class_probabilities(
         self,

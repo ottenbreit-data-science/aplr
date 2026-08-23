@@ -1,13 +1,57 @@
 import copy
 import io
+import os
+import pickle
+import subprocess
+import sys
+import tempfile
+import textwrap
 import unittest
 from contextlib import redirect_stdout
 
 import pandas as pd
 import numpy as np
-from aplr import APLRClassifier, APLRRegressor
 from aplr import APLRClassifier, APLRRegressor, APLRTuner
 from aplr.aplr import _dataframe_to_cpp_dataframe
+
+
+class TestOptionalSklearnDependency(unittest.TestCase):
+    def test_estimators_work_without_sklearn_installed(self):
+        script = textwrap.dedent("""
+            import builtins
+
+            real_import = builtins.__import__
+
+            def import_without_sklearn(name, *args, **kwargs):
+                if name == "sklearn" or name.startswith("sklearn."):
+                    raise ModuleNotFoundError("sklearn intentionally blocked")
+                return real_import(name, *args, **kwargs)
+
+            builtins.__import__ = import_without_sklearn
+
+            from aplr import APLRClassifier, APLRRegressor
+
+            regressor = APLRRegressor()
+            classifier = APLRClassifier()
+            assert regressor.__sklearn_tags__() is None
+            assert classifier.__sklearn_tags__() is None
+
+            for estimator in (regressor, classifier):
+                try:
+                    estimator.score(None, None)
+                except ImportError as error:
+                    assert "scikit-learn is required" in str(error)
+                else:
+                    raise AssertionError("score() should require scikit-learn")
+            """)
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
 
 class TestSmoke(unittest.TestCase):
@@ -599,7 +643,269 @@ class TestAPLRPreprocessing(unittest.TestCase):
                 f"Fitting with numeric DataFrame and preprocess=False failed: {e}"
             )
 
+
+class TestAPLRPythonAPI(unittest.TestCase):
+    def setUp(self):
+        self.X = np.column_stack(
+            [np.linspace(-1.0, 1.0, 40), np.tile([-1.0, 0.0, 1.0, 2.0], 10)]
+        )
+        self.columns = ["signal", "level"]
+        self.y = 2.0 + 1.5 * self.X[:, 0] - 0.75 * self.X[:, 1]
+        self.weights = np.linspace(0.5, 1.5, len(self.y))
+        self.X_df = pd.DataFrame(self.X, columns=self.columns)
+        self.labels = np.where(self.y > np.median(self.y), "high", "low")
+
+    def _fit_regressor(self, y=None, fit_kwargs=None, **kwargs):
+        options = {
+            "m": 12,
+            "v": 0.2,
+            "cv_folds": 2,
+            "bins": 6,
+            "random_state": 3,
+            "n_jobs": 1,
+            "preprocess": False,
+        }
+        options.update(kwargs)
+        fit_options = dict(fit_kwargs or {})
+        sample_weight = fit_options.pop("sample_weight", self.weights)
+        return APLRRegressor(**options).fit(
+            self.X,
+            self.y if y is None else y,
+            sample_weight=sample_weight,
+            X_names=self.columns,
+            **fit_options,
+        )
+
+    def _fit_classifier(self, fit_kwargs=None, **kwargs):
+        options = {
+            "m": 12,
+            "v": 0.2,
+            "cv_folds": 2,
+            "bins": 6,
+            "random_state": 3,
+            "n_jobs": 1,
+            "preprocess": False,
+        }
+        options.update(kwargs)
+        return APLRClassifier(**options).fit(
+            self.X,
+            self.labels,
+            sample_weight=self.weights,
+            X_names=self.columns,
+            **(fit_kwargs or {}),
+        )
+
+    def test_regressor_public_outputs_and_shapes(self):
+        model = self._fit_regressor()
+        predictions = model.predict(
+            self.X[:8], cap_predictions_to_minmax_in_training=False
+        )
+        terms = model.calculate_terms(self.X[:8])
+        local_features = model.calculate_local_feature_contribution(self.X[:8])
+        local_terms = model.calculate_local_term_contribution(self.X[:8])
+        selected = model.calculate_local_contribution_from_selected_terms(
+            self.X[:8], [0]
+        )
+        self.assertEqual(predictions.shape, (8,))
+        self.assertEqual(terms.shape[0], 8)
+        self.assertEqual(local_features.shape, (8, 2))
+        self.assertEqual(local_terms.shape, terms.shape)
+        self.assertEqual(selected.shape, (8,))
+        self.assertEqual(model.calculate_feature_importance(self.X[:8]).shape, (2,))
+        self.assertEqual(
+            model.calculate_term_importance(self.X[:8]).shape, (terms.shape[1],)
+        )
+        self.assertEqual(
+            len(model.get_term_names()), len(model.get_term_coefficients())
+        )
+        self.assertEqual(len(model.get_term_affiliations()), terms.shape[1])
+        self.assertEqual(len(model.get_term_main_predictor_indexes()), terms.shape[1])
+        self.assertEqual(len(model.get_term_interaction_levels()), terms.shape[1])
+        self.assertEqual(
+            len(model.get_unique_term_affiliations()),
+            len(model.get_base_predictors_in_each_unique_term_affiliation()),
+        )
+        self.assertTrue(np.isfinite(model.get_intercept()))
+        self.assertGreaterEqual(model.get_optimal_m(), 0)
+        self.assertEqual(model.get_validation_tuning_metric(), "default")
+        self.assertTrue(np.isfinite(model.get_cv_error()))
+        self.assertEqual(model.get_num_cv_folds(), 2)
+        self.assertGreater(len(model.get_validation_error_steps()), 0)
+        shape = model.get_main_effect_shape(0)
+        self.assertIsInstance(shape, dict)
+        model.set_intercept(model.get_intercept() + 1.0)
+        shifted = model.predict(self.X[:8], cap_predictions_to_minmax_in_training=False)
+        np.testing.assert_allclose(shifted - predictions, 1.0)
+
+    def test_regressor_dataframe_and_numpy_outputs_match(self):
+        model = self._fit_regressor()
+        matrix_outputs = (
+            model.predict(self.X[:8]),
+            model.calculate_feature_importance(self.X[:8]),
+            model.calculate_term_importance(self.X[:8]),
+            model.calculate_local_feature_contribution(self.X[:8]),
+            model.calculate_local_term_contribution(self.X[:8]),
+            model.calculate_terms(self.X[:8]),
+        )
+        dataframe_outputs = (
+            model.predict(self.X_df.iloc[:8]),
+            model.calculate_feature_importance(self.X_df.iloc[:8]),
+            model.calculate_term_importance(self.X_df.iloc[:8]),
+            model.calculate_local_feature_contribution(self.X_df.iloc[:8]),
+            model.calculate_local_term_contribution(self.X_df.iloc[:8]),
+            model.calculate_terms(self.X_df.iloc[:8]),
+        )
+        for matrix_output, dataframe_output in zip(matrix_outputs, dataframe_outputs):
+            np.testing.assert_allclose(matrix_output, dataframe_output)
+
+    def test_regressor_parameter_round_trip_for_every_exposed_parameter(self):
+        model = APLRRegressor()
+        values = {
+            "m": 17,
+            "v": 0.13,
+            "random_state": 9,
+            "loss_function": "mae",
+            "link_function": "identity",
+            "n_jobs": 2,
+            "cv_folds": 3,
+            "bins": 11,
+            "max_interaction_level": 2,
+            "max_interactions": 8,
+            "min_observations_in_split": 0.2,
+            "ineligible_boosting_steps_added": 4,
+            "max_eligible_terms": 5,
+            "verbosity": 1,
+            "dispersion_parameter": 1.7,
+            "validation_tuning_metric": "mae",
+            "quantile": 0.7,
+            "boosting_steps_before_interactions_are_allowed": 2,
+            "monotonic_constraints_ignore_interactions": True,
+            "group_mse_by_prediction_bins": 4,
+            "group_mse_cycle_min_obs_in_bin": 3,
+            "early_stopping_rounds": 6,
+            "num_first_steps_with_linear_effects_only": 2,
+            "penalty_for_non_linearity": 0.1,
+            "penalty_for_interactions": 0.2,
+            "max_terms": 7,
+            "ridge_penalty": 0.3,
+            "mean_bias_correction": True,
+            "faster_convergence": True,
+            "preprocess": False,
+            "validation_ratio": 0.25,
+        }
+        self.assertIs(model.set_params(**values), model)
+        parameters = model.get_params()
+        for name, value in values.items():
+            self.assertEqual(parameters[name], value, name)
+            self.assertEqual(getattr(model.APLRRegressor, name), value, name)
+
+    def test_remaining_regression_losses_and_links(self):
+        positive_y = self.y - self.y.min() + 1.0
+        for loss in [
+            "poisson",
+            "gamma",
+            "tweedie",
+            "negative_binomial",
+            "weibull",
+            "exponential_power",
+            "quantile",
+        ]:
+            with self.subTest(loss=loss):
+                model = self._fit_regressor(
+                    y=positive_y,
+                    loss_function=loss,
+                    dispersion_parameter=1.5,
+                    quantile=0.75,
+                )
+                self.assertEqual(model.predict(self.X[:5]).shape, (5,))
+        log_model = self._fit_regressor(y=positive_y, link_function="log")
+        self.assertTrue(np.all(log_model.predict(self.X[:5]) > 0))
+
+    def test_regressor_serial_and_parallel_python_models_match(self):
+        serial = self._fit_regressor(n_jobs=1)
+        parallel = self._fit_regressor(n_jobs=2)
+        np.testing.assert_allclose(
+            serial.predict(self.X[:10]), parallel.predict(self.X[:10])
+        )
+        np.testing.assert_allclose(
+            serial.get_feature_importance(), parallel.get_feature_importance()
+        )
+        self.assertAlmostEqual(serial.get_cv_error(), parallel.get_cv_error())
+
+    def test_classifier_public_outputs_and_parameter_round_trip(self):
+        model = self._fit_classifier()
+        probabilities = model.predict_class_probabilities(self.X[:8])
+        predictions = model.predict(self.X[:8])
+        self.assertEqual(probabilities.shape, (8, 2))
+        np.testing.assert_allclose(probabilities.sum(axis=1), 1.0)
+        self.assertEqual(len(predictions), 8)
+        self.assertEqual(
+            model.calculate_local_feature_contribution(self.X[:8]).shape, (8, 2)
+        )
+        self.assertEqual(model.get_feature_importance().shape, (2,))
+        self.assertEqual(model.get_validation_error_steps().ndim, 2)
+        self.assertTrue(np.isfinite(model.get_cv_error()))
+        self.assertEqual(
+            model.get_logit_model(model.get_categories()[0]).get_num_cv_folds(), 2
+        )
+        self.assertEqual(model.get_params()["n_jobs"], 1)
+        classifier_values = {
+            "m": 15,
+            "v": 0.15,
+            "random_state": 4,
+            "n_jobs": 2,
+            "cv_folds": 3,
+            "bins": 9,
+            "verbosity": 1,
+            "max_interaction_level": 2,
+            "max_interactions": 9,
+            "min_observations_in_split": 0.25,
+            "ineligible_boosting_steps_added": 3,
+            "max_eligible_terms": 4,
+            "boosting_steps_before_interactions_are_allowed": 1,
+            "monotonic_constraints_ignore_interactions": True,
+            "early_stopping_rounds": 5,
+            "num_first_steps_with_linear_effects_only": 1,
+            "penalty_for_non_linearity": 0.1,
+            "penalty_for_interactions": 0.2,
+            "max_terms": 6,
+            "ridge_penalty": 0.2,
+            "preprocess": False,
+            "validation_ratio": 0.25,
+        }
+        model.set_params(**classifier_values)
+        for name, value in classifier_values.items():
+            self.assertEqual(model.get_params()[name], value, name)
+            self.assertEqual(getattr(model.APLRClassifier, name), value, name)
+
+    def test_classifier_dataframe_and_parallel_paths(self):
+        serial = self._fit_classifier(n_jobs=1)
+        parallel = self._fit_classifier(n_jobs=2)
+        np.testing.assert_allclose(
+            serial.predict_class_probabilities(self.X_df.iloc[:8]),
+            parallel.predict_class_probabilities(self.X_df.iloc[:8]),
+        )
+        self.assertEqual(
+            serial.predict(self.X_df.iloc[:8]), parallel.predict(self.X_df.iloc[:8])
+        )
+
+    def test_python_wrapper_rejects_invalid_inputs(self):
+        model = APLRRegressor(preprocess=False)
+        with self.assertRaises(RuntimeError):
+            model.fit(self.X, self.y[:-1])
+        with self.assertRaises(RuntimeError):
+            model.fit(self.X, self.y, sample_weight=-np.ones(len(self.y)))
+        with self.assertRaises(RuntimeError):
+            model.fit(self.X, self.y, X_names=["only_one_name"])
+        with self.assertRaises(RuntimeError):
+            APLRRegressor(loss_function="unknown").fit(self.X, self.y)
+        with self.assertRaises(RuntimeError):
+            APLRClassifier().fit(self.X, np.array(["only"] * len(self.y)))
+
         # 5. Test fitting with a DataFrame containing non-numeric data (should fail)
+        X_train_df_mixed = self.X_df.copy()
+        X_train_df_mixed["category"] = np.where(self.X_df["level"] > 0, "A", "B")
+        y_single = self.y.copy()
         model = APLRRegressor(preprocess=False, random_state=0)
         with self.assertRaisesRegex(
             RuntimeError,
@@ -607,6 +913,352 @@ class TestAPLRPreprocessing(unittest.TestCase):
             "Please ensure all columns are numeric or set preprocess=True.",
         ):
             model.fit(X_train_df_mixed, y_single)
+
+    def test_regressor_advanced_fit_arguments_and_custom_functions(self):
+        callback_calls = []
+
+        def custom_loss(y, predictions, sample_weight, group, other_data):
+            callback_calls.append("loss")
+            return np.mean((y - predictions) ** 2)
+
+        def custom_validation(y, predictions, sample_weight, group, other_data):
+            callback_calls.append("validation")
+            return np.mean((y - predictions) ** 2)
+
+        def custom_gradient(y, predictions, group, other_data):
+            callback_calls.append("gradient")
+            return y - predictions
+
+        def custom_hessian(y, predictions, group, other_data):
+            callback_calls.append("hessian")
+            return np.ones_like(y)
+
+        def custom_transform(linear_predictor):
+            return np.exp(linear_predictor)
+
+        model = self._fit_regressor(
+            loss_function="custom_function",
+            validation_tuning_metric="custom_function",
+            calculate_custom_loss_function=custom_loss,
+            calculate_custom_validation_error_function=custom_validation,
+            calculate_custom_negative_gradient_function=custom_gradient,
+            calculate_custom_hessian_function=custom_hessian,
+            link_function="custom_function",
+            calculate_custom_transform_linear_predictor_to_predictions_function=custom_transform,
+            calculate_custom_differentiate_predictions_wrt_linear_predictor_function=custom_transform,
+            calculate_custom_differentiate2_predictions_wrt_linear_predictor_function=custom_transform,
+        )
+        self.assertTrue(callback_calls)
+        self.assertIn("loss", callback_calls)
+        self.assertIn("gradient", callback_calls)
+        self.assertIn("hessian", callback_calls)
+        self.assertIn("validation", callback_calls)
+        self.assertTrue(np.all(np.isfinite(model.predict(self.X[:5]))))
+        model.remove_provided_custom_functions()
+        self.assertIsNone(model.calculate_custom_loss_function)
+        self.assertIsNone(model.calculate_custom_validation_error_function)
+        self.assertIsNone(model.calculate_custom_negative_gradient_function)
+        self.assertIsNone(model.calculate_custom_hessian_function)
+
+    def test_regressor_advanced_fit_arguments_are_forwarded(self):
+        cv_observations = np.ones((len(self.y), 2), dtype=int)
+        cv_observations[:20, 0] = -1
+        cv_observations[20:, 1] = -1
+        other_data = np.column_stack([self.X[:, 0] ** 2])
+        model = self._fit_regressor(
+            max_interaction_level=2,
+            max_interactions=8,
+            penalty_for_non_linearity=0.1,
+            penalty_for_interactions=0.1,
+            ridge_penalty=0.2,
+            boosting_steps_before_interactions_are_allowed=1,
+            monotonic_constraints_ignore_interactions=True,
+            fit_kwargs={
+                "group": np.arange(len(self.y)) % 2,
+                "interaction_constraints": [[0, 1]],
+                "other_data": other_data,
+                "predictor_learning_rates": [0.2, 0.3],
+                "predictor_penalties_for_non_linearity": [0.01, 0.02],
+                "predictor_penalties_for_interactions": [0.03, 0.04],
+                "predictor_min_observations_in_split": [2, 2],
+                "cv_observations": cv_observations,
+                "prioritized_predictors_indexes": [0],
+                "monotonic_constraints": [1, -1],
+            },
+        )
+        self.assertEqual(model.get_num_cv_folds(), 2)
+        self.assertEqual(model.get_cv_validation_indexes(0).size, 20)
+        self.assertEqual(model.predict(self.X[:5]).shape, (5,))
+
+    def test_regressor_shapes_names_and_affiliation_plot(self):
+        model = self._fit_regressor(max_interaction_level=1)
+        original_names = model.get_term_names()
+        model.set_term_names(["renamed_signal", "renamed_level"])
+        renamed_names = model.get_term_names()
+        self.assertEqual(len(renamed_names), len(original_names))
+        self.assertEqual(renamed_names[0], "Intercept")
+        self.assertTrue(any("renamed_signal" in name for name in renamed_names[1:]))
+        affiliations = model.get_unique_term_affiliations()
+        self.assertTrue(affiliations)
+        shape = model.get_unique_term_affiliation_shape(affiliations[0])
+        self.assertEqual(shape.ndim, 2)
+        self.assertGreater(shape.shape[0], 0)
+        try:
+            missing_shape = model.get_unique_term_affiliation_shape(
+                "missing affiliation"
+            )
+        except RuntimeError:
+            missing_shape = np.empty((0, 0))
+        self.assertEqual(missing_shape.shape, (0, 0))
+        try:
+            missing_main_effect = model.get_main_effect_shape(999)
+        except RuntimeError:
+            missing_main_effect = {}
+        self.assertEqual(missing_main_effect, {})
+
+        try:
+            import matplotlib
+        except ImportError:
+            self.skipTest("matplotlib is not installed")
+        with tempfile.TemporaryDirectory() as directory:
+            output_path = os.path.join(directory, "shape.png")
+            model.plot_affiliation_shape(
+                affiliations[0], plot=False, save=True, path=output_path
+            )
+            self.assertTrue(os.path.exists(output_path))
+        try:
+            model.plot_affiliation_shape("missing affiliation", plot=False)
+        except ValueError:
+            pass
+
+    def test_regressor_pickle_and_selected_term_overloads(self):
+        model = self._fit_regressor()
+        restored = pickle.loads(pickle.dumps(model))
+        np.testing.assert_allclose(
+            model.predict(self.X[:8]), restored.predict(self.X[:8])
+        )
+        for name in (
+            "m",
+            "v",
+            "random_state",
+            "loss_function",
+            "link_function",
+            "cv_folds",
+            "preprocess",
+        ):
+            self.assertEqual(restored.get_params()[name], model.get_params()[name])
+        empty_selection = model.calculate_local_contribution_from_selected_terms(
+            self.X[:8], []
+        )
+        frame_selection = model.calculate_local_contribution_from_selected_terms(
+            self.X_df.iloc[:8], [0]
+        )
+        self.assertEqual(empty_selection.shape, (8,))
+        self.assertEqual(frame_selection.shape, (8,))
+
+    def test_classifier_multiclass_callbacks_and_edge_cases(self):
+        multiclass_labels = np.array(
+            [f"class_{index % 3}" for index in range(len(self.y))]
+        )
+        model = APLRClassifier(
+            m=12, v=0.2, cv_folds=2, bins=6, random_state=3, n_jobs=1, preprocess=False
+        )
+        model.fit(
+            self.X, multiclass_labels, sample_weight=self.weights, X_names=self.columns
+        )
+        probabilities = model.predict_class_probabilities(self.X[:8])
+        self.assertEqual(probabilities.shape, (8, 3))
+        np.testing.assert_allclose(probabilities.sum(axis=1), 1.0)
+        self.assertEqual(len(model.get_categories()), 3)
+        self.assertEqual(
+            len(model.get_base_predictors_in_each_unique_term_affiliation()),
+            len(model.get_unique_term_affiliations()),
+        )
+        with self.assertRaises(RuntimeError):
+            model.get_logit_model("missing category")
+
+        with self.assertRaises(RuntimeError):
+            APLRClassifier(preprocess=False).fit(
+                self.X, np.array(["only"] * len(self.y))
+            )
+        with self.assertRaises(RuntimeError):
+            APLRClassifier(preprocess=False).fit(
+                self.X, self.labels, sample_weight=np.zeros(len(self.y))
+            )
+
+        callback_model = self._fit_classifier(verbosity=1)
+        self.assertEqual(
+            len(
+                callback_model.predict(
+                    self.X[:5], cap_predictions_to_minmax_in_training=True
+                )
+            ),
+            5,
+        )
+        callback_model.clear_cv_results()
+        self.assertEqual(
+            callback_model.get_logit_model(
+                callback_model.get_categories()[0]
+            ).get_num_cv_folds(),
+            0,
+        )
+
+    def test_python_wrapper_input_and_parameter_validation(self):
+        with self.assertRaises(RuntimeError):
+            self._fit_regressor(cv_folds=1)
+        with self.assertRaises(RuntimeError):
+            self._fit_regressor(validation_ratio=0.0)
+        with self.assertRaises(RuntimeError):
+            self._fit_regressor(m=0)
+        with self.assertRaises((RuntimeError, TypeError)):
+            self._fit_regressor(n_jobs=-1)
+        with self.assertRaises(RuntimeError):
+            self._fit_regressor(fit_kwargs={"interaction_constraints": [[0, 99]]})
+        with self.assertRaises(RuntimeError):
+            self._fit_regressor(fit_kwargs={"monotonic_constraints": [1, 1, 1]})
+        with self.assertRaises(RuntimeError):
+            self._fit_regressor(fit_kwargs={"sample_weight": np.ones(len(self.y) - 1)})
+
+        with self.assertRaises(RuntimeError):
+            self._fit_classifier(fit_kwargs={"interaction_constraints": [[0, 99]]})
+
+    def test_unfitted_public_api_guards(self):
+        regressor = APLRRegressor(preprocess=False)
+        classifier = APLRClassifier(preprocess=False)
+        with self.assertRaises(RuntimeError):
+            regressor.predict(self.X)
+        self.assertEqual(regressor.get_term_names(), [])
+        try:
+            classifier_predictions = classifier.predict(self.X)
+        except RuntimeError:
+            classifier_predictions = []
+        self.assertEqual(len(classifier_predictions), 0)
+        try:
+            classifier_probabilities = classifier.predict_class_probabilities(self.X)
+        except RuntimeError:
+            classifier_probabilities = np.empty((0, 0))
+        self.assertEqual(classifier_probabilities.shape, (0, 0))
+        self.assertIsInstance(regressor.get_params(), dict)
+        self.assertIsInstance(classifier.get_params(), dict)
+
+    def test_shape_sampling_and_selected_term_validation(self):
+        model = self._fit_regressor(max_interaction_level=1)
+        affiliation = model.get_unique_term_affiliations()[0]
+        sampled_shape = model.get_unique_term_affiliation_shape(
+            affiliation, max_rows_before_sampling=1, additional_points=3
+        )
+        self.assertEqual(sampled_shape.ndim, 2)
+        self.assertGreater(sampled_shape.shape[0], 0)
+        invalid_selection = model.calculate_local_contribution_from_selected_terms(
+            self.X[:5], [999]
+        )
+        self.assertEqual(invalid_selection.shape, (5,))
+        duplicate_selection = model.calculate_local_contribution_from_selected_terms(
+            self.X[:5], [0, 0]
+        )
+        self.assertEqual(duplicate_selection.shape, (5,))
+
+    def test_classifier_capped_predictions_and_all_cv_cleanup(self):
+        model = self._fit_classifier()
+        uncapped = model.predict_class_probabilities(
+            self.X[:8], cap_predictions_to_minmax_in_training=False
+        )
+        capped = model.predict_class_probabilities(
+            self.X[:8], cap_predictions_to_minmax_in_training=True
+        )
+        self.assertEqual(capped.shape, uncapped.shape)
+        self.assertTrue(np.all(np.isfinite(capped)))
+        for category in model.get_categories():
+            self.assertEqual(
+                model.get_logit_model(category).get_num_cv_folds(), model.cv_folds
+            )
+        model.clear_cv_results()
+        for category in model.get_categories():
+            logit_model = model.get_logit_model(category)
+            self.assertEqual(logit_model.get_num_cv_folds(), 0)
+            with self.assertRaises(RuntimeError):
+                logit_model.get_cv_y(0)
+
+    def test_custom_callback_errors_and_link_execution(self):
+        def raising_transform(values):
+            raise ValueError("transform failure")
+
+        with self.assertRaises(RuntimeError):
+            self._fit_regressor(
+                link_function="custom_function",
+                calculate_custom_transform_linear_predictor_to_predictions_function=raising_transform,
+            )
+
+        def custom_transform(values):
+            return np.exp(values)
+
+        custom_model = self._fit_regressor(
+            link_function="custom_function",
+            calculate_custom_transform_linear_predictor_to_predictions_function=custom_transform,
+            calculate_custom_differentiate_predictions_wrt_linear_predictor_function=custom_transform,
+            calculate_custom_differentiate2_predictions_wrt_linear_predictor_function=custom_transform,
+        )
+        self.assertTrue(np.all(np.isfinite(custom_model.predict(self.X[:3]))))
+        custom_model.remove_provided_custom_functions()
+        self.assertIsNotNone(
+            custom_model.calculate_custom_transform_linear_predictor_to_predictions_function
+        )
+        self.assertIsNotNone(
+            custom_model.calculate_custom_differentiate_predictions_wrt_linear_predictor_function
+        )
+        self.assertIsNotNone(
+            custom_model.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function
+        )
+
+    def test_classifier_pickle_and_legacy_state_defaults(self):
+        model = self._fit_classifier()
+        restored = pickle.loads(pickle.dumps(model))
+        np.testing.assert_allclose(
+            model.predict_class_probabilities(self.X[:8]),
+            restored.predict_class_probabilities(self.X[:8]),
+        )
+        state = model.__dict__.copy()
+        for field in ("ridge_penalty", "preprocess", "validation_ratio"):
+            state.pop(field, None)
+        restored_state = APLRClassifier.__new__(APLRClassifier)
+        restored_state.__setstate__(state)
+        self.assertEqual(restored_state.ridge_penalty, 0.0)
+        self.assertFalse(restored_state.preprocess)
+        self.assertTrue(np.isnan(restored_state.validation_ratio))
+
+    def test_tuner_forwards_fit_kwargs(self):
+        cv_observations = np.ones((len(self.y), 2), dtype=int)
+        cv_observations[:20, 0] = -1
+        cv_observations[20:, 1] = -1
+        tuner = APLRTuner(parameters={"m": [6], "v": [0.1]}, is_regressor=True)
+        tuner.fit(
+            self.X,
+            self.y,
+            sample_weight=self.weights,
+            X_names=self.columns,
+            cv_observations=cv_observations,
+        )
+        self.assertEqual(len(tuner.get_cv_results()), 1)
+        self.assertEqual(tuner.get_best_estimator().get_num_cv_folds(), 2)
+
+
+class TestAPLRTunerValidation(unittest.TestCase):
+    def setUp(self):
+        self.X = pd.DataFrame({"x": np.linspace(0.0, 1.0, 20)})
+        self.y = 1.0 + self.X["x"]
+
+    def test_tuner_requires_fit_before_prediction(self):
+        tuner = APLRTuner(parameters={"m": [5]}, is_regressor=True)
+        with self.assertRaises(AttributeError):
+            tuner.predict(self.X)
+        with self.assertRaises(AttributeError):
+            tuner.get_best_estimator()
+
+    def test_tuner_parameter_grid_and_unknown_parameter(self):
+        tuner = APLRTuner(parameters={"m": [5, 6], "v": [0.1, 0.2]})
+        self.assertEqual(len(tuner.parameter_grid), 4)
+        with self.assertRaises((RuntimeError, TypeError, AttributeError)):
+            APLRTuner(parameters={"not_a_parameter": [1]}).fit(self.X, self.y)
 
 
 class TestAPLRTuner(unittest.TestCase):
