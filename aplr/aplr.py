@@ -184,6 +184,7 @@ class APLRRegressor(RegressorMixin, BaseEstimator):
         calculate_custom_differentiate2_predictions_wrt_linear_predictor_function: Optional[
             Callable[[FloatVector], FloatVector]
         ] = None,
+        time_limit: float = np.nan,
     ):
         self.m = m
         self.v = v
@@ -239,6 +240,7 @@ class APLRRegressor(RegressorMixin, BaseEstimator):
         self.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function = (
             calculate_custom_differentiate2_predictions_wrt_linear_predictor_function
         )
+        self.time_limit = time_limit
 
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
@@ -310,6 +312,7 @@ class APLRRegressor(RegressorMixin, BaseEstimator):
         self.APLRRegressor.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function = (
             self.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function
         )
+        self.APLRRegressor.time_limit = self.time_limit
 
     def fit(
         self,
@@ -682,6 +685,7 @@ class APLRRegressor(RegressorMixin, BaseEstimator):
             "validation_ratio": self.validation_ratio,
             "calculate_custom_hessian_function": self.calculate_custom_hessian_function,
             "calculate_custom_differentiate2_predictions_wrt_linear_predictor_function": self.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function,
+            "time_limit": self.time_limit,
         }
 
     # For sklearn
@@ -712,6 +716,8 @@ class APLRRegressor(RegressorMixin, BaseEstimator):
             state[
                 "calculate_custom_differentiate2_predictions_wrt_linear_predictor_function"
             ] = None
+        if "time_limit" not in state:
+            state["time_limit"] = np.nan
         self.__dict__.update(state)
         self.__set_params_cpp()
 
@@ -749,6 +755,7 @@ class APLRClassifier(ClassifierMixin, BaseEstimator):
         ridge_penalty: float = 0.0001,
         preprocess: bool = True,
         validation_ratio: float = np.nan,
+        time_limit: float = np.nan,
     ):
         self.m = m
         self.v = v
@@ -778,6 +785,7 @@ class APLRClassifier(ClassifierMixin, BaseEstimator):
         self.ridge_penalty = ridge_penalty
         self.preprocess = preprocess
         self.validation_ratio = validation_ratio
+        self.time_limit = time_limit
 
         # Creating aplr_cpp and setting parameters
         self.APLRClassifier = aplr_cpp.APLRClassifier()
@@ -815,6 +823,7 @@ class APLRClassifier(ClassifierMixin, BaseEstimator):
         self.APLRClassifier.ridge_penalty = self.ridge_penalty
         self.APLRClassifier.preprocess = self.preprocess
         self.APLRClassifier.validation_ratio = self.validation_ratio
+        self.APLRClassifier.time_limit = self.time_limit
 
     def fit(
         self,
@@ -925,6 +934,7 @@ class APLRClassifier(ClassifierMixin, BaseEstimator):
             ridge_penalty=self.ridge_penalty,
             preprocess=self.preprocess,
             validation_ratio=self.validation_ratio,
+            time_limit=self.time_limit,
         )
 
         logit_model_py.APLRRegressor = logit_model_cpp
@@ -977,6 +987,7 @@ class APLRClassifier(ClassifierMixin, BaseEstimator):
             "ridge_penalty": self.ridge_penalty,
             "preprocess": self.preprocess,
             "validation_ratio": self.validation_ratio,
+            "time_limit": self.time_limit,
         }
 
     # For sklearn
@@ -998,6 +1009,8 @@ class APLRClassifier(ClassifierMixin, BaseEstimator):
             state["preprocess"] = False
         if "validation_ratio" not in state:
             state["validation_ratio"] = np.nan
+        if "time_limit" not in state:
+            state["time_limit"] = np.nan
         self.__dict__.update(state)
         self.__set_params_cpp()
 

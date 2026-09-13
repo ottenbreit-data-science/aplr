@@ -10,6 +10,9 @@
 #include <set>
 #include <memory>
 #include <functional>
+#include <chrono>
+#include <cmath>
+#include <algorithm>
 #include "../dependencies/eigen-3.4.0/Eigen/Dense"
 #include "functions.h"
 #include "term.h"
@@ -95,6 +98,10 @@ private:
     size_t term_to_update_in_this_boosting_step;
     size_t cores_to_use;
     bool stopped_early;
+    std::chrono::steady_clock::time_point fit_start_time;
+    bool fit_timer_started;
+    std::chrono::steady_clock::time_point cv_fold_deadline;
+    bool cv_fold_has_deadline;
     std::vector<double> ridge_penalty_weights;
     double min_validation_error_for_current_fold;
     bool skip_hessian;
@@ -169,6 +176,11 @@ private:
     void update_a_term_coefficient_round_robin(size_t boosting_step);
     void print_summary_after_boosting_step(size_t boosting_step, Eigen::Index fold_index);
     void abort_boosting_when_no_validation_error_improvement_in_the_last_early_stopping_rounds(size_t boosting_step);
+    void start_fit_timer();
+    void start_fit_timer_if_not_started();
+    void throw_error_if_time_limit_is_invalid();
+    void set_deadline_for_cv_fold(Eigen::Index fold_index, Eigen::Index num_folds);
+    void abort_boosting_when_time_limit_is_reached(size_t boosting_step);
     void print_final_summary();
     void find_optimal_m_and_update_model_accordingly();
     void merge_similar_terms(const MatrixXd &X);
@@ -283,6 +295,7 @@ public:
     Preprocessor preprocessor;
     bool preprocess;
     double validation_ratio;
+    double time_limit;
     std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)> calculate_custom_hessian_function;
     std::function<VectorXd(const VectorXd &linear_predictor)> calculate_custom_differentiate2_predictions_wrt_linear_predictor_function;
 
@@ -306,7 +319,8 @@ public:
                   size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0, double penalty_for_interactions = 0.5, size_t max_terms = 0,
                   double ridge_penalty = 0.0001, bool mean_bias_correction = false, bool faster_convergence = false, bool preprocess = true, double validation_ratio = std::numeric_limits<double>::quiet_NaN(),
                   const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_hessian_function = {},
-                  const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate2_predictions_wrt_linear_predictor_function = {});
+                  const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate2_predictions_wrt_linear_predictor_function = {},
+                  double time_limit = std::numeric_limits<double>::quiet_NaN());
     APLRRegressor(const APLRRegressor &other);
     APLRRegressor &operator=(const APLRRegressor &other);
     ~APLRRegressor();
@@ -402,7 +416,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
                              size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity, double penalty_for_interactions, size_t max_terms, double ridge_penalty,
                              bool mean_bias_correction, bool faster_convergence, bool preprocess, double validation_ratio,
                              const std::function<VectorXd(VectorXd, VectorXd, VectorXi, MatrixXd)> &calculate_custom_hessian_function,
-                             const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate2_predictions_wrt_linear_predictor_function)
+                             const std::function<VectorXd(VectorXd)> &calculate_custom_differentiate2_predictions_wrt_linear_predictor_function,
+                             double time_limit)
     : intercept{NAN_DOUBLE}, m{m}, v{v},
       loss_function{loss_function}, link_function{link_function}, cv_folds{cv_folds}, n_jobs{n_jobs}, random_state{random_state},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
@@ -422,7 +437,8 @@ APLRRegressor::APLRRegressor(size_t m, double v, uint_fast32_t random_state, std
       penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}, ridge_penalty{ridge_penalty}, mean_bias_correction{mean_bias_correction},
       faster_convergence{faster_convergence}, preprocess{preprocess}, validation_ratio{validation_ratio},
       calculate_custom_hessian_function{calculate_custom_hessian_function}, skip_hessian{false},
-      calculate_custom_differentiate2_predictions_wrt_linear_predictor_function{calculate_custom_differentiate2_predictions_wrt_linear_predictor_function}
+      calculate_custom_differentiate2_predictions_wrt_linear_predictor_function{calculate_custom_differentiate2_predictions_wrt_linear_predictor_function},
+      time_limit{time_limit}, fit_timer_started{false}, cv_fold_has_deadline{false}
 {
 }
 
@@ -462,7 +478,7 @@ APLRRegressor::APLRRegressor(const APLRRegressor &other)
       preprocessor{other.preprocessor}, preprocess{other.preprocess}, validation_ratio{other.validation_ratio},
       calculate_custom_hessian_function{other.calculate_custom_hessian_function}, skip_hessian{other.skip_hessian},
       calculate_custom_differentiate2_predictions_wrt_linear_predictor_function{other.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function},
-      progress_callback{other.progress_callback}
+      progress_callback{other.progress_callback}, time_limit{other.time_limit}, fit_timer_started{false}, cv_fold_has_deadline{false}
 {
 }
 
@@ -536,6 +552,7 @@ APLRRegressor &APLRRegressor::operator=(const APLRRegressor &other)
     preprocessor = other.preprocessor;
     preprocess = other.preprocess;
     validation_ratio = other.validation_ratio;
+    time_limit = other.time_limit;
     calculate_custom_hessian_function = other.calculate_custom_hessian_function;
     skip_hessian = other.skip_hessian;
     calculate_custom_differentiate2_predictions_wrt_linear_predictor_function = other.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function;
@@ -558,6 +575,7 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
                         const std::vector<double> &predictor_penalties_for_interactions,
                         const std::vector<double> &predictor_min_observations_in_split)
 {
+    start_fit_timer();
     if (preprocess)
     {
         auto preprocessed_data = preprocessor.fit_transform(X, sample_weight, X_names);
@@ -594,12 +612,14 @@ void APLRRegressor::fit(const MatrixXd &X, const VectorXd &y, const VectorXd &sa
 void APLRRegressor::fit_internal(const MatrixXd &X, const VectorXd &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                  const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints, const VectorXi &group, const std::vector<std::vector<size_t>> &interaction_constraints, const MatrixXd &other_data, const std::vector<double> &predictor_learning_rates, const std::vector<double> &predictor_penalties_for_non_linearity, const std::vector<double> &predictor_penalties_for_interactions, const std::vector<double> &predictor_min_observations_in_split)
 {
+    start_fit_timer_if_not_started();
     throw_error_if_loss_function_does_not_exist();
     throw_error_if_link_function_does_not_exist();
     throw_error_if_dispersion_parameter_is_invalid();
     throw_error_if_quantile_is_invalid();
     throw_error_if_m_is_invalid();
     throw_error_if_validation_tuning_metric_is_invalid();
+    throw_error_if_time_limit_is_invalid();
     validate_input_to_fit(X, y, sample_weight, X_names, cv_observations, prioritized_predictors_indexes, monotonic_constraints, group,
                           interaction_constraints, other_data, predictor_learning_rates, predictor_penalties_for_non_linearity,
                           predictor_penalties_for_interactions, predictor_min_observations_in_split);
@@ -627,9 +647,11 @@ void APLRRegressor::fit_internal(const MatrixXd &X, const VectorXd &y, const Vec
 
     for (Eigen::Index i = 0; i < cv_observations_used.cols(); ++i)
     {
+        set_deadline_for_cv_fold(i, cv_observations_used.cols());
         fit_model_for_cv_fold(X, y, sample_weight_used, X_names, cv_observations_used.col(i), monotonic_constraints, group, other_data, i);
     }
     create_final_model(X, sample_weight_used);
+    fit_timer_started = false;
 }
 
 void APLRRegressor::fit(const CppDataFrame &X_df, const VectorXd &y, const VectorXd &sample_weight,
@@ -640,6 +662,7 @@ void APLRRegressor::fit(const CppDataFrame &X_df, const VectorXd &y, const Vecto
                         const std::vector<double> &predictor_penalties_for_interactions,
                         const std::vector<double> &predictor_min_observations_in_split)
 {
+    start_fit_timer();
     std::pair<MatrixXd, std::vector<std::string>> preprocessed_data = preprocess ? preprocessor.fit_transform(X_df, sample_weight) : X_df.to_matrix();
     MatrixXd X = preprocessed_data.first;
     std::vector<std::string> X_names = preprocessed_data.second;
@@ -1827,6 +1850,7 @@ void APLRRegressor::execute_boosting_steps(Eigen::Index fold_index)
         }
         else if ((last_linear_effects_only_step || last_step_before_interactions) && boosting_step + 1 < m)
             find_optimal_m_and_update_model_accordingly();
+        abort_boosting_when_time_limit_is_reached(boosting_step);
         if (abort_boosting)
             break;
         if (loss_function == "group_mse_cycle")
@@ -2553,6 +2577,50 @@ void APLRRegressor::abort_boosting_when_no_validation_error_improvement_in_the_l
                     emit_progress_message("Aborting boosting because of no validation error improvement in the last " + std::to_string(early_stopping_rounds) + " steps.");
             }
         }
+    }
+}
+
+void APLRRegressor::start_fit_timer()
+{
+    fit_start_time = std::chrono::steady_clock::now();
+    fit_timer_started = true;
+}
+
+void APLRRegressor::start_fit_timer_if_not_started()
+{
+    if (!fit_timer_started)
+        start_fit_timer();
+}
+
+void APLRRegressor::throw_error_if_time_limit_is_invalid()
+{
+    bool time_limit_is_negative{!std::isnan(time_limit) && std::isless(time_limit, 0.0)};
+    if (time_limit_is_negative)
+        throw std::runtime_error("time_limit must be a non-negative number of seconds, or NaN to disable the time limit.");
+}
+
+void APLRRegressor::set_deadline_for_cv_fold(Eigen::Index fold_index, Eigen::Index num_folds)
+{
+    cv_fold_has_deadline = !std::isnan(time_limit);
+    if (!cv_fold_has_deadline)
+        return;
+    std::chrono::steady_clock::time_point now{std::chrono::steady_clock::now()};
+    double seconds_elapsed{std::chrono::duration<double>(now - fit_start_time).count()};
+    double seconds_remaining{std::max(time_limit - seconds_elapsed, 0.0)};
+    double seconds_for_this_fold{seconds_remaining / static_cast<double>(num_folds - fold_index)};
+    cv_fold_deadline = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(seconds_for_this_fold));
+}
+
+void APLRRegressor::abort_boosting_when_time_limit_is_reached(size_t boosting_step)
+{
+    if (abort_boosting || !cv_fold_has_deadline)
+        return;
+    bool time_limit_is_reached{std::chrono::steady_clock::now() >= cv_fold_deadline};
+    if (time_limit_is_reached)
+    {
+        abort_boosting = true;
+        if (verbosity >= 1)
+            emit_progress_message("Aborting boosting after " + std::to_string(boosting_step + 1) + " steps because the time limit was reached.");
     }
 }
 

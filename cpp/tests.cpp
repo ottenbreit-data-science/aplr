@@ -780,6 +780,71 @@ class Tests
         check("thread pool propagates task exceptions", threw);
     }
 
+    void time_limit_behavior()
+    {
+        auto fixture = make_regression_fixture();
+        std::vector<std::string> names{"signal", "level", "flag"};
+        check("regressor time limit defaults to nan", std::isnan(APLRRegressor().time_limit));
+        check("classifier time limit defaults to nan", std::isnan(APLRClassifier().time_limit));
+
+        APLRRegressor unlimited = configured_regressor();
+        unlimited.fit(fixture.train, fixture.response, fixture.weights, names);
+        APLRRegressor generous = configured_regressor();
+        generous.time_limit = 1e6;
+        generous.fit(fixture.train, fixture.response, fixture.weights, names);
+        check("generous time limit leaves the fit unchanged", approximately_equal_matrix(unlimited.predict(fixture.test), generous.predict(fixture.test)));
+
+        APLRRegressor limited = configured_regressor();
+        limited.time_limit = 0.0;
+        limited.fit(fixture.train, fixture.response, fixture.weights, names);
+        check("time limit stops after the first boosting step", limited.get_optimal_m() == 1);
+        check("time limited regressor still predicts", !matrix_has_nan_or_infinite_elements(limited.predict(fixture.test)));
+        APLRRegressor copied = limited;
+        APLRRegressor assigned = configured_regressor();
+        assigned = limited;
+        check("copying preserves the time limit", copied.time_limit == 0.0 && assigned.time_limit == 0.0);
+
+        std::vector<std::string> labels;
+        for (Index row = 0; row < fixture.response.size(); ++row)
+            labels.push_back(fixture.response(row) > fixture.response.mean() ? "high" : "low");
+        APLRClassifier classifier(12, 0.2, 7, 1, 3, 6, 0, 1, 10, 2, 2, 3);
+        classifier.preprocess = false;
+        classifier.time_limit = 0.0;
+        classifier.fit(fixture.train, labels, fixture.weights, names);
+        bool every_logit_model_stopped{true};
+        for (auto &category : classifier.get_categories())
+            every_logit_model_stopped = every_logit_model_stopped && classifier.get_logit_model(category).get_optimal_m() == 1;
+        check("classifier time limit reaches every logit model", every_logit_model_stopped);
+        check("time limited classifier still predicts", !matrix_has_nan_or_infinite_elements(classifier.predict_class_probabilities(fixture.test)));
+
+        APLRRegressor negative = configured_regressor();
+        negative.time_limit = -1.0;
+        bool threw{false};
+        try
+        {
+            negative.fit(fixture.train, fixture.response, fixture.weights, names);
+        }
+        catch (const std::runtime_error &)
+        {
+            threw = true;
+        }
+        check("regressor rejects negative time limit", threw);
+
+        APLRClassifier negative_classifier(12, 0.2, 7, 1, 3, 6, 0, 1, 10, 2, 2, 3);
+        negative_classifier.preprocess = false;
+        negative_classifier.time_limit = -1.0;
+        threw = false;
+        try
+        {
+            negative_classifier.fit(fixture.train, labels, fixture.weights, names);
+        }
+        catch (const std::runtime_error &)
+        {
+            threw = true;
+        }
+        check("classifier rejects negative time limit", threw);
+    }
+
 public:
     int run()
     {
@@ -813,6 +878,8 @@ public:
              { ridge_bins_and_interactions(); });
         test("validation and edge cases", [this]
              { validation_and_edge_cases(); });
+        test("time limit", [this]
+             { time_limit_behavior(); });
         std::cout << "Passed " << passed << " checks; failed " << failed << " checks.\n";
         return failed == 0 ? 0 : 1;
     }
