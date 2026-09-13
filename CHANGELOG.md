@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [10.27.0] - 2026-09-13
 
 ### Added
 - **Wall-clock `time_limit` for fitting:** `APLRRegressor` and `APLRClassifier` accept a new optional `time_limit` constructor parameter (seconds, default `NaN` for no limit). The budget is shared across the cross validation folds and, for the classifier, across the one-vs-rest logit models; time saved by a fold or model that stops early is handed to the remaining ones. Boosting for a fold ends after the step that exhausts its share and the completed steps are used for model selection as before, so a limited fit still returns a valid model. The parameter round-trips through `get_params`, `set_params` and pickling, and older pickles load with the limit disabled.
