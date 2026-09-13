@@ -2,6 +2,9 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <chrono>
+#include <cmath>
+#include <algorithm>
 #include "../dependencies/eigen-3.4.0/Eigen/Dense"
 #include "APLRRegressor.h"
 #include "CppDataFrame.h"
@@ -25,6 +28,12 @@ private:
     void calculate_unique_term_affiliations();
     void throw_error_if_not_fitted();
     void cleanup_after_fit();
+    void start_fit_timer();
+    void start_fit_timer_if_not_started();
+    void throw_error_if_time_limit_is_invalid();
+    double compute_time_limit_for_logit_model(size_t logit_models_left);
+    std::chrono::steady_clock::time_point fit_start_time;
+    bool fit_timer_started;
 
 public:
     size_t m;
@@ -60,13 +69,15 @@ public:
     Preprocessor preprocessor;
     bool preprocess;
     double validation_ratio;
+    double time_limit;
 
     APLRClassifier(size_t m = 3000, double v = 0.5, uint_fast32_t random_state = std::numeric_limits<uint_fast32_t>::lowest(), size_t n_jobs = 0,
                    size_t cv_folds = 5, size_t bins = 300, size_t verbosity = 0, size_t max_interaction_level = 1,
                    size_t max_interactions = 100000, double min_observations_in_split = 0.3, size_t ineligible_boosting_steps_added = 15, size_t max_eligible_terms = 7,
                    size_t boosting_steps_before_interactions_are_allowed = 0, bool monotonic_constraints_ignore_interactions = false,
                    size_t early_stopping_rounds = 200, size_t num_first_steps_with_linear_effects_only = 0, double penalty_for_non_linearity = 0.0,
-                   double penalty_for_interactions = 0.5, size_t max_terms = 0, double ridge_penalty = 0.0001, bool preprocess = true, double validation_ratio = std::numeric_limits<double>::quiet_NaN());
+                   double penalty_for_interactions = 0.5, size_t max_terms = 0, double ridge_penalty = 0.0001, bool preprocess = true, double validation_ratio = std::numeric_limits<double>::quiet_NaN(),
+                   double time_limit = std::numeric_limits<double>::quiet_NaN());
     APLRClassifier(const APLRClassifier &other);
     ~APLRClassifier();
     void fit_internal(const MatrixXd &X, const std::vector<std::string> &y, const VectorXd &sample_weight = VectorXd(0),
@@ -114,7 +125,8 @@ APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, s
                                double min_observations_in_split, size_t ineligible_boosting_steps_added, size_t max_eligible_terms,
                                size_t boosting_steps_before_interactions_are_allowed, bool monotonic_constraints_ignore_interactions,
                                size_t early_stopping_rounds, size_t num_first_steps_with_linear_effects_only, double penalty_for_non_linearity,
-                               double penalty_for_interactions, size_t max_terms, double ridge_penalty, bool preprocess, double validation_ratio)
+                               double penalty_for_interactions, size_t max_terms, double ridge_penalty, bool preprocess, double validation_ratio,
+                               double time_limit)
     : m{m}, v{v}, random_state{random_state}, n_jobs{n_jobs}, cv_folds{cv_folds},
       bins{bins}, verbosity{verbosity}, max_interaction_level{max_interaction_level},
       max_interactions{max_interactions}, min_observations_in_split{min_observations_in_split},
@@ -123,7 +135,7 @@ APLRClassifier::APLRClassifier(size_t m, double v, uint_fast32_t random_state, s
       monotonic_constraints_ignore_interactions{monotonic_constraints_ignore_interactions}, early_stopping_rounds{early_stopping_rounds},
       num_first_steps_with_linear_effects_only{num_first_steps_with_linear_effects_only}, penalty_for_non_linearity{penalty_for_non_linearity},
       penalty_for_interactions{penalty_for_interactions}, max_terms{max_terms}, ridge_penalty{ridge_penalty},
-      preprocess{preprocess}, validation_ratio{validation_ratio}
+      preprocess{preprocess}, validation_ratio{validation_ratio}, time_limit{time_limit}, fit_timer_started{false}
 {
 }
 
@@ -144,12 +156,40 @@ APLRClassifier::APLRClassifier(const APLRClassifier &other)
       unique_term_affiliation_map{other.unique_term_affiliation_map},
       base_predictors_in_each_unique_term_affiliation{other.base_predictors_in_each_unique_term_affiliation},
       ridge_penalty{other.ridge_penalty}, preprocessor{other.preprocessor}, preprocess{other.preprocess},
-      validation_ratio{other.validation_ratio}, progress_callback{other.progress_callback}
+      validation_ratio{other.validation_ratio}, progress_callback{other.progress_callback}, time_limit{other.time_limit}, fit_timer_started{false}
 {
 }
 
 APLRClassifier::~APLRClassifier()
 {
+}
+
+void APLRClassifier::start_fit_timer()
+{
+    fit_start_time = std::chrono::steady_clock::now();
+    fit_timer_started = true;
+}
+
+void APLRClassifier::start_fit_timer_if_not_started()
+{
+    if (!fit_timer_started)
+        start_fit_timer();
+}
+
+void APLRClassifier::throw_error_if_time_limit_is_invalid()
+{
+    bool time_limit_is_negative{!std::isnan(time_limit) && std::isless(time_limit, 0.0)};
+    if (time_limit_is_negative)
+        throw std::runtime_error("time_limit must be a non-negative number of seconds, or NaN to disable the time limit.");
+}
+
+double APLRClassifier::compute_time_limit_for_logit_model(size_t logit_models_left)
+{
+    if (std::isnan(time_limit))
+        return time_limit;
+    double seconds_elapsed{std::chrono::duration<double>(std::chrono::steady_clock::now() - fit_start_time).count()};
+    double seconds_remaining{std::max(time_limit - seconds_elapsed, 0.0)};
+    return seconds_remaining / static_cast<double>(logit_models_left);
 }
 
 void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
@@ -159,6 +199,7 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
                          const std::vector<double> &predictor_penalties_for_interactions,
                          const std::vector<double> &predictor_min_observations_in_split)
 {
+    start_fit_timer();
     if (preprocess)
     {
         auto preprocessed_data = preprocessor.fit_transform(X, sample_weight, X_names);
@@ -176,6 +217,8 @@ void APLRClassifier::fit(const MatrixXd &X, const std::vector<std::string> &y, c
 void APLRClassifier::fit_internal(const MatrixXd &X, const std::vector<std::string> &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names,
                                   const MatrixXi &cv_observations, const std::vector<size_t> &prioritized_predictors_indexes, const std::vector<int> &monotonic_constraints, const std::vector<std::vector<size_t>> &interaction_constraints, const std::vector<double> &predictor_learning_rates, const std::vector<double> &predictor_penalties_for_non_linearity, const std::vector<double> &predictor_penalties_for_interactions, const std::vector<double> &predictor_min_observations_in_split)
 {
+    start_fit_timer_if_not_started();
+    throw_error_if_time_limit_is_invalid();
     initialize();
     find_categories(y);
     create_response_for_each_category(y);
@@ -197,6 +240,7 @@ void APLRClassifier::fit_internal(const MatrixXd &X, const std::vector<std::stri
         logit_models[categories[0]].ridge_penalty = ridge_penalty;
         logit_models[categories[0]].preprocess = false;
         logit_models[categories[0]].validation_ratio = validation_ratio;
+        logit_models[categories[0]].time_limit = compute_time_limit_for_logit_model(1);
         logit_models[categories[0]].set_progress_callback(progress_callback);
         logit_models[categories[0]].fit_internal(X, response_values[categories[0]], sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
                                                  monotonic_constraints, VectorXi(0), interaction_constraints, MatrixXd(0, 0), predictor_learning_rates,
@@ -208,6 +252,7 @@ void APLRClassifier::fit_internal(const MatrixXd &X, const std::vector<std::stri
     }
     else
     {
+        size_t logit_models_fitted{0};
         for (auto &category : categories)
         {
             logit_models[category] = APLRRegressor(m, v, random_state, "binomial", "logit", n_jobs, cv_folds,
@@ -223,17 +268,20 @@ void APLRClassifier::fit_internal(const MatrixXd &X, const std::vector<std::stri
             logit_models[category].ridge_penalty = ridge_penalty;
             logit_models[category].preprocess = false;
             logit_models[category].validation_ratio = validation_ratio;
+            logit_models[category].time_limit = compute_time_limit_for_logit_model(categories.size() - logit_models_fitted);
             logit_models[category].set_progress_callback(progress_callback);
             logit_models[category].fit_internal(X, response_values[category], sample_weight, X_names, cv_observations, prioritized_predictors_indexes,
                                                 monotonic_constraints, VectorXi(0), interaction_constraints, MatrixXd(0, 0), predictor_learning_rates,
                                                 predictor_penalties_for_non_linearity, predictor_penalties_for_interactions,
                                                 predictor_min_observations_in_split);
+            ++logit_models_fitted;
         }
     }
 
     calculate_unique_term_affiliations();
     calculate_validation_metrics();
     cleanup_after_fit();
+    fit_timer_started = false;
 }
 
 void APLRClassifier::fit(const CppDataFrame &X_df, const std::vector<std::string> &y, const VectorXd &sample_weight, const std::vector<std::string> &X_names_ignored,
@@ -243,6 +291,7 @@ void APLRClassifier::fit(const CppDataFrame &X_df, const std::vector<std::string
                          const std::vector<double> &predictor_penalties_for_interactions,
                          const std::vector<double> &predictor_min_observations_in_split)
 {
+    start_fit_timer();
     std::pair<MatrixXd, std::vector<std::string>> preprocessed_data = preprocess ? preprocessor.fit_transform(X_df, sample_weight) : X_df.to_matrix();
     MatrixXd X = preprocessed_data.first;
     std::vector<std::string> X_names = preprocessed_data.second;

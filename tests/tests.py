@@ -792,6 +792,7 @@ class TestAPLRPythonAPI(unittest.TestCase):
             "faster_convergence": True,
             "preprocess": False,
             "validation_ratio": 0.25,
+            "time_limit": 1.5,
         }
         self.assertIs(model.set_params(**values), model)
         parameters = model.get_params()
@@ -872,6 +873,7 @@ class TestAPLRPythonAPI(unittest.TestCase):
             "ridge_penalty": 0.2,
             "preprocess": False,
             "validation_ratio": 0.25,
+            "time_limit": 1.5,
         }
         model.set_params(**classifier_values)
         for name, value in classifier_values.items():
@@ -1218,13 +1220,60 @@ class TestAPLRPythonAPI(unittest.TestCase):
             restored.predict_class_probabilities(self.X[:8]),
         )
         state = model.__dict__.copy()
-        for field in ("ridge_penalty", "preprocess", "validation_ratio"):
+        for field in ("ridge_penalty", "preprocess", "validation_ratio", "time_limit"):
             state.pop(field, None)
         restored_state = APLRClassifier.__new__(APLRClassifier)
         restored_state.__setstate__(state)
         self.assertEqual(restored_state.ridge_penalty, 0.0)
         self.assertFalse(restored_state.preprocess)
         self.assertTrue(np.isnan(restored_state.validation_ratio))
+        self.assertTrue(np.isnan(restored_state.time_limit))
+
+    def test_time_limit_defaults_to_disabled_and_round_trips(self):
+        for estimator_cls, cpp_attribute in (
+            (APLRRegressor, "APLRRegressor"),
+            (APLRClassifier, "APLRClassifier"),
+        ):
+            model = estimator_cls()
+            self.assertTrue(np.isnan(model.time_limit))
+            self.assertTrue(np.isnan(getattr(model, cpp_attribute).time_limit))
+            self.assertTrue(np.isnan(model.get_params()["time_limit"]))
+            model.set_params(time_limit=2.5)
+            self.assertEqual(getattr(model, cpp_attribute).time_limit, 2.5)
+            restored = pickle.loads(pickle.dumps(model))
+            self.assertEqual(restored.get_params()["time_limit"], 2.5)
+            self.assertEqual(getattr(restored, cpp_attribute).time_limit, 2.5)
+
+    def test_regressor_time_limit_stops_boosting_after_the_first_step(self):
+        unlimited = self._fit_regressor()
+        limited = self._fit_regressor(time_limit=0.0)
+        self.assertEqual(limited.get_optimal_m(), 1)
+        self.assertLessEqual(limited.get_optimal_m(), unlimited.get_optimal_m())
+        self.assertTrue(np.all(np.isfinite(limited.predict(self.X[:8]))))
+        restored = pickle.loads(pickle.dumps(limited))
+        np.testing.assert_allclose(limited.predict(self.X[:8]), restored.predict(self.X[:8]))
+        self.assertEqual(restored.get_params()["time_limit"], 0.0)
+
+    def test_regressor_without_time_limit_matches_default_fit(self):
+        default_fit = self._fit_regressor()
+        explicit_nan = self._fit_regressor(time_limit=np.nan)
+        generous = self._fit_regressor(time_limit=1e6)
+        np.testing.assert_allclose(default_fit.predict(self.X[:8]), explicit_nan.predict(self.X[:8]))
+        np.testing.assert_allclose(default_fit.predict(self.X[:8]), generous.predict(self.X[:8]))
+
+    def test_classifier_time_limit_reaches_every_logit_model(self):
+        limited = self._fit_classifier(time_limit=0.0)
+        probabilities = limited.predict_class_probabilities(self.X[:8])
+        self.assertEqual(probabilities.shape, (8, 2))
+        np.testing.assert_allclose(probabilities.sum(axis=1), np.ones(8))
+        for category in limited.get_categories():
+            self.assertEqual(limited.get_logit_model(category).get_optimal_m(), 1)
+
+    def test_negative_time_limit_is_rejected(self):
+        with self.assertRaises(RuntimeError):
+            self._fit_regressor(time_limit=-1.0)
+        with self.assertRaises(RuntimeError):
+            self._fit_classifier(time_limit=-1.0)
 
     def test_tuner_forwards_fit_kwargs(self):
         cv_observations = np.ones((len(self.y), 2), dtype=int)

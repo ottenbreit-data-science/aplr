@@ -1,6 +1,6 @@
 # APLRClassifier
 
-## class aplr.APLRClassifier(m:int = 3000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:float = 0.3, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 200, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.5, max_terms: int = 0, ridge_penalty: float = 0.0001, preprocess:bool = True, validation_ratio:float = np.nan)
+## class aplr.APLRClassifier(m:int = 3000, v:float = 0.5, random_state:int = 0, n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, verbosity:int = 0, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:float = 0.3, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, boosting_steps_before_interactions_are_allowed: int = 0, monotonic_constraints_ignore_interactions: bool = False, early_stopping_rounds: int = 200, num_first_steps_with_linear_effects_only: int = 0, penalty_for_non_linearity: float = 0.0, penalty_for_interactions: float = 0.5, max_terms: int = 0, ridge_penalty: float = 0.0001, preprocess:bool = True, validation_ratio:float = np.nan, time_limit:float = np.nan)
 
 ### Constructor parameters
 
@@ -70,6 +70,8 @@ Controls whether automatic data preprocessing is enabled. If `True`, the model w
 #### validation_ratio (default = NaN)
 The ratio of training observations used for validation. Must be strictly between 0.0 and 1.0. If this is specified then ***cv_folds*** is not used. This can be useful to speed up hyperparameter tuning, training the final model by using ***cv_folds*** instead.
 
+#### time_limit (default = NaN)
+An optional wall-clock budget for ***fit()*** in seconds. When it is set, the budget is split evenly across the cross validation folds (and, for ***APLRClassifier***, across the one-vs-rest logit models), with time left over from a fold or model that finishes early passed on to the ones still to be fitted. Boosting for a fold stops after the boosting step that exhausts its share, and the boosting steps completed up to that point are used to select the model as usual. At least one boosting step is always executed. Preprocessing and prediction are not counted. NaN disables the budget and negative values raise an error.
 
 ## Method: fit(X:Union[pd.DataFrame, FloatMatrix], y:Union[FloatVector, List[str]], sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], interaction_constraints:List[List[int]] = [], predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [], predictor_min_observations_in_split: List[float] = [])
 
