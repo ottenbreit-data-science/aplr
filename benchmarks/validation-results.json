@@ -1,0 +1,48 @@
+{
+  "source_revision": "e6187ab2b6a51d86b6336ba47be9cdbd56864595",
+  "upstream_base": "d94685b64bfc7d94a0cb1a582f71d7751f56af99",
+  "tests": {
+    "python_3_8": {
+      "passed": 97,
+      "skipped": 1
+    },
+    "python_3_12": {
+      "passed": 97,
+      "skipped": 1,
+      "subtests_passed": 17
+    },
+    "native_upstream": {
+      "passed": 172,
+      "failed": 0
+    },
+    "native_performance": "passed",
+    "asan_ubsan": "passed"
+  },
+  "parity_suite": {
+    "cases": 7,
+    "legacy_pickles": 6,
+    "rtol": 1e-10,
+    "atol": 1e-12
+  },
+  "artifacts": {
+    "cp312_wheel": {
+      "filename": "aplr-10.27.0-cp312-cp312-linux_x86_64.whl",
+      "sha256": "d38dc11210b6f30981758c981fcf33406a47df43cd8060a20530fb161de9048d"
+    },
+    "sdist": {
+      "filename": "aplr-10.27.0.tar.gz",
+      "sha256": "b60550d81a86dfde9e258534bbe017a43aab5efa9afdcca628f3c9f39a2590e1"
+    }
+  },
+  "source_archive_verified_files": [
+    "cpp/term.h",
+    "cpp/APLRRegressor.h",
+    "cpp/prefix_split_search.h",
+    "cpp/row_aggregation.h",
+    "tests/test_upstream_parity.py",
+    "tests/fixtures/standard_tweedie_duplicates.json",
+    "tests/fixtures/standard_tweedie_validation_history.json",
+    "benchmarks/benchmark_standard.py",
+    "benchmarks/README.md"
+  ]
+}

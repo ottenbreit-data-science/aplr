@@ -1,6 +1,6 @@
 # APLRRegressor
 
-## class aplr.APLRRegressor(m:int = 3000, v:float = 0.5, random_state:int = 0, loss_function:str = "mse", link_function:str = "identity", n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:float = 0.3, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, verbosity:int = 0, dispersion_parameter:float = 1.5, validation_tuning_metric:str = "default", quantile:float = 0.5, calculate_custom_validation_error_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatVector, FloatMatrix], float]] = None, calculate_custom_loss_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatVector, FloatMatrix], float]] = None, calculate_custom_negative_gradient_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatMatrix],FloatVector]] = None, calculate_custom_transform_linear_predictor_to_predictions_function:Optional[Callable[[FloatVector], FloatVector]] = None, calculate_custom_differentiate_predictions_wrt_linear_predictor_function:Optional[Callable[[FloatVector], FloatVector]] = None, boosting_steps_before_interactions_are_allowed:int = 0, monotonic_constraints_ignore_interactions:bool = False, group_mse_by_prediction_bins:int = 10, group_mse_cycle_min_obs_in_bin:int = 30, early_stopping_rounds:int = 200, num_first_steps_with_linear_effects_only:int = 0, penalty_for_non_linearity:float = 0.0, penalty_for_interactions:float = 0.5, max_terms:int = 0, ridge_penalty: float = 0.0001, mean_bias_correction:bool = False, faster_convergence:bool = False, preprocess:bool = True, validation_ratio:float = np.nan, calculate_custom_hessian_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatMatrix],FloatVector]] = None, calculate_custom_differentiate2_predictions_wrt_linear_predictor_function:Optional[Callable[[FloatVector], FloatVector]] = None, time_limit:float = np.nan)
+## class aplr.APLRRegressor(m:int = 3000, v:float = 0.5, random_state:int = 0, loss_function:str = "mse", link_function:str = "identity", n_jobs:int = 0, cv_folds:int = 5, bins:int = 300, max_interaction_level:int = 1, max_interactions:int = 100000, min_observations_in_split:float = 0.3, ineligible_boosting_steps_added:int = 15, max_eligible_terms:int = 7, verbosity:int = 0, dispersion_parameter:float = 1.5, validation_tuning_metric:str = "default", quantile:float = 0.5, calculate_custom_validation_error_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatVector, FloatMatrix], float]] = None, calculate_custom_loss_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatVector, FloatMatrix], float]] = None, calculate_custom_negative_gradient_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatMatrix],FloatVector]] = None, calculate_custom_transform_linear_predictor_to_predictions_function:Optional[Callable[[FloatVector], FloatVector]] = None, calculate_custom_differentiate_predictions_wrt_linear_predictor_function:Optional[Callable[[FloatVector], FloatVector]] = None, boosting_steps_before_interactions_are_allowed:int = 0, monotonic_constraints_ignore_interactions:bool = False, group_mse_by_prediction_bins:int = 10, group_mse_cycle_min_obs_in_bin:int = 30, early_stopping_rounds:int = 200, num_first_steps_with_linear_effects_only:int = 0, penalty_for_non_linearity:float = 0.0, penalty_for_interactions:float = 0.5, max_terms:int = 0, ridge_penalty: float = 0.0001, mean_bias_correction:bool = False, faster_convergence:bool = False, preprocess:bool = True, validation_ratio:float = np.nan, calculate_custom_hessian_function:Optional[Callable[[FloatVector, FloatVector, FloatVector, FloatMatrix],FloatVector]] = None, calculate_custom_differentiate2_predictions_wrt_linear_predictor_function:Optional[Callable[[FloatVector], FloatVector]] = None, time_limit:float = np.nan, aggregate_identical_rows:bool = False)
 
 ### Constructor parameters
 
@@ -165,6 +165,42 @@ def custom_hessian_function(y, predictions, group, other_data):
 
 #### time_limit (default = NaN)
 An optional wall-clock budget for ***fit()*** in seconds. When it is set, the budget is split evenly across the cross validation folds (and, for ***APLRClassifier***, across the one-vs-rest logit models), with time left over from a fold or model that finishes early passed on to the ones still to be fitted. Boosting for a fold stops after the boosting step that exhausts its share, and the boosting steps completed up to that point are used to select the model as usual. At least one boosting step is always executed. Preprocessing and prediction are not counted. NaN disables the budget and negative values raise an error.
+
+#### aggregate_identical_rows (default = False)
+An optional optimization for exact duplicate feature rows. It is appended after
+`time_limit` in the constructor, preserving existing positional arguments.
+Training rows with identical transformed feature values are combined within
+each cross-validation fold using summed sample weights and weighted targets.
+Validation rows remain unchanged. Original observation counts are retained for
+bin construction and minimum-observation split thresholds.
+Original training data and derivative vectors are retained for final
+coefficient/error scoring and to preserve bin behavior after redundant gates
+are pruned. Aggregation therefore does not guarantee lower peak memory.
+
+This option supports built-in `poisson` with a `log` link and built-in `tweedie`
+with a `log` link and `1 < dispersion_parameter < 2`. It requires
+`validation_tuning_metric="default"` and does not support custom numerical
+callbacks, `group`, or `other_data`. Unsupported configurations raise
+`RuntimeError`. The option is disabled by default; data with few duplicates may
+take longer to fit when it is enabled because grouping itself has a cost.
+
+## Method: get_aggregation_diagnostics()
+
+Returns a list of dictionaries, one for each fitted internal fold, containing
+`fold`, `rows_before`, `rows_after`, and `compression_ratio` (original training
+rows divided by aggregated training rows). Counts include zero-weight rows.
+When aggregation is disabled, fitted folds report unchanged counts; an unfitted
+model or an older pickle without diagnostics returns an empty list. Diagnostics
+and the aggregation option are retained when pickling; compatible older models
+load with aggregation disabled.
+
+```python
+model = APLRRegressor(
+    loss_function="poisson", link_function="log", aggregate_identical_rows=True
+)
+model.fit(X, y, sample_weight=weights)
+print(model.get_aggregation_diagnostics())
+```
 
 ## Method: fit(X:Union[pd.DataFrame, FloatMatrix], y:FloatVector, sample_weight:FloatVector = np.empty(0), X_names:List[str] = [], cv_observations:IntMatrix = np.empty([0, 0]), prioritized_predictors_indexes:List[int] = [], monotonic_constraints:List[int] = [], group:FloatVector = np.empty(0), interaction_constraints:List[List[int]] = [], other_data:FloatMatrix = np.empty([0, 0]), predictor_learning_rates:List[float] = [], predictor_penalties_for_non_linearity:List[float] = [], predictor_penalties_for_interactions:List[float] = [], predictor_min_observations_in_split: List[float] = [])
 

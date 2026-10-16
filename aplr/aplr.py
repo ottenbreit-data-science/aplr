@@ -185,6 +185,7 @@ class APLRRegressor(RegressorMixin, BaseEstimator):
             Callable[[FloatVector], FloatVector]
         ] = None,
         time_limit: float = np.nan,
+        aggregate_identical_rows: bool = False,
     ):
         self.m = m
         self.v = v
@@ -241,6 +242,7 @@ class APLRRegressor(RegressorMixin, BaseEstimator):
             calculate_custom_differentiate2_predictions_wrt_linear_predictor_function
         )
         self.time_limit = time_limit
+        self.aggregate_identical_rows = aggregate_identical_rows
 
         # Creating aplr_cpp and setting parameters
         self.APLRRegressor = aplr_cpp.APLRRegressor()
@@ -313,6 +315,7 @@ class APLRRegressor(RegressorMixin, BaseEstimator):
             self.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function
         )
         self.APLRRegressor.time_limit = self.time_limit
+        self.APLRRegressor.aggregate_identical_rows = self.aggregate_identical_rows
 
     def fit(
         self,
@@ -479,6 +482,29 @@ class APLRRegressor(RegressorMixin, BaseEstimator):
         :return: The number of folds.
         """
         return self.APLRRegressor.get_num_cv_folds()
+
+    def get_aggregation_diagnostics(self) -> List[Dict[str, Union[int, float]]]:
+        """Return training-row counts and compression ratios for each CV fold.
+
+        Aggregation is opt-in and only combines identical training predictors;
+        validation observations remain separate. Each result contains ``fold``
+        (zero-based), ``rows_before``, ``rows_after`` and ``compression_ratio``
+        (rows before divided by rows after). An unfitted model or a model
+        restored from an older pickle has no diagnostics.
+        """
+        before = self.APLRRegressor.cv_training_rows_before_aggregation
+        after = self.APLRRegressor.cv_training_rows_after_aggregation
+        return [
+            {
+                "fold": fold,
+                "rows_before": rows_before,
+                "rows_after": rows_after,
+                "compression_ratio": (
+                    rows_before / rows_after if rows_after else float("nan")
+                ),
+            }
+            for fold, (rows_before, rows_after) in enumerate(zip(before, after))
+        ]
 
     def get_cv_validation_predictions(self, fold_index: int) -> FloatVector:
         """
@@ -686,6 +712,7 @@ class APLRRegressor(RegressorMixin, BaseEstimator):
             "calculate_custom_hessian_function": self.calculate_custom_hessian_function,
             "calculate_custom_differentiate2_predictions_wrt_linear_predictor_function": self.calculate_custom_differentiate2_predictions_wrt_linear_predictor_function,
             "time_limit": self.time_limit,
+            "aggregate_identical_rows": self.aggregate_identical_rows,
         }
 
     # For sklearn
@@ -718,6 +745,8 @@ class APLRRegressor(RegressorMixin, BaseEstimator):
             ] = None
         if "time_limit" not in state:
             state["time_limit"] = np.nan
+        if "aggregate_identical_rows" not in state:
+            state["aggregate_identical_rows"] = False
         self.__dict__.update(state)
         self.__set_params_cpp()
 

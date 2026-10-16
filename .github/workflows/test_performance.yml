@@ -1,0 +1,31 @@
+name: Test standard APLR performance optimizations
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  regression:
+    name: Regression tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.8", "3.12"]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install package and test dependencies
+        run: python -m pip install ".[test]"
+      - name: Run native regression tests
+        run: |
+          c++ -std=c++17 -O2 -pthread cpp/tests.cpp -o /tmp/aplr_cpp_tests
+          /tmp/aplr_cpp_tests
+          c++ -std=c++17 -O2 -pthread cpp/performance_tests.cpp -o /tmp/aplr_performance_tests
+          /tmp/aplr_performance_tests
+      - name: Run Python and scikit-learn regression tests
+        run: python -m pytest tests/tests.py tests/test_sklearn_compatibility.py tests/test_performance.py tests/test_upstream_parity.py -q

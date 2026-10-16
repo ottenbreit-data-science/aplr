@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Optional `aggregate_identical_rows=False` for standard Poisson/log and Tweedie/log regression, with fold-level training-row diagnostics. Aggregation preserves original observation counts and leaves validation rows unchanged.
+- Native split-scoring and aggregation regression coverage, PR checks, and a reproducible synthetic comparison against independently installed upstream APLR.
+
+### Changed
+- Reuse main-effect sorting and bin structures, score hinge candidates with prefix statistics and exact finalist rescoring, and reduce interaction construction and scoring allocations.
+- Fuse Poisson/log gradient and Hessian calculations while retaining the current chain-rule calculation and numerical safeguards.
+
+### Compatibility
+- Existing parameter positions, defaults, package names, compiler optimization flags, callbacks, and fitting time limits are retained. Compatible older pickles load with aggregation disabled.
+
 ## [10.27.0] - 2026-09-13
 
 ### Added

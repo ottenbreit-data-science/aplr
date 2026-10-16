@@ -1,5 +1,7 @@
 recursive-include dependencies/pybind11 *
 recursive-include dependencies/eigen-3.4.0 *
 recursive-include cpp *.h *.cpp
+recursive-include tests *.py *.json
+recursive-include benchmarks *.py *.md
 include LICENSE
 include README.md

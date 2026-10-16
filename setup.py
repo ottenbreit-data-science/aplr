@@ -22,6 +22,7 @@ elif "win" not in sys.platform:
 sfc_module = setuptools.Extension(
     name="aplr_cpp",
     sources=["cpp/pythonbinding.cpp"],
+    depends=[str(header) for header in Path("cpp").glob("*.h")],
     include_dirs=["cpp", "dependencies/eigen-3.4.0", pybind11.get_include()],
     language="c++",
     extra_compile_args=extra_compile_args,

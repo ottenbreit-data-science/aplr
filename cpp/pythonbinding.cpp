@@ -130,7 +130,7 @@ PYBIND11_MODULE(aplr_cpp, m)
                       std::function<VectorXd(const VectorXd &linear_predictor)> &, std::function<VectorXd(const VectorXd &linear_predictor)> &,
                       int &, bool &, int &, int &, int &, int &, double &, double &, int &, double &, bool &, bool &, bool &, double &,
                       std::function<VectorXd(const VectorXd &y, const VectorXd &predictions, const VectorXi &group, const MatrixXd &other_data)> &,
-                      std::function<VectorXd(const VectorXd &linear_predictor)> &, double &>(),
+                      std::function<VectorXd(const VectorXd &linear_predictor)> &, double &, bool &>(),
              py::arg("m") = 3000, py::arg("v") = 0.5, py::arg("random_state") = 0, py::arg("loss_function") = "mse", py::arg("link_function") = "identity",
              py::arg("n_jobs") = 0, py::arg("cv_folds") = 5,
              py::arg("bins") = 300, py::arg("verbosity") = 0,
@@ -153,7 +153,8 @@ PYBIND11_MODULE(aplr_cpp, m)
              py::arg("preprocess") = true, py::arg("validation_ratio") = std::numeric_limits<double>::quiet_NaN(),
              py::arg("calculate_custom_hessian_function") = empty_calculate_custom_hessian_function,
              py::arg("calculate_custom_differentiate2_predictions_wrt_linear_predictor_function") = empty_calculate_custom_differentiate2_predictions_wrt_linear_predictor_function,
-             py::arg("time_limit") = std::numeric_limits<double>::quiet_NaN())
+             py::arg("time_limit") = std::numeric_limits<double>::quiet_NaN(),
+             py::arg("aggregate_identical_rows") = false)
         .def("fit", py::overload_cast<const Eigen::MatrixXd &, const Eigen::VectorXd &, const Eigen::VectorXd &, const std::vector<std::string> &, const Eigen::MatrixXi &, const std::vector<size_t> &, const std::vector<int> &, const Eigen::VectorXi &, const std::vector<std::vector<size_t>> &, const Eigen::MatrixXd &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &, const std::vector<double> &>(&APLRRegressor::fit), py::arg("X"), py::arg("y"), py::arg("sample_weight") = VectorXd(0), py::arg("X_names") = std::vector<std::string>(),
              py::arg("cv_observations") = MatrixXd(0, 0), py::arg("prioritized_predictors_indexes") = std::vector<size_t>(),
              py::arg("monotonic_constraints") = std::vector<int>(), py::arg("group") = VectorXi(0),
@@ -272,6 +273,9 @@ PYBIND11_MODULE(aplr_cpp, m)
         .def_readwrite("preprocess", &APLRRegressor::preprocess)
         .def_readwrite("validation_ratio", &APLRRegressor::validation_ratio)
         .def_readwrite("time_limit", &APLRRegressor::time_limit)
+        .def_readwrite("aggregate_identical_rows", &APLRRegressor::aggregate_identical_rows)
+        .def_readwrite("cv_training_rows_before_aggregation", &APLRRegressor::cv_training_rows_before_aggregation)
+        .def_readwrite("cv_training_rows_after_aggregation", &APLRRegressor::cv_training_rows_after_aggregation)
         .def_readwrite("calculate_custom_hessian_function", &APLRRegressor::calculate_custom_hessian_function)
         .def_readwrite("calculate_custom_differentiate2_predictions_wrt_linear_predictor_function", &APLRRegressor::calculate_custom_differentiate2_predictions_wrt_linear_predictor_function)
         .def(py::pickle(
@@ -292,7 +296,8 @@ PYBIND11_MODULE(aplr_cpp, m)
                                       a.unique_term_affiliation_map, a.base_predictors_in_each_unique_term_affiliation, a.ridge_penalty,
                                       a.mean_bias_correction, a.faster_convergence, a.cv_validation_predictions_all_folds,
                                       a.cv_y_all_folds, a.cv_sample_weight_all_folds, a.cv_validation_indexes_all_folds, a.preprocessor, a.preprocess,
-                                      a.validation_ratio, a.time_limit);
+                                      a.validation_ratio, a.time_limit, a.aggregate_identical_rows,
+                                      a.cv_training_rows_before_aggregation, a.cv_training_rows_after_aggregation);
             },
             [](py::tuple t) { // __setstate__
                 if (t.size() < 48)
@@ -403,6 +408,9 @@ PYBIND11_MODULE(aplr_cpp, m)
                 a.preprocess = preprocess;
                 a.validation_ratio = validation_ratio;
                 a.time_limit = time_limit;
+                a.aggregate_identical_rows = (t.size() > 59) ? t[59].cast<bool>() : false;
+                a.cv_training_rows_before_aggregation = (t.size() > 60) ? t[60].cast<std::vector<size_t>>() : std::vector<size_t>();
+                a.cv_training_rows_after_aggregation = (t.size() > 61) ? t[61].cast<std::vector<size_t>>() : std::vector<size_t>();
 
                 return a;
             }));
